@@ -422,10 +422,11 @@ namespace ClothingStore.Data.Migrations
                     UserId = table.Column<int>(type: "int", nullable: false),
                     CustomerId = table.Column<int>(type: "int", nullable: true),
                     ShiftId = table.Column<int>(type: "int", nullable: true),
-                    RefundMethod = table.Column<int>(type: "int", nullable: false),
                     TotalRefund = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TaxRefund = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LoyaltyPointsRestored = table.Column<int>(type: "int", nullable: false),
+                    LoyaltyPointsRemoved = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -483,6 +484,28 @@ namespace ClothingStore.Data.Migrations
                         name: "FK_SaleLines_Sales_SaleId",
                         column: x => x.SaleId,
                         principalTable: "Sales",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReturnRefunds",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SaleReturnId = table.Column<int>(type: "int", nullable: false),
+                    Source = table.Column<int>(type: "int", nullable: false),
+                    Method = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReturnRefunds", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ReturnRefunds_Returns_SaleReturnId",
+                        column: x => x.SaleReturnId,
+                        principalTable: "Returns",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -605,6 +628,11 @@ namespace ClothingStore.Data.Migrations
                 column: "SaleReturnId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ReturnRefunds_SaleReturnId",
+                table: "ReturnRefunds",
+                column: "SaleReturnId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Returns_CreatedAt",
                 table: "Returns",
                 column: "CreatedAt");
@@ -713,6 +741,9 @@ namespace ClothingStore.Data.Migrations
                 name: "ReturnLines");
 
             migrationBuilder.DropTable(
+                name: "ReturnRefunds");
+
+            migrationBuilder.DropTable(
                 name: "Settings");
 
             migrationBuilder.DropTable(
@@ -722,10 +753,10 @@ namespace ClothingStore.Data.Migrations
                 name: "PurchaseOrders");
 
             migrationBuilder.DropTable(
-                name: "Returns");
+                name: "SaleLines");
 
             migrationBuilder.DropTable(
-                name: "SaleLines");
+                name: "Returns");
 
             migrationBuilder.DropTable(
                 name: "ProductVariants");

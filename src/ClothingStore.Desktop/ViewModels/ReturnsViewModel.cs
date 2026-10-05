@@ -33,7 +33,7 @@ public sealed partial class ReturnLineViewModel(SaleLine line) : ObservableObjec
     }
 }
 
-/// <summary>Refunds or exchanges: look up a receipt, choose items, refund to cash/card/store credit.</summary>
+/// <summary>Refunds or exchanges: look up a receipt, choose items, refund to the original payment or store credit.</summary>
 public sealed partial class ReturnsViewModel(
     IDialogService dialogs, SalesService sales, ReturnService returns, SettingsService settings,
     UserService users, Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
@@ -47,13 +47,14 @@ public sealed partial class ReturnsViewModel(
     public partial string ReceiptNumber { get; set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSale), nameof(CanRefundToCredit), nameof(IsOutsideWindow), nameof(WindowMessage))]
+    [NotifyPropertyChangedFor(nameof(HasSale), nameof(CanRefundToCredit), nameof(IsOutsideWindow), nameof(WindowMessage),
+        nameof(PaidWith), nameof(CanRefundInCash))]
     public partial Sale? Sale { get; set; }
 
     public ObservableCollection<ReturnLineViewModel> Lines { get; } = [];
 
     [ObservableProperty]
-    public partial RefundMethod RefundMethod { get; set; } = RefundMethod.Cash;
+    public partial RefundDestination RefundTo { get; set; } = RefundDestination.OriginalPayment;
 
     [ObservableProperty]
     public partial string? Reason { get; set; }
@@ -63,6 +64,13 @@ public sealed partial class ReturnsViewModel(
 
     public bool HasSale => Sale is not null;
     public bool CanRefundToCredit => Sale?.CustomerId is not null;
+
+    /// <summary>Only offered when part of the sale was paid by card or wallet.</summary>
+    public bool CanRefundInCash => Sale?.Payments.Any(p => p.Method is PaymentMethod.Card or PaymentMethod.MobileWallet) == true;
+
+    public string PaidWith => Sale is null ? "" : "Paid with " + string.Join(", ", Sale.Payments
+        .GroupBy(p => p.Method)
+        .Select(g => $"{Converters.EnumDisplayConverter.Humanize(g.Key.ToString()).ToLowerInvariant()} {Converters.CurrencyFormat.Format(g.Sum(p => p.Amount))}"));
 
     public bool IsOutsideWindow =>
         Sale is not null && settings.Current.ReturnWindowDays > 0 &&
@@ -111,7 +119,7 @@ public sealed partial class ReturnsViewModel(
             vm.PropertyChanged += OnLineChanged;
             Lines.Add(vm);
         }
-        RefundMethod = sale.Payments.Any(p => p.Method == PaymentMethod.Card) ? RefundMethod.Card : RefundMethod.Cash;
+        RefundTo = RefundDestination.OriginalPayment;
         Reason = null;
         UpdateTotal();
     }
@@ -146,26 +154,41 @@ public sealed partial class ReturnsViewModel(
             Dialogs.Warning("Set the quantity to return for at least one item.");
             return;
         }
-        if (RefundMethod == RefundMethod.StoreCredit && !CanRefundToCredit)
+        if (RefundTo == RefundDestination.StoreCredit && !CanRefundToCredit)
         {
-            Dialogs.Warning("Store credit needs a customer on the original sale. Choose cash or card.");
+            Dialogs.Warning("Store credit needs a customer on the original sale. Refund to the original payment instead.");
             return;
         }
-        if (RefundMethod == RefundMethod.Cash && !session.HasOpenShift)
+
+        var lines = selected.Select(l => new ReturnLineRequest(l.Line.Id, l.ReturnQuantity, l.Restock)).ToList();
+        RefundPlan? plan = null;
+        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo)) || plan is null) return;
+
+        if (plan.CashOut > 0 && !session.HasOpenShift)
         {
             Dialogs.Warning("Open a cash drawer shift before giving cash refunds.");
             return;
         }
 
         int? approvedBy = null;
-        if (IsOutsideWindow && !session.Can(Permission.OverrideDiscountLimit))
+        var needsWindowApproval = IsOutsideWindow && !session.Can(Permission.OverrideDiscountLimit);
+        var needsCashApproval = plan.NeedsCashOverride && !session.Can(Permission.OverrideRefundMethod);
+        if (needsWindowApproval || needsCashApproval)
         {
-            var approval = new ManagerApprovalViewModel(Dialogs, users, WindowMessage, Permission.OverrideDiscountLimit);
+            var reasons = new List<string>();
+            if (needsWindowApproval) reasons.Add(WindowMessage);
+            if (needsCashApproval) reasons.Add("Refunding a card or wallet payment in cash needs manager approval.");
+            var approval = new ManagerApprovalViewModel(Dialogs, users, string.Join("\n", reasons),
+                needsCashApproval ? Permission.OverrideRefundMethod : Permission.OverrideDiscountLimit);
             if (!Dialogs.ShowDialog(approval) || approval.ApprovedBy is null) return;
             approvedBy = approval.ApprovedBy.Id;
         }
 
-        if (!Dialogs.Confirm($"Refund {Converters.CurrencyFormat.Format(EstimatedRefund)} to {Converters.EnumDisplayConverter.Humanize(RefundMethod.ToString())}?"))
+        var breakdown = plan.Shares
+            .GroupBy(s => s.Method)
+            .OrderBy(g => g.Key)
+            .Select(g => $"  {Converters.EnumDisplayConverter.Humanize(g.Key.ToString())}: {Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))}");
+        if (!Dialogs.Confirm($"Refund {Converters.CurrencyFormat.Format(plan.Total)}:\n{string.Join("\n", breakdown)}\n\nContinue?"))
             return;
 
         SaleReturn? result = null;
@@ -176,10 +199,10 @@ public sealed partial class ReturnsViewModel(
                 SaleId = sale.Id,
                 UserId = session.User.Id,
                 ShiftId = session.CurrentShift?.Id,
-                RefundMethod = RefundMethod,
+                RefundTo = RefundTo,
                 Reason = Reason,
                 ApprovedByUserId = approvedBy,
-                Lines = selected.Select(l => new ReturnLineRequest(l.Line.Id, l.ReturnQuantity, l.Restock)).ToList(),
+                Lines = lines,
             });
         });
         if (!ok || result is null) return;
@@ -188,7 +211,7 @@ public sealed partial class ReturnsViewModel(
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, $"Refund {result.ReturnNumber}",
             ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth)));
 
-        if (RefundMethod == RefundMethod.StoreCredit)
+        if (result.Refunds.Any(r => r.Method == RefundMethod.StoreCredit))
             Dialogs.Info("Store credit added. For an exchange, ring up the new items on the Register and pay with store credit.");
 
         await FindAsync(); // refresh remaining returnable quantities

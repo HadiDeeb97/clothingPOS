@@ -54,7 +54,7 @@ public class QuerySmokeTests
 
         await db.Returns.ProcessReturnAsync(new ReturnRequest
         {
-            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, RefundMethod = RefundMethod.StoreCredit,
+            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, RefundTo = RefundDestination.StoreCredit,
             Lines = [new ReturnLineRequest(sale.Lines[0].Id, 1)],
         });
         var returns = await db.Returns.SearchAsync(today, tomorrow);

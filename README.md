@@ -9,7 +9,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | --- | --- |
 | **Register** | Scan barcodes or search by name/SKU/colour/size; size & colour variants; quantity +/-; line and cart discounts (% or amount); cashier discount limit with manager override; hold & resume sales (fitting room); keyboard shortcuts (F2 search, F4 customer, F6 qty, F7/F8 discounts, F9/F10 hold/resume, F12 pay) |
 | **Payments** | Split tender across cash, card, mobile wallet, store credit and loyalty points; quick-cash buttons; change calculation; printable receipts (auto-fits 58/80 mm thermal or A4) |
-| **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refund to cash, card or store credit; return window with manager override; refunds reconcile to the cent |
+| **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
 | **Products** | Style + size × colour matrix with presets (XS–XXL, waist, shoe, kids…); auto SKU and in-store EAN-13 barcodes; per-variant price/cost overrides; brand, season, material, department |
 | **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger; Code 128 price labels (sheet or label printer) |
@@ -101,7 +101,8 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 
 1. **Cash Drawer**: open a shift with your starting float.
 2. **Register**: scan items, add the customer (F4), then **Pay** (F12). Print or skip the receipt.
-3. **Returns**: scan the receipt number. For an exchange, refund to store credit, then sell the new item and pay with store credit.
+3. **Returns**: scan the receipt number. The refund goes back to the original payment method. For an exchange, refund to
+   store credit, then sell the new item and pay with store credit.
 4. **Cash Drawer**: at closing time, count the drawer, close the shift and print the Z report.
 5. **Settings**: run **Back up now** regularly. SQL Server writes the backup on its own PC, to the folder set in Settings
    (or the server's default backup folder). Use a cloud-synced or network folder so a copy survives if that PC fails.

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClothingStore.Data.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    [Migration("20261005215000_InitialCreate")]
+    [Migration("20261005215554_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -536,6 +536,7 @@ namespace ClothingStore.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("ReturnedQuantity")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<int>("SaleId")
@@ -584,11 +585,14 @@ namespace ClothingStore.Data.Migrations
                     b.Property<int?>("CustomerId")
                         .HasColumnType("int");
 
+                    b.Property<int>("LoyaltyPointsRemoved")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LoyaltyPointsRestored")
+                        .HasColumnType("int");
+
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RefundMethod")
-                        .HasColumnType("int");
 
                     b.Property<string>("ReturnNumber")
                         .IsRequired()
@@ -663,6 +667,34 @@ namespace ClothingStore.Data.Migrations
                     b.HasIndex("SaleReturnId");
 
                     b.ToTable("ReturnLines");
+                });
+
+            modelBuilder.Entity("ClothingStore.Core.Entities.SaleReturnRefund", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SaleReturnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SaleReturnId");
+
+                    b.ToTable("ReturnRefunds");
                 });
 
             modelBuilder.Entity("ClothingStore.Core.Entities.Shift", b =>
@@ -1076,6 +1108,17 @@ namespace ClothingStore.Data.Migrations
                     b.Navigation("SaleReturn");
                 });
 
+            modelBuilder.Entity("ClothingStore.Core.Entities.SaleReturnRefund", b =>
+                {
+                    b.HasOne("ClothingStore.Core.Entities.SaleReturn", "SaleReturn")
+                        .WithMany("Refunds")
+                        .HasForeignKey("SaleReturnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SaleReturn");
+                });
+
             modelBuilder.Entity("ClothingStore.Core.Entities.Shift", b =>
                 {
                     b.HasOne("ClothingStore.Core.Entities.User", "User")
@@ -1130,6 +1173,8 @@ namespace ClothingStore.Data.Migrations
             modelBuilder.Entity("ClothingStore.Core.Entities.SaleReturn", b =>
                 {
                     b.Navigation("Lines");
+
+                    b.Navigation("Refunds");
                 });
 
             modelBuilder.Entity("ClothingStore.Core.Entities.Shift", b =>

@@ -13,6 +13,9 @@ public enum Permission
     VoidSales,
     AdjustStoreCredit,
     OverrideDiscountLimit,
+
+    /// <summary>Refund card or wallet payments in cash.</summary>
+    OverrideRefundMethod,
     ManageUsers,
     ManageSettings,
     ViewAllShifts,
@@ -38,6 +41,7 @@ public static class Permissions
         Permission.VoidSales,
         Permission.AdjustStoreCredit,
         Permission.OverrideDiscountLimit,
+        Permission.OverrideRefundMethod,
         Permission.ViewAllShifts,
     ];
 

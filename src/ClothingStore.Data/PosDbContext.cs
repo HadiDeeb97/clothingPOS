@@ -16,6 +16,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<SaleReturn> Returns => Set<SaleReturn>();
     public DbSet<SaleReturnLine> ReturnLines => Set<SaleReturnLine>();
+    public DbSet<SaleReturnRefund> ReturnRefunds => Set<SaleReturnRefund>();
     public DbSet<HeldSale> HeldSales => Set<HeldSale>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
@@ -109,6 +110,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         b.Entity<SaleLine>(e =>
         {
             e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
+            // Two tills returning the same item at once: the second save fails instead of refunding it twice.
+            e.Property(x => x.ReturnedQuantity).IsConcurrencyToken();
             e.Ignore(x => x.ReturnableQuantity);
         });
 
@@ -121,6 +124,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Lines).WithOne(l => l.SaleReturn).HasForeignKey(l => l.SaleReturnId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Refunds).WithOne(r => r.SaleReturn).HasForeignKey(r => r.SaleReturnId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<SaleReturnLine>(e =>
