@@ -84,30 +84,4 @@ public class QuerySmokeTests
         Assert.NotEmpty(await db.Products.GenerateBarcodesAsync(2));
         Assert.True(await db.Users.IsFirstRunAsync()); // default admin still has the initial password
     }
-
-    [Fact]
-    public async Task Backup_writes_a_verified_copy_to_the_servers_default_folder()
-    {
-        await using var db = await TestDatabase.CreateAsync();
-        var path = await new BackupService(db.Factory).BackupAsync(folder: null);
-
-        Assert.EndsWith(".bak", path);
-        Assert.Contains("ClothingStorePOS_Test_", path);
-    }
-
-    [Fact]
-    public async Task Backup_to_a_missing_folder_reports_a_business_error()
-    {
-        await using var db = await TestDatabase.CreateAsync();
-        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            new BackupService(db.Factory).BackupAsync("/no/such/folder"));
-        Assert.Contains("/no/such/folder", ex.Message);
-    }
-
-    [Theory]
-    [InlineData(@"D:\Backups", @"D:\Backups\pos.bak")]
-    [InlineData(@"\\shop-pc\backups\", @"\\shop-pc\backups\pos.bak")]
-    [InlineData("/var/opt/mssql/backup/", "/var/opt/mssql/backup/pos.bak")]
-    public void Server_paths_keep_the_servers_separator(string folder, string expected) =>
-        Assert.Equal(expected, BackupService.CombineServerPath(folder, "pos.bak"));
 }

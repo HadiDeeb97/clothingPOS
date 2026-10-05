@@ -12,6 +12,25 @@ namespace ClothingStore.Data.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "BackupRecords",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Kind = table.Column<int>(type: "int", nullable: false),
+                    FilePath = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Succeeded = table.Column<bool>(type: "bit", nullable: false),
+                    Error = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BackupRecords", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Categories",
                 columns: table => new
                 {
@@ -88,7 +107,9 @@ namespace ClothingStore.Data.Migrations
                     ReturnWindowDays = table.Column<int>(type: "int", nullable: false),
                     ReceiptPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     AllowNegativeStock = table.Column<bool>(type: "bit", nullable: false),
-                    BackupFolder = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    BackupFolder = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AutoBackupEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    AutoBackupIntervalHours = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -541,6 +562,11 @@ namespace ClothingStore.Data.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_BackupRecords_StartedAt",
+                table: "BackupRecords",
+                column: "StartedAt");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CashMovements_ShiftId",
                 table: "CashMovements",
                 column: "ShiftId");
@@ -725,6 +751,9 @@ namespace ClothingStore.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "BackupRecords");
+
             migrationBuilder.DropTable(
                 name: "CashMovements");
 

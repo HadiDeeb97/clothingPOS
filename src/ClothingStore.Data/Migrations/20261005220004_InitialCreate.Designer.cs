@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClothingStore.Data.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    [Migration("20261005215554_InitialCreate")]
+    [Migration("20261005220004_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -24,6 +24,44 @@ namespace ClothingStore.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("ClothingStore.Core.Entities.BackupRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("BackupRecords");
+                });
 
             modelBuilder.Entity("ClothingStore.Core.Entities.CashMovement", b =>
                 {
@@ -793,6 +831,12 @@ namespace ClothingStore.Data.Migrations
 
                     b.Property<bool>("AllowNegativeStock")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("AutoBackupEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("AutoBackupIntervalHours")
+                        .HasColumnType("int");
 
                     b.Property<string>("BackupFolder")
                         .HasColumnType("nvarchar(max)");

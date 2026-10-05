@@ -72,6 +72,7 @@ public partial class App : Application
             var settings = Services.GetRequiredService<SettingsService>();
             CurrencyFormat.Symbol = (await settings.GetAsync()).CurrencySymbol;
             settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
+            await _host.StartAsync(); // starts the automatic backup worker
         }
         catch (Exception ex)
         {
@@ -92,6 +93,7 @@ public partial class App : Application
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
         services.AddSingleton<PrintService>();
+        services.AddHostedService<AutoBackupWorker>();
 
         services.AddTransient<LoginViewModel>();
         services.AddTransient<MainViewModel>();

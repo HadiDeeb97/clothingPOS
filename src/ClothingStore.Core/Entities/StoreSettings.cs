@@ -37,4 +37,9 @@ public class StoreSettings : Entity
 
     /// <summary>Folder on the SQL Server machine for backups; empty = the server's default backup folder.</summary>
     public string? BackupFolder { get; set; }
+
+    /// <summary>Back up when a shift closes and whenever the last backup is older than <see cref="AutoBackupIntervalHours"/>.</summary>
+    public bool AutoBackupEnabled { get; set; } = true;
+
+    public int AutoBackupIntervalHours { get; set; } = 24;
 }

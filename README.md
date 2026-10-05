@@ -17,7 +17,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
-| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; online database backup |
+| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
 
 ## Solution layout
 
@@ -104,9 +104,21 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 3. **Returns**: scan the receipt number. The refund goes back to the original payment method. For an exchange, refund to
    store credit, then sell the new item and pay with store credit.
 4. **Cash Drawer**: at closing time, count the drawer, close the shift and print the Z report.
-5. **Settings**: run **Back up now** regularly. SQL Server writes the backup on its own PC, to the folder set in Settings
-   (or the server's default backup folder). Use a cloud-synced or network folder so a copy survives if that PC fails.
-   To restore, use **Restore Database** in SQL Server Management Studio.
+5. **Backups** happen automatically: after every shift close, and whenever the last backup is older than the interval set in
+   **Settings** (24 hours by default). See below.
+
+### Backups
+
+* SQL Server writes each backup on its own PC, into the folder set in **Settings** (empty = the server's default backup
+  folder). The SQL Server service account must be able to write there. Point it at a cloud-synced or network folder so a
+  copy survives if that PC fails.
+* Automatic backups reuse one file per weekday (`ClothingStorePOS_auto_Mon.bak` ... `_Sun.bak`), so the last seven days are
+  kept. **Back up now** writes a separate timestamped file that is never overwritten.
+* Every backup is a full, copy-only backup with checksums, verified straight after it is written. Every till checks whether
+  a backup is due, but a lock on the server makes sure only one backs up at a time. After a failure, the next automatic
+  attempt waits an hour.
+* **Settings** lists recent backups and any errors. If the backup after closing a shift fails, the cashier is told.
+* To restore, close the app on every till and use **Restore Database** in SQL Server Management Studio.
 
 ## Hardware
 

@@ -93,11 +93,43 @@
                         <TextBox Text="{Binding DatabaseName, Mode=OneWay}" IsReadOnly="True" />
                         <TextBlock Text="Backup folder on the SQL Server PC (empty = server default)" Style="{StaticResource FieldLabel}" />
                         <TextBox Text="{Binding Settings.BackupFolder}" />
+                        <CheckBox Content="Back up automatically (and after each shift closes)" IsChecked="{Binding Settings.AutoBackupEnabled}" Margin="0,12,0,0" />
+                        <DockPanel Margin="0,4,0,0" IsEnabled="{Binding Settings.AutoBackupEnabled}">
+                            <TextBlock Text="Every" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Text="{Binding Settings.AutoBackupIntervalHours}" Width="60" />
+                            <TextBlock Text="hours" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </DockPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                             <Button Content="Back up now" Style="{StaticResource PrimaryButton}" Command="{Binding BackupCommand}" />
                         </StackPanel>
-                        <TextBlock Text="SQL Server writes backups on its own PC, so the folder must be writable by the SQL Server service. Use a cloud-synced or network folder so a copy survives if that PC fails. Backups are safe to take while tills are selling."
+                        <TextBlock Text="SQL Server writes backups on its own PC, so the folder must be writable by the SQL Server service. Use a cloud-synced or network folder so a copy survives if that PC fails. Automatic backups keep one file per weekday (the last 7 days). Backups are safe to take while tills are selling."
                                    Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />
+                        <TextBlock Text="Recent backups" Style="{StaticResource FieldLabel}" Margin="0,12,0,4" />
+                        <TextBlock Text="No backups yet." Style="{StaticResource MutedText}" FontSize="11"
+                                   Visibility="{Binding HasNoBackups, Converter={StaticResource BoolToVis}}" />
+                        <ItemsControl ItemsSource="{Binding Backups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,6">
+                                        <TextBlock FontSize="12">
+                                            <Run Text="{Binding StartedAt, StringFormat={}{0:dd MMM yyyy HH:mm}, Mode=OneWay}" />
+                                            <Run Text="·" />
+                                            <Run Text="{Binding Kind, Converter={StaticResource EnumDisplay}, Mode=OneWay}" />
+                                            <Run Text="·" />
+                                            <Run x:Name="Status" Text="OK" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" />
+                                        </TextBlock>
+                                        <TextBlock x:Name="Detail" Text="{Binding FilePath}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Succeeded}" Value="False">
+                                            <Setter TargetName="Status" Property="Text" Value="FAILED" />
+                                            <Setter TargetName="Status" Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                            <Setter TargetName="Detail" Property="Text" Value="{Binding Error}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
             </WrapPanel>

@@ -1,4 +1,3 @@
-using System.IO;
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Data.Services;
@@ -98,7 +97,7 @@ public sealed partial class UserEditorViewModel : DialogViewModelBase
     private void Cancel() => Close(false);
 }
 
-public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup)
+public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session)
     : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => "Settings";
@@ -107,10 +106,20 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial StoreSettings Settings { get; set; } = new();
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoBackups))]
+    public partial List<BackupRecord> Backups { get; set; } = [];
+
+    public bool HasNoBackups => Backups.Count == 0;
+
     public async Task OnNavigatedToAsync() => await ReloadAsync();
 
     [RelayCommand]
-    private Task ReloadAsync() => RunAsync(async () => Settings = await settings.GetAsync());
+    private Task ReloadAsync() => RunAsync(async () =>
+    {
+        Settings = await settings.GetAsync();
+        Backups = await backup.GetRecentAsync();
+    });
 
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
@@ -123,9 +132,11 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [RelayCommand]
     private async Task BackupAsync()
     {
-        string? path = null;
-        if (await RunAsync(async () => path = await backup.BackupAsync(settings.Current.BackupFolder)))
-            Dialogs.Info($"Backup written and verified on the database server:\n{path}\n\n" +
+        BackupRecord? record = null;
+        var ok = await RunAsync(async () => record = await backup.BackupAsync(BackupKind.Manual, session.User.Id));
+        Backups = await backup.GetRecentAsync(); // shows failures too
+        if (ok)
+            Dialogs.Info($"Backup written and verified on the database server:\n{record!.FilePath}\n\n" +
                          "To restore it, use Restore Database in SQL Server Management Studio.");
     }
 }

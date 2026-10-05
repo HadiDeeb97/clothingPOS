@@ -90,6 +90,13 @@ public enum ShiftStatus
     Closed = 1,
 }
 
+public enum BackupKind
+{
+    Manual = 0,
+    Scheduled = 1,
+    ShiftClose = 2,
+}
+
 public enum CashMovementType
 {
     PayIn = 0,

@@ -31,6 +31,8 @@ public class SettingsService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException("Receipt prefix must be 1-5 characters.");
         settings.ReceiptWidth = Math.Clamp(settings.ReceiptWidth, 24, 80);
         settings.BackupFolder = QueryHelpers.Clean(settings.BackupFolder);
+        if (settings.AutoBackupIntervalHours is < 1 or > 168)
+            throw new BusinessRuleException("Automatic backups must run every 1 to 168 hours.");
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var existing = await db.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync(ct);

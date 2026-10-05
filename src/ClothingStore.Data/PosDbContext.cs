@@ -24,6 +24,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<StoreSettings> Settings => Set<StoreSettings>();
+    public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -163,6 +164,13 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         });
 
         b.Entity<HeldSale>(e => e.Property(x => x.Label).HasMaxLength(100));
+
+        b.Entity<BackupRecord>(e =>
+        {
+            e.HasIndex(x => x.StartedAt);
+            e.Property(x => x.FilePath).HasMaxLength(500);
+            e.Property(x => x.Error).HasMaxLength(2000);
+        });
 
         b.Entity<StoreSettings>(e =>
         {
