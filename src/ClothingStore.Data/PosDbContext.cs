@@ -24,24 +24,36 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<StoreSettings> Settings => Set<StoreSettings>();
 
+    /// <summary>
+    /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
+    /// database was created with a case-sensitive default collation.
+    /// </summary>
+    private const string CaseInsensitive = "Latin1_General_100_CI_AS";
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Money (prices, costs, totals, balances) is stored to the cent; rates override this below.
+        configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<User>(e =>
         {
-            e.Property(x => x.Username).HasMaxLength(50).UseCollation("NOCASE").IsRequired();
+            e.Property(x => x.Username).HasMaxLength(50).UseCollation(CaseInsensitive).IsRequired();
             e.HasIndex(x => x.Username).IsUnique();
             e.Property(x => x.FullName).HasMaxLength(100).IsRequired();
         });
 
         b.Entity<Category>(e =>
         {
-            e.Property(x => x.Name).HasMaxLength(100).UseCollation("NOCASE").IsRequired();
+            e.Property(x => x.Name).HasMaxLength(100).UseCollation(CaseInsensitive).IsRequired();
             e.HasIndex(x => x.Name).IsUnique();
         });
 
         b.Entity<Supplier>(e =>
         {
-            e.Property(x => x.Name).HasMaxLength(150).UseCollation("NOCASE").IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).UseCollation(CaseInsensitive).IsRequired();
             e.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -56,10 +68,10 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
 
         b.Entity<ProductVariant>(e =>
         {
-            e.Property(x => x.Sku).HasMaxLength(64).UseCollation("NOCASE").IsRequired();
+            e.Property(x => x.Sku).HasMaxLength(64).UseCollation(CaseInsensitive).IsRequired();
             e.HasIndex(x => x.Sku).IsUnique();
             e.Property(x => x.Barcode).HasMaxLength(64);
-            e.HasIndex(x => x.Barcode).IsUnique().HasFilter("Barcode IS NOT NULL");
+            e.HasIndex(x => x.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
             e.Property(x => x.Size).HasMaxLength(20);
             e.Property(x => x.Color).HasMaxLength(40);
             e.Property(x => x.Version).IsConcurrencyToken();
@@ -75,7 +87,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
             e.Property(x => x.LastName).HasMaxLength(100);
             e.Property(x => x.Phone).HasMaxLength(30);
-            e.HasIndex(x => x.Phone).IsUnique().HasFilter("Phone IS NOT NULL");
+            e.HasIndex(x => x.Phone).IsUnique().HasFilter("[Phone] IS NOT NULL");
             e.Property(x => x.Email).HasMaxLength(150);
             e.Property(x => x.Version).IsConcurrencyToken();
             e.Ignore(x => x.FullName);
@@ -147,6 +159,14 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         });
 
         b.Entity<HeldSale>(e => e.Property(x => x.Label).HasMaxLength(100));
+
+        b.Entity<StoreSettings>(e =>
+        {
+            e.Property(x => x.TaxRate).HasPrecision(9, 4);
+            e.Property(x => x.MaxCashierDiscountPercent).HasPrecision(9, 4);
+            e.Property(x => x.LoyaltyPointsPerUnit).HasPrecision(18, 4);
+            e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
+        });
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

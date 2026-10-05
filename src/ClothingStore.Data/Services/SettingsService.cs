@@ -30,6 +30,7 @@ public class SettingsService(IDbContextFactory<PosDbContext> factory)
         if (string.IsNullOrWhiteSpace(settings.ReceiptPrefix) || settings.ReceiptPrefix.Length > 5)
             throw new BusinessRuleException("Receipt prefix must be 1-5 characters.");
         settings.ReceiptWidth = Math.Clamp(settings.ReceiptWidth, 24, 80);
+        settings.BackupFolder = QueryHelpers.Clean(settings.BackupFolder);
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var existing = await db.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync(ct);

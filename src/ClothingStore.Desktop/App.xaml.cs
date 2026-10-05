@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using ClothingStore.Data;
@@ -10,7 +9,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using ClothingStore.Desktop.Views;
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,7 +23,8 @@ public partial class App : Application
     private bool _signingOut;
 
     public static IServiceProvider Services { get; private set; } = null!;
-    public static string DatabasePath { get; private set; } = "";
+    /// <summary>Server and database name, for display (never includes credentials).</summary>
+    public static string DatabaseName { get; private set; } = "";
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -39,12 +39,28 @@ public partial class App : Application
         });
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
-        DatabasePath = builder.Configuration["Pos:DatabasePath"] is { Length: > 0 } configured
-            ? Path.GetFullPath(Environment.ExpandEnvironmentVariables(configured))
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClothingStorePOS", "pos.db");
-        Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
+        var connectionString = builder.Configuration.GetConnectionString("Pos");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            MessageBox.Show("No database is configured. Set ConnectionStrings:Pos in appsettings.json.",
+                "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+        try
+        {
+            var csb = new SqlConnectionStringBuilder(connectionString);
+            DatabaseName = $"{csb.InitialCatalog} on {csb.DataSource}";
+        }
+        catch (ArgumentException ex)
+        {
+            MessageBox.Show($"The database connection string in appsettings.json is not valid:\n\n{ex.Message}",
+                "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
 
-        builder.Services.AddPosData(new SqliteConnectionStringBuilder { DataSource = DatabasePath }.ToString());
+        builder.Services.AddPosData(connectionString);
         ConfigureServices(builder.Services);
         _host = builder.Build();
         Services = _host.Services;
@@ -59,7 +75,8 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"The database could not be opened:\n{DatabasePath}\n\n{ex.GetBaseException().Message}",
+            MessageBox.Show($"Could not connect to the database:\n{DatabaseName}\n\n{ex.GetBaseException().Message}\n\n" +
+                            "Check that SQL Server is running and reachable from this PC, and that ConnectionStrings:Pos in appsettings.json is correct.",
                 "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;

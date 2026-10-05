@@ -54,7 +54,6 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         if (request.RefundMethod == RefundMethod.Cash && shift is null)
             throw new BusinessRuleException("Open a cash drawer shift to give cash refunds.");
 
-        // Summed in memory: SQLite stores decimals as text, so aggregate client-side to keep exact cents.
         var previousReturns = (await db.ReturnLines
                 .Where(rl => rl.SaleLine!.SaleId == sale.Id)
                 .Select(rl => new { rl.SaleLineId, rl.RefundAmount, rl.TaxAmount })

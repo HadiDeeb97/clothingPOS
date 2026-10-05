@@ -102,7 +102,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => "Settings";
-    public string DatabasePath => App.DatabasePath;
+    public string DatabaseName => App.DatabaseName;
 
     [ObservableProperty]
     public partial StoreSettings Settings { get; set; } = new();
@@ -123,22 +123,9 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [RelayCommand]
     private async Task BackupAsync()
     {
-        var path = Dialogs.SaveFile("Back up database", "Database backup (*.db)|*.db", $"pos-backup-{DateTime.Now:yyyyMMdd-HHmm}.db");
-        if (path is null) return;
-        if (await RunAsync(() => backup.BackupAsync(path)))
-            Dialogs.Info($"Backup written to:\n{path}\n\nTo restore, close the app and copy the backup over:\n{DatabasePath}");
-    }
-
-    [RelayCommand]
-    private void OpenDataFolder()
-    {
-        try
-        {
-            System.Diagnostics.Process.Start("explorer.exe", Path.GetDirectoryName(DatabasePath)!);
-        }
-        catch (Exception ex)
-        {
-            Dialogs.Error("Could not open the folder.", ex);
-        }
+        string? path = null;
+        if (await RunAsync(async () => path = await backup.BackupAsync(settings.Current.BackupFolder)))
+            Dialogs.Info($"Backup written and verified on the database server:\n{path}\n\n" +
+                         "To restore it, use Restore Database in SQL Server Management Studio.");
     }
 }

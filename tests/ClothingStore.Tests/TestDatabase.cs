@@ -4,15 +4,20 @@ using ClothingStore.Core.Security;
 using ClothingStore.Data;
 using ClothingStore.Data.Seeding;
 using ClothingStore.Data.Services;
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClothingStore.Tests;
 
-/// <summary>Fresh, migrated in-memory SQLite database per test with the real services wired up.</summary>
+/// <summary>
+/// Fresh, migrated SQL Server database per test with the real services wired up. The server comes from the
+/// POS_TEST_SQLSERVER environment variable (a connection string without a database name); on Windows it
+/// defaults to LocalDB.
+/// </summary>
 public sealed class TestDatabase : IAsyncDisposable
 {
-    private readonly SqliteConnection _connection;
+    public const string ServerVariable = "POS_TEST_SQLSERVER";
+
     public IDbContextFactory<PosDbContext> Factory { get; }
 
     public SettingsService Settings { get; }
@@ -34,9 +39,7 @@ public sealed class TestDatabase : IAsyncDisposable
 
     private TestDatabase()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        var options = new DbContextOptionsBuilder<PosDbContext>().UseSqlite(_connection).Options;
+        var options = new DbContextOptionsBuilder<PosDbContext>().UseSqlServer(CreateConnectionString()).Options;
         Factory = new ContextFactory(options);
 
         Settings = new SettingsService(Factory);
@@ -104,7 +107,29 @@ public sealed class TestDatabase : IAsyncDisposable
 
     public async Task<Customer> GetCustomerAsync(int id) => (await Customers.GetAsync(id))!;
 
-    public async ValueTask DisposeAsync() => await _connection.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await using var ctx = await Factory.CreateDbContextAsync();
+        await ctx.Database.EnsureDeletedAsync();
+    }
+
+    private static string CreateConnectionString()
+    {
+        var server = Environment.GetEnvironmentVariable(ServerVariable);
+        if (string.IsNullOrWhiteSpace(server))
+        {
+            if (!OperatingSystem.IsWindows())
+                throw new InvalidOperationException(
+                    $"Set {ServerVariable} to a SQL Server connection string, e.g. " +
+                    "\"Server=localhost;User Id=sa;Password=...;TrustServerCertificate=True\".");
+            server = @"Server=(localdb)\MSSQLLocalDB;Integrated Security=True;TrustServerCertificate=True";
+        }
+
+        return new SqlConnectionStringBuilder(server)
+        {
+            InitialCatalog = $"ClothingStorePOS_Test_{Guid.NewGuid():N}",
+        }.ConnectionString;
+    }
 
     private sealed class ContextFactory(DbContextOptions<PosDbContext> options) : IDbContextFactory<PosDbContext>
     {

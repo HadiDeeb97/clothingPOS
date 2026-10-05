@@ -1,7 +1,7 @@
 # Clothing Store POS
 
 A Windows desktop point-of-sale system for clothing and fashion retail, built with **C# / .NET 10 (LTS) / WPF**, using MVVM with
-**Entity Framework Core + SQLite** for local storage.
+**Entity Framework Core + SQL Server**, so several tills can share one database.
 
 ## Features
 
@@ -34,7 +34,10 @@ All business rules (stock checks, discount limits, payment validation, refunds, 
 
 ## Getting started
 
-Requirements: Windows 10/11 and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+Requirements: Windows 10/11, the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and SQL Server 2019 or
+later. The free [SQL Server Express](https://www.microsoft.com/sql-server/sql-server-downloads) edition is enough for a shop.
+The default connection string expects an Express instance named `SQLEXPRESS` on the same PC, signed in with Windows
+authentication.
 
 ```powershell
 cd ClothingStorePOS
@@ -43,7 +46,8 @@ dotnet run --project src/ClothingStore.Desktop
 
 Or open `ClothingStorePOS.sln` in Visual Studio 2026 (or Rider / VS Code with C# Dev Kit) and set **ClothingStore.Desktop** as the startup project.
 
-On first launch the database is created at `%LocalAppData%\ClothingStorePOS\pos.db`. A sample catalogue is loaded too,
+On first launch the app creates the `ClothingStorePOS` database and its tables. The login it uses needs permission to create
+a database (or create the empty database yourself and make the login its `db_owner`). A sample catalogue is loaded too,
 with 15 styles, 125 size/colour variants, customers and suppliers.
 
 | User | Password | Role |
@@ -59,14 +63,31 @@ deactivate the demo users once real accounts exist.
 
 ```jsonc
 {
+  "ConnectionStrings": {
+    "Pos": "Server=.\\SQLEXPRESS;Database=ClothingStorePOS;Trusted_Connection=True;TrustServerCertificate=True"
+  },
   "Pos": {
-    "DatabasePath": "",      // empty = %LocalAppData%\ClothingStorePOS\pos.db; may use %ENV_VARS%
     "SeedDemoData": true
   }
 }
 ```
 
-Settings can also be overridden with environment variables, e.g. `Pos__DatabasePath=D:\POS\store.db`.
+Settings can also be overridden with environment variables, e.g. `ConnectionStrings__Pos=...`.
+
+### Several tills
+
+1. Install SQL Server Express on one PC (the "server", which can also be a till). In SQL Server Configuration Manager, enable
+   TCP/IP for the instance, start the SQL Server Browser service and allow SQL Server through Windows Firewall.
+2. In a shop without a Windows domain, Windows authentication doesn't work between PCs, so enable mixed-mode authentication
+   and create a SQL login for the app (for example `pos`) that owns the `ClothingStorePOS` database.
+3. On every till, set `ConnectionStrings:Pos` in `appsettings.json` to point at that PC:
+   `Server=SHOP-PC\\SQLEXPRESS;Database=ClothingStorePOS;User Id=pos;Password=...;TrustServerCertificate=True`.
+
+Stock levels and customer balances use optimistic concurrency, so two tills selling the last unit at the same moment can't
+both succeed. The second gets a "please try again" message.
+
+Usernames, SKUs, and category and supplier names are always compared without regard to case. Product and customer searches
+follow the database's collation, which is case-insensitive in a default SQL Server install.
 
 ### Publishing a self-contained build
 
@@ -82,7 +103,9 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 2. **Register**: scan items, add the customer (F4), then **Pay** (F12). Print or skip the receipt.
 3. **Returns**: scan the receipt number. For an exchange, refund to store credit, then sell the new item and pay with store credit.
 4. **Cash Drawer**: at closing time, count the drawer, close the shift and print the Z report.
-5. **Settings**: run **Back up now** regularly, to a USB drive or a cloud-synced folder.
+5. **Settings**: run **Back up now** regularly. SQL Server writes the backup on its own PC, to the folder set in Settings
+   (or the server's default backup folder). Use a cloud-synced or network folder so a copy survives if that PC fails.
+   To restore, use **Restore Database** in SQL Server Management Studio.
 
 ## Hardware
 
@@ -95,9 +118,19 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 
 ```bash
 dotnet build ClothingStorePOS.sln
-dotnet test                                   # runs on Windows, Linux or macOS
+dotnet test                                   # needs a SQL Server, see below
 dotnet tool restore
 dotnet ef migrations add <Name> --project src/ClothingStore.Data --startup-project src/ClothingStore.Data
+```
+
+Each test creates and drops its own database on a real SQL Server. On Windows the tests use LocalDB
+(`(localdb)\MSSQLLocalDB`, installed with Visual Studio). Elsewhere, set `POS_TEST_SQLSERVER` to a connection string
+without a database name, for example with SQL Server in Docker:
+
+```bash
+docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=Your_password1' mcr.microsoft.com/mssql/server:2022-latest
+export POS_TEST_SQLSERVER='Server=localhost;User Id=sa;Password=Your_password1;TrustServerCertificate=True'
+dotnet test
 ```
 
 The solution sets `EnableWindowsTargeting=true`, so CI agents on Linux can compile the WPF project and run the tests.
@@ -105,7 +138,5 @@ Running the WPF app still needs Windows.
 
 ### Notes and limits
 
-* SQLite suits a single till, or a single PC that several staff share. For several tills on a network, switch the EF Core
-  provider in `ServiceCollectionExtensions.AddPosData` to SQL Server or PostgreSQL. Optimistic concurrency tokens on stock
-  and customer balances are already in place. You will need to regenerate the migrations.
+* Earlier builds stored data in a SQLite file (`pos.db`). That data is not imported into SQL Server automatically.
 * Card payments are recorded, not processed: take the payment on your card terminal and enter the auth code as the reference.

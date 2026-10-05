@@ -15,11 +15,11 @@ namespace ClothingStore.Data.Migrations
                 name: "Categories",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false, collation: "NOCASE"),
-                    Description = table.Column<string>(type: "TEXT", nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false, collation: "Latin1_General_100_CI_AS"),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,19 +30,19 @@ namespace ClothingStore.Data.Migrations
                 name: "Customers",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    FirstName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    LastName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    Phone = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true),
-                    Email = table.Column<string>(type: "TEXT", maxLength: 150, nullable: true),
-                    Birthday = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true),
-                    LoyaltyPoints = table.Column<int>(type: "INTEGER", nullable: false),
-                    StoreCredit = table.Column<decimal>(type: "TEXT", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Version = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Phone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
+                    Birthday = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LoyaltyPoints = table.Column<int>(type: "int", nullable: false),
+                    StoreCredit = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -53,13 +53,13 @@ namespace ClothingStore.Data.Migrations
                 name: "HeldSales",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Label = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CustomerId = table.Column<int>(type: "INTEGER", nullable: true),
-                    Payload = table.Column<string>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Label = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    CustomerId = table.Column<int>(type: "int", nullable: true),
+                    Payload = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -70,24 +70,25 @@ namespace ClothingStore.Data.Migrations
                 name: "Settings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    StoreName = table.Column<string>(type: "TEXT", nullable: false),
-                    Address = table.Column<string>(type: "TEXT", nullable: true),
-                    Phone = table.Column<string>(type: "TEXT", nullable: true),
-                    Email = table.Column<string>(type: "TEXT", nullable: true),
-                    TaxNumber = table.Column<string>(type: "TEXT", nullable: true),
-                    TaxRate = table.Column<decimal>(type: "TEXT", nullable: false),
-                    PricesIncludeTax = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CurrencySymbol = table.Column<string>(type: "TEXT", nullable: false),
-                    ReceiptFooter = table.Column<string>(type: "TEXT", nullable: false),
-                    ReceiptWidth = table.Column<int>(type: "INTEGER", nullable: false),
-                    LoyaltyPointsPerUnit = table.Column<decimal>(type: "TEXT", nullable: false),
-                    LoyaltyPointValue = table.Column<decimal>(type: "TEXT", nullable: false),
-                    MaxCashierDiscountPercent = table.Column<decimal>(type: "TEXT", nullable: false),
-                    ReturnWindowDays = table.Column<int>(type: "INTEGER", nullable: false),
-                    ReceiptPrefix = table.Column<string>(type: "TEXT", nullable: false),
-                    AllowNegativeStock = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StoreName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TaxNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TaxRate = table.Column<decimal>(type: "decimal(9,4)", precision: 9, scale: 4, nullable: false),
+                    PricesIncludeTax = table.Column<bool>(type: "bit", nullable: false),
+                    CurrencySymbol = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ReceiptFooter = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ReceiptWidth = table.Column<int>(type: "int", nullable: false),
+                    LoyaltyPointsPerUnit = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    LoyaltyPointValue = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    MaxCashierDiscountPercent = table.Column<decimal>(type: "decimal(9,4)", precision: 9, scale: 4, nullable: false),
+                    ReturnWindowDays = table.Column<int>(type: "int", nullable: false),
+                    ReceiptPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AllowNegativeStock = table.Column<bool>(type: "bit", nullable: false),
+                    BackupFolder = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -98,15 +99,15 @@ namespace ClothingStore.Data.Migrations
                 name: "Suppliers",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 150, nullable: false, collation: "NOCASE"),
-                    ContactName = table.Column<string>(type: "TEXT", nullable: true),
-                    Phone = table.Column<string>(type: "TEXT", nullable: true),
-                    Email = table.Column<string>(type: "TEXT", nullable: true),
-                    Address = table.Column<string>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false, collation: "Latin1_General_100_CI_AS"),
+                    ContactName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Address = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -117,16 +118,16 @@ namespace ClothingStore.Data.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Username = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false, collation: "NOCASE"),
-                    FullName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
-                    Role = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    MustChangePassword = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Username = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false, collation: "Latin1_General_100_CI_AS"),
+                    FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Role = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    MustChangePassword = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastLoginAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -137,21 +138,21 @@ namespace ClothingStore.Data.Migrations
                 name: "Products",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "TEXT", nullable: true),
-                    Brand = table.Column<string>(type: "TEXT", nullable: true),
-                    StyleCode = table.Column<string>(type: "TEXT", nullable: true),
-                    Gender = table.Column<int>(type: "INTEGER", nullable: false),
-                    Season = table.Column<string>(type: "TEXT", nullable: true),
-                    Material = table.Column<string>(type: "TEXT", nullable: true),
-                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
-                    SupplierId = table.Column<int>(type: "INTEGER", nullable: true),
-                    Price = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Cost = table.Column<decimal>(type: "TEXT", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Brand = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    StyleCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Gender = table.Column<int>(type: "int", nullable: false),
+                    Season = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Material = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    SupplierId = table.Column<int>(type: "int", nullable: true),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Cost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -174,17 +175,17 @@ namespace ClothingStore.Data.Migrations
                 name: "PurchaseOrders",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    OrderNumber = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ExpectedDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    OrderedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ReceivedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    SupplierId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedByUserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OrderNumber = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpectedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    OrderedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ReceivedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    SupplierId = table.Column<int>(type: "int", nullable: false),
+                    CreatedByUserId = table.Column<int>(type: "int", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -201,16 +202,16 @@ namespace ClothingStore.Data.Migrations
                 name: "Shifts",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    OpenedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ClosedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    OpeningFloat = table.Column<decimal>(type: "TEXT", nullable: false),
-                    ExpectedCash = table.Column<decimal>(type: "TEXT", nullable: false),
-                    CountedCash = table.Column<decimal>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    OpenedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClosedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    OpeningFloat = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ExpectedCash = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    CountedCash = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -227,19 +228,19 @@ namespace ClothingStore.Data.Migrations
                 name: "ProductVariants",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ProductId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Size = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    Color = table.Column<string>(type: "TEXT", maxLength: 40, nullable: false),
-                    Sku = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false, collation: "NOCASE"),
-                    Barcode = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
-                    PriceOverride = table.Column<decimal>(type: "TEXT", nullable: true),
-                    CostOverride = table.Column<decimal>(type: "TEXT", nullable: true),
-                    StockQuantity = table.Column<int>(type: "INTEGER", nullable: false),
-                    ReorderLevel = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    Version = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    Size = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Color = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    Sku = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false, collation: "Latin1_General_100_CI_AS"),
+                    Barcode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    PriceOverride = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    CostOverride = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    StockQuantity = table.Column<int>(type: "int", nullable: false),
+                    ReorderLevel = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -256,14 +257,14 @@ namespace ClothingStore.Data.Migrations
                 name: "CashMovements",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ShiftId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Type = table.Column<int>(type: "INTEGER", nullable: false),
-                    Amount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Reason = table.Column<string>(type: "TEXT", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ShiftId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -280,28 +281,28 @@ namespace ClothingStore.Data.Migrations
                 name: "Sales",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ReceiptNumber = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CustomerId = table.Column<int>(type: "INTEGER", nullable: true),
-                    ShiftId = table.Column<int>(type: "INTEGER", nullable: true),
-                    Subtotal = table.Column<decimal>(type: "TEXT", nullable: false),
-                    DiscountTotal = table.Column<decimal>(type: "TEXT", nullable: false),
-                    TaxTotal = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Total = table.Column<decimal>(type: "TEXT", nullable: false),
-                    CartDiscountType = table.Column<int>(type: "INTEGER", nullable: false),
-                    CartDiscountValue = table.Column<decimal>(type: "TEXT", nullable: false),
-                    CashTendered = table.Column<decimal>(type: "TEXT", nullable: false),
-                    ChangeGiven = table.Column<decimal>(type: "TEXT", nullable: false),
-                    LoyaltyPointsEarned = table.Column<int>(type: "INTEGER", nullable: false),
-                    LoyaltyPointsRedeemed = table.Column<int>(type: "INTEGER", nullable: false),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true),
-                    VoidedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    VoidedByUserId = table.Column<int>(type: "INTEGER", nullable: true),
-                    VoidReason = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReceiptNumber = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    CustomerId = table.Column<int>(type: "int", nullable: true),
+                    ShiftId = table.Column<int>(type: "int", nullable: true),
+                    Subtotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    DiscountTotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TaxTotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Total = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    CartDiscountType = table.Column<int>(type: "int", nullable: false),
+                    CartDiscountValue = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    CashTendered = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ChangeGiven = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    LoyaltyPointsEarned = table.Column<int>(type: "int", nullable: false),
+                    LoyaltyPointsRedeemed = table.Column<int>(type: "int", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VoidedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    VoidedByUserId = table.Column<int>(type: "int", nullable: true),
+                    VoidReason = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -330,13 +331,13 @@ namespace ClothingStore.Data.Migrations
                 name: "PurchaseOrderLines",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    PurchaseOrderId = table.Column<int>(type: "INTEGER", nullable: false),
-                    ProductVariantId = table.Column<int>(type: "INTEGER", nullable: false),
-                    QuantityOrdered = table.Column<int>(type: "INTEGER", nullable: false),
-                    QuantityReceived = table.Column<int>(type: "INTEGER", nullable: false),
-                    UnitCost = table.Column<decimal>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PurchaseOrderId = table.Column<int>(type: "int", nullable: false),
+                    ProductVariantId = table.Column<int>(type: "int", nullable: false),
+                    QuantityOrdered = table.Column<int>(type: "int", nullable: false),
+                    QuantityReceived = table.Column<int>(type: "int", nullable: false),
+                    UnitCost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -359,16 +360,16 @@ namespace ClothingStore.Data.Migrations
                 name: "StockMovements",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ProductVariantId = table.Column<int>(type: "INTEGER", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: true),
-                    Type = table.Column<int>(type: "INTEGER", nullable: false),
-                    QuantityChange = table.Column<int>(type: "INTEGER", nullable: false),
-                    QuantityAfter = table.Column<int>(type: "INTEGER", nullable: false),
-                    Reference = table.Column<string>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ProductVariantId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: true),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    QuantityChange = table.Column<int>(type: "int", nullable: false),
+                    QuantityAfter = table.Column<int>(type: "int", nullable: false),
+                    Reference = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -391,12 +392,12 @@ namespace ClothingStore.Data.Migrations
                 name: "Payments",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    SaleId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Method = table.Column<int>(type: "INTEGER", nullable: false),
-                    Amount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Reference = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SaleId = table.Column<int>(type: "int", nullable: false),
+                    Method = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Reference = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -413,18 +414,18 @@ namespace ClothingStore.Data.Migrations
                 name: "Returns",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ReturnNumber = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    SaleId = table.Column<int>(type: "INTEGER", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CustomerId = table.Column<int>(type: "INTEGER", nullable: true),
-                    ShiftId = table.Column<int>(type: "INTEGER", nullable: true),
-                    RefundMethod = table.Column<int>(type: "INTEGER", nullable: false),
-                    TotalRefund = table.Column<decimal>(type: "TEXT", nullable: false),
-                    TaxRefund = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Reason = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReturnNumber = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    SaleId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    CustomerId = table.Column<int>(type: "int", nullable: true),
+                    ShiftId = table.Column<int>(type: "int", nullable: true),
+                    RefundMethod = table.Column<int>(type: "int", nullable: false),
+                    TotalRefund = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TaxRefund = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -453,21 +454,21 @@ namespace ClothingStore.Data.Migrations
                 name: "SaleLines",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    SaleId = table.Column<int>(type: "INTEGER", nullable: false),
-                    ProductVariantId = table.Column<int>(type: "INTEGER", nullable: false),
-                    ProductName = table.Column<string>(type: "TEXT", nullable: false),
-                    VariantDescription = table.Column<string>(type: "TEXT", nullable: false),
-                    Sku = table.Column<string>(type: "TEXT", nullable: false),
-                    CategoryName = table.Column<string>(type: "TEXT", nullable: true),
-                    UnitPrice = table.Column<decimal>(type: "TEXT", nullable: false),
-                    UnitCost = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Quantity = table.Column<int>(type: "INTEGER", nullable: false),
-                    DiscountAmount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    TaxAmount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    LineTotal = table.Column<decimal>(type: "TEXT", nullable: false),
-                    ReturnedQuantity = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SaleId = table.Column<int>(type: "int", nullable: false),
+                    ProductVariantId = table.Column<int>(type: "int", nullable: false),
+                    ProductName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    VariantDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Sku = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CategoryName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    UnitCost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    DiscountAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TaxAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    LineTotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ReturnedQuantity = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -490,14 +491,14 @@ namespace ClothingStore.Data.Migrations
                 name: "ReturnLines",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    SaleReturnId = table.Column<int>(type: "INTEGER", nullable: false),
-                    SaleLineId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Quantity = table.Column<int>(type: "INTEGER", nullable: false),
-                    RefundAmount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    TaxAmount = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Restocked = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SaleReturnId = table.Column<int>(type: "int", nullable: false),
+                    SaleLineId = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    RefundAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TaxAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Restocked = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -532,7 +533,7 @@ namespace ClothingStore.Data.Migrations
                 table: "Customers",
                 column: "Phone",
                 unique: true,
-                filter: "Phone IS NOT NULL");
+                filter: "[Phone] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Payments_SaleId",
@@ -559,7 +560,7 @@ namespace ClothingStore.Data.Migrations
                 table: "ProductVariants",
                 column: "Barcode",
                 unique: true,
-                filter: "Barcode IS NOT NULL");
+                filter: "[Barcode] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProductVariants_ProductId",

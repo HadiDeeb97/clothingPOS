@@ -1,7 +1,14 @@
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+
 namespace ClothingStore.Data.Services;
 
 internal static class QueryHelpers
 {
+    /// <summary>True when SQL Server rejected the save because of a unique index or constraint.</summary>
+    public static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is SqlException { Number: 2601 or 2627 };
+
     /// <summary>Builds a LIKE '%text%' pattern with wildcard characters escaped (escape char '\').</summary>
     public static string LikePattern(string text) =>
         "%" + text.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
