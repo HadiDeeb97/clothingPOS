@@ -1,0 +1,175 @@
+using ClothingStore.Core.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace ClothingStore.Data;
+
+public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(options)
+{
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleLine> SaleLines => Set<SaleLine>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<SaleReturn> Returns => Set<SaleReturn>();
+    public DbSet<SaleReturnLine> ReturnLines => Set<SaleReturnLine>();
+    public DbSet<HeldSale> HeldSales => Set<HeldSale>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<StoreSettings> Settings => Set<StoreSettings>();
+
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        b.Entity<User>(e =>
+        {
+            e.Property(x => x.Username).HasMaxLength(50).UseCollation("NOCASE").IsRequired();
+            e.HasIndex(x => x.Username).IsUnique();
+            e.Property(x => x.FullName).HasMaxLength(100).IsRequired();
+        });
+
+        b.Entity<Category>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(100).UseCollation("NOCASE").IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        b.Entity<Supplier>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(150).UseCollation("NOCASE").IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        b.Entity<Product>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => x.Name);
+            e.HasOne(x => x.Category).WithMany(c => c.Products).HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(x => x.Variants).WithOne(v => v.Product).HasForeignKey(v => v.ProductId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ProductVariant>(e =>
+        {
+            e.Property(x => x.Sku).HasMaxLength(64).UseCollation("NOCASE").IsRequired();
+            e.HasIndex(x => x.Sku).IsUnique();
+            e.Property(x => x.Barcode).HasMaxLength(64);
+            e.HasIndex(x => x.Barcode).IsUnique().HasFilter("Barcode IS NOT NULL");
+            e.Property(x => x.Size).HasMaxLength(20);
+            e.Property(x => x.Color).HasMaxLength(40);
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.Ignore(x => x.EffectivePrice);
+            e.Ignore(x => x.EffectiveCost);
+            e.Ignore(x => x.IsLowStock);
+            e.Ignore(x => x.Description);
+            e.Ignore(x => x.DisplayName);
+        });
+
+        b.Entity<Customer>(e =>
+        {
+            e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.LastName).HasMaxLength(100);
+            e.Property(x => x.Phone).HasMaxLength(30);
+            e.HasIndex(x => x.Phone).IsUnique().HasFilter("Phone IS NOT NULL");
+            e.Property(x => x.Email).HasMaxLength(150);
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.Ignore(x => x.FullName);
+        });
+
+        b.Entity<Sale>(e =>
+        {
+            e.Property(x => x.ReceiptNumber).HasMaxLength(32).IsRequired();
+            e.HasIndex(x => x.ReceiptNumber).IsUnique();
+            e.HasIndex(x => x.CreatedAt);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne(l => l.Sale).HasForeignKey(l => l.SaleId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Payments).WithOne(p => p.Sale).HasForeignKey(p => p.SaleId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.ItemCount);
+        });
+
+        b.Entity<SaleLine>(e =>
+        {
+            e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
+            e.Ignore(x => x.ReturnableQuantity);
+        });
+
+        b.Entity<SaleReturn>(e =>
+        {
+            e.Property(x => x.ReturnNumber).HasMaxLength(32).IsRequired();
+            e.HasIndex(x => x.ReturnNumber).IsUnique();
+            e.HasIndex(x => x.CreatedAt);
+            e.HasOne(x => x.Sale).WithMany().HasForeignKey(x => x.SaleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne(l => l.SaleReturn).HasForeignKey(l => l.SaleReturnId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SaleReturnLine>(e =>
+            e.HasOne(x => x.SaleLine).WithMany().HasForeignKey(x => x.SaleLineId).OnDelete(DeleteBehavior.Restrict));
+
+        b.Entity<StockMovement>(e =>
+        {
+            e.HasIndex(x => new { x.ProductVariantId, x.CreatedAt });
+            e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<PurchaseOrder>(e =>
+        {
+            e.Property(x => x.OrderNumber).HasMaxLength(32).IsRequired();
+            e.HasIndex(x => x.OrderNumber).IsUnique();
+            e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne(l => l.PurchaseOrder).HasForeignKey(l => l.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.Total);
+            e.Ignore(x => x.TotalUnits);
+        });
+
+        b.Entity<PurchaseOrderLine>(e =>
+        {
+            e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
+            e.Ignore(x => x.LineTotal);
+            e.Ignore(x => x.QuantityOutstanding);
+        });
+
+        b.Entity<Shift>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Status });
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.CashMovements).WithOne(m => m.Shift).HasForeignKey(m => m.ShiftId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.Variance);
+        });
+
+        b.Entity<HeldSale>(e => e.Property(x => x.Label).HasMaxLength(100));
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        BumpVersions();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        BumpVersions();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void BumpVersions()
+    {
+        foreach (var entry in ChangeTracker.Entries().Where(e => e.State == EntityState.Modified))
+        {
+            switch (entry.Entity)
+            {
+                case ProductVariant v: v.Version++; break;
+                case Customer c: c.Version++; break;
+            }
+        }
+    }
+}

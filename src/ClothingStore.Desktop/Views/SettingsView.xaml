@@ -1,0 +1,105 @@
+<UserControl x:Class="ClothingStore.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+            <Button Content="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" />
+            <Button Content="Discard changes" Command="{Binding ReloadCommand}" />
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <WrapPanel>
+                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Store &amp; receipt" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Store name" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.StoreName}" />
+                        <TextBlock Text="Address (shown on receipts)" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.Address}" AcceptsReturn="True" Height="56" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                        <TextBlock Text="Phone" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.Phone}" />
+                        <TextBlock Text="Email" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.Email}" />
+                        <TextBlock Text="Tax / VAT registration number" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.TaxNumber}" />
+                        <TextBlock Text="Receipt footer" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.ReceiptFooter}" AcceptsReturn="True" Height="56" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Receipt width (characters)" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.ReceiptWidth}" ToolTip="42 for 80mm thermal printers, 32 for 58mm" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Receipt number prefix" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.ReceiptPrefix}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Pricing &amp; tax" Style="{StaticResource SectionTitle}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Tax rate (%)" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.TaxRate}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Currency symbol" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.CurrencySymbol}" />
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Content="Shelf prices include tax (VAT-style)" IsChecked="{Binding Settings.PricesIncludeTax}" Margin="0,12,0,0" />
+                        <CheckBox Content="Allow selling items with no stock on record" IsChecked="{Binding Settings.AllowNegativeStock}" />
+                        <TextBlock Text="Max cashier discount without approval (%)" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.MaxCashierDiscountPercent}" />
+                        <TextBlock Text="Return window (days, 0 = unlimited)" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.ReturnWindowDays}" />
+
+                        <TextBlock Text="Loyalty programme" Style="{StaticResource SectionTitle}" Margin="0,18,0,0" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Points per 1.00 spent" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.LoyaltyPointsPerUnit}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Value of 1 point" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.LoyaltyPointValue}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Points are earned on cash, card and wallet payments, and can be redeemed at checkout." Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Data" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Database file" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding DatabasePath, Mode=OneWay}" IsReadOnly="True" />
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="Back up now…" Style="{StaticResource PrimaryButton}" Command="{Binding BackupCommand}" />
+                            <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="Back up daily to a USB drive or cloud-synced folder. Backups are safe to take while the till is running."
+                                   Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,31 @@
+<Window x:Class="ClothingStore.Desktop.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Clothing Store POS — Sign in"
+        Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource SidebarBrush}"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True">
+    <Border Style="{StaticResource Card}" Margin="28" Padding="28">
+        <StackPanel>
+            <TextBlock Text="&#xE719;" Style="{StaticResource Icon}" FontSize="36" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding StoreName}" Style="{StaticResource PageTitle}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+            <TextBlock Text="Sign in to the register" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,2,0,16" />
+
+            <TextBlock Text="Username" Style="{StaticResource FieldLabel}" />
+            <TextBox x:Name="UsernameBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="Password" Style="{StaticResource FieldLabel}" />
+            <PasswordBox x:Name="PasswordBox" PasswordChanged="OnPasswordChanged" />
+
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,10,0,0"
+                       Visibility="{Binding ErrorMessage, Converter={StaticResource HasValueToVis}}" />
+
+            <Button Content="Sign in" Style="{StaticResource PrimaryButton}" Margin="0,18,0,0" MinHeight="40" IsDefault="True"
+                    Command="{Binding SignInCommand}" />
+            <TextBlock Text="{Binding Hint}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,14,0,0"
+                       TextAlignment="Center" Visibility="{Binding Hint, Converter={StaticResource HasValueToVis}}" />
+        </StackPanel>
+    </Border>
+</Window>

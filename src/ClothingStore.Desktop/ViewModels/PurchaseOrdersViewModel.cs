@@ -1,0 +1,331 @@
+using System.Collections.ObjectModel;
+using ClothingStore.Core;
+using ClothingStore.Core.Entities;
+using ClothingStore.Data.Services;
+using ClothingStore.Desktop.Infrastructure;
+using ClothingStore.Desktop.Services;
+using ClothingStore.Desktop.ViewModels.Dialogs;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace ClothingStore.Desktop.ViewModels;
+
+public sealed record StatusFilter(string Label, PurchaseOrderStatus? Status);
+
+public sealed partial class PurchaseOrdersViewModel(
+    IDialogService dialogs, PurchaseOrderService orders, SupplierService suppliers, ProductService products,
+    InventoryService inventory, SettingsService settings, Session session, PrintService print)
+    : ViewModelBase(dialogs), IPageViewModel
+{
+    public string Title => "Purchase Orders";
+
+    public StatusFilter[] Filters { get; } =
+    [
+        new("All orders", null),
+        .. Enum.GetValues<PurchaseOrderStatus>().Select(s => new StatusFilter(Converters.EnumDisplayConverter.Humanize(s.ToString()), s)),
+    ];
+
+    [ObservableProperty]
+    public partial StatusFilter SelectedFilter { get; set; } = null!;
+
+    [ObservableProperty]
+    public partial List<PurchaseOrder> Orders { get; set; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(EditCommand), nameof(MarkOrderedCommand), nameof(ReceiveCommand), nameof(CancelOrderCommand), nameof(DeleteCommand), nameof(PrintCommand))]
+    public partial PurchaseOrder? SelectedOrder { get; set; }
+
+    [ObservableProperty]
+    public partial PurchaseOrder? Detail { get; set; }
+
+    public Task OnNavigatedToAsync()
+    {
+        SelectedFilter = Filters[0]; // triggers the first load
+        return Task.CompletedTask;
+    }
+
+    partial void OnSelectedFilterChanged(StatusFilter value) => _ = RefreshAsync();
+
+    async partial void OnSelectedOrderChanged(PurchaseOrder? value)
+    {
+        try
+        {
+            Detail = value is null ? null : await orders.GetAsync(value.Id);
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error("Could not load the order.", ex);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        if (SelectedFilter is null) return;
+        var selectedId = SelectedOrder?.Id;
+        try
+        {
+            Orders = await orders.GetAllAsync(SelectedFilter.Status);
+            SelectedOrder = Orders.FirstOrDefault(o => o.Id == selectedId) ?? Orders.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error("Could not load purchase orders.", ex);
+        }
+    }
+
+    private bool HasSelection() => SelectedOrder is not null;
+
+    [RelayCommand]
+    private async Task NewAsync()
+    {
+        var editor = await PurchaseOrderEditorViewModel.CreateAsync(Dialogs, orders, suppliers, products, inventory, session, null);
+        if (Dialogs.ShowDialog(editor)) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task EditAsync()
+    {
+        if (Detail is null) return;
+        if (Detail.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.Ordered))
+        {
+            Dialogs.Warning("Only draft or ordered purchase orders can be edited.");
+            return;
+        }
+        var editor = await PurchaseOrderEditorViewModel.CreateAsync(Dialogs, orders, suppliers, products, inventory, session, Detail);
+        if (Dialogs.ShowDialog(editor)) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task MarkOrderedAsync()
+    {
+        if (SelectedOrder is null) return;
+        if (await RunAsync(() => orders.MarkOrderedAsync(SelectedOrder.Id))) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task ReceiveAsync()
+    {
+        if (Detail is null) return;
+        if (Detail.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Cancelled)
+        {
+            Dialogs.Warning("This order is already closed.");
+            return;
+        }
+        if (Dialogs.ShowDialog(new ReceivePurchaseOrderViewModel(Dialogs, orders, session, Detail))) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task CancelOrderAsync()
+    {
+        if (SelectedOrder is null) return;
+        if (!Dialogs.Confirm($"Close purchase order {SelectedOrder.OrderNumber}? Outstanding quantities will no longer be expected.")) return;
+        if (await RunAsync(() => orders.CancelAsync(SelectedOrder.Id))) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task DeleteAsync()
+    {
+        if (SelectedOrder is null) return;
+        if (!Dialogs.Confirm($"Delete draft {SelectedOrder.OrderNumber}?")) return;
+        if (await RunAsync(() => orders.DeleteDraftAsync(SelectedOrder.Id))) await RefreshAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void Print()
+    {
+        if (Detail is null) return;
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, $"Purchase order {Detail.OrderNumber}", ReceiptBuilder.PurchaseOrder(Detail, settings.Current)));
+    }
+}
+
+public sealed partial class PoLineViewModel(ProductVariant variant, int quantity, decimal unitCost) : ObservableObject
+{
+    public ProductVariant Variant { get; } = variant;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LineTotal))]
+    public partial int Quantity { get; set; } = quantity;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LineTotal))]
+    public partial decimal UnitCost { get; set; } = unitCost;
+
+    public decimal LineTotal => Quantity * UnitCost;
+}
+
+public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
+{
+    private readonly PurchaseOrderService _orders;
+    private readonly ProductService _products;
+    private readonly InventoryService _inventory;
+    private readonly Session _session;
+    private readonly int _id;
+
+    private PurchaseOrderEditorViewModel(IDialogService dialogs, PurchaseOrderService orders, ProductService products,
+        InventoryService inventory, Session session, PurchaseOrder? order) : base(dialogs)
+    {
+        _orders = orders;
+        _products = products;
+        _inventory = inventory;
+        _session = session;
+        _id = order?.Id ?? 0;
+        OrderNumber = order?.OrderNumber ?? "(new)";
+        ExpectedDate = order?.ExpectedDate ?? DateTime.Today.AddDays(14);
+        Notes = order?.Notes;
+        foreach (var line in order?.Lines ?? [])
+            AddLine(new PoLineViewModel(line.ProductVariant!, line.QuantityOrdered, line.UnitCost));
+    }
+
+    public static async Task<PurchaseOrderEditorViewModel> CreateAsync(IDialogService dialogs, PurchaseOrderService orders, SupplierService suppliers,
+        ProductService products, InventoryService inventory, Session session, PurchaseOrder? order)
+    {
+        var vm = new PurchaseOrderEditorViewModel(dialogs, orders, products, inventory, session, order)
+        {
+            Suppliers = await suppliers.GetAllAsync(),
+        };
+        vm.SelectedSupplier = vm.Suppliers.FirstOrDefault(s => s.Id == order?.SupplierId) ?? vm.Suppliers.FirstOrDefault();
+        return vm;
+    }
+
+    public override string Title => _id == 0 ? "New purchase order" : $"Edit purchase order {OrderNumber}";
+    public string OrderNumber { get; }
+    public List<Supplier> Suppliers { get; private init; } = [];
+    public ObservableCollection<PoLineViewModel> Lines { get; } = [];
+
+    [ObservableProperty] public partial Supplier? SelectedSupplier { get; set; }
+    [ObservableProperty] public partial DateTime? ExpectedDate { get; set; }
+    [ObservableProperty] public partial string? Notes { get; set; }
+    [ObservableProperty] public partial string SearchText { get; set; } = "";
+    [ObservableProperty] public partial List<ProductVariant> SearchResults { get; set; } = [];
+    [ObservableProperty] public partial ProductVariant? SelectedResult { get; set; }
+
+    public decimal Total => Lines.Sum(l => l.LineTotal);
+    public int TotalUnits => Lines.Sum(l => l.Quantity);
+
+    private void AddLine(PoLineViewModel line)
+    {
+        line.PropertyChanged += (_, _) => RaiseTotals();
+        Lines.Add(line);
+        RaiseTotals();
+    }
+
+    private void RaiseTotals()
+    {
+        OnPropertyChanged(nameof(Total));
+        OnPropertyChanged(nameof(TotalUnits));
+    }
+
+    [RelayCommand]
+    private Task SearchAsync() => RunAsync(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(SearchText)) return;
+        var exact = await _products.FindByCodeAsync(SearchText);
+        SearchResults = exact is not null ? [exact] : await _products.SearchVariantsAsync(SearchText, 200);
+        SelectedResult = SearchResults.FirstOrDefault();
+    });
+
+    [RelayCommand]
+    private void AddResult(ProductVariant? variant)
+    {
+        variant ??= SelectedResult;
+        if (variant is null) return;
+        var existing = Lines.FirstOrDefault(l => l.Variant.Id == variant.Id);
+        if (existing is not null) existing.Quantity++;
+        else AddLine(new PoLineViewModel(variant, 1, variant.EffectiveCost));
+    }
+
+    [RelayCommand]
+    private void AddAllResults()
+    {
+        foreach (var v in SearchResults) AddResult(v);
+    }
+
+    [RelayCommand]
+    private Task AddLowStockAsync() => RunAsync(async () =>
+    {
+        if (SelectedSupplier is null) throw new BusinessRuleException("Choose a supplier first.");
+        var low = (await _inventory.GetStockAsync(lowStockOnly: true))
+            .Where(v => v.Product?.SupplierId == SelectedSupplier.Id)
+            .ToList();
+        if (low.Count == 0)
+        {
+            Dialogs.Info($"No low-stock items are assigned to {SelectedSupplier.Name}.");
+            return;
+        }
+        foreach (var v in low.Where(v => Lines.All(l => l.Variant.Id != v.Id)))
+        {
+            // Order enough to get back to twice the reorder level.
+            var qty = Math.Max(1, v.ReorderLevel * 2 - Math.Max(0, v.StockQuantity));
+            AddLine(new PoLineViewModel(v, qty, v.EffectiveCost));
+        }
+    });
+
+    [RelayCommand]
+    private void RemoveLine(PoLineViewModel line)
+    {
+        Lines.Remove(line);
+        RaiseTotals();
+    }
+
+    [RelayCommand]
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        if (SelectedSupplier is null) throw new BusinessRuleException("Choose a supplier.");
+        await _orders.SaveAsync(new PurchaseOrder
+        {
+            Id = _id,
+            SupplierId = SelectedSupplier.Id,
+            ExpectedDate = ExpectedDate,
+            Notes = Notes,
+            Lines = Lines.Select(l => new PurchaseOrderLine { ProductVariantId = l.Variant.Id, QuantityOrdered = l.Quantity, UnitCost = l.UnitCost }).ToList(),
+        }, _session.User.Id);
+        Close(true);
+    });
+
+    [RelayCommand]
+    private void Cancel() => Close(false);
+}
+
+public sealed partial class ReceiveLineViewModel(PurchaseOrderLine line) : ObservableObject
+{
+    public PurchaseOrderLine Line { get; } = line;
+
+    [ObservableProperty]
+    public partial int ReceiveNow { get; set; } = line.QuantityOutstanding;
+}
+
+public sealed partial class ReceivePurchaseOrderViewModel(IDialogService dialogs, PurchaseOrderService orders, Session session, PurchaseOrder order)
+    : DialogViewModelBase(dialogs)
+{
+    public override string Title => $"Receive {order.OrderNumber} from {order.Supplier?.Name}";
+    public List<ReceiveLineViewModel> Lines { get; } = order.Lines.Select(l => new ReceiveLineViewModel(l)).ToList();
+
+    [ObservableProperty]
+    public partial bool UpdateCosts { get; set; } = true;
+
+    [RelayCommand]
+    private void ReceiveNothing()
+    {
+        foreach (var l in Lines) l.ReceiveNow = 0;
+    }
+
+    [RelayCommand]
+    private void ReceiveAll()
+    {
+        foreach (var l in Lines) l.ReceiveNow = l.Line.QuantityOutstanding;
+    }
+
+    [RelayCommand]
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        var quantities = Lines.Where(l => l.ReceiveNow != 0).ToDictionary(l => l.Line.Id, l => l.ReceiveNow);
+        if (quantities.Count == 0) throw new BusinessRuleException("Enter the quantities received.");
+        var result = await orders.ReceiveAsync(order.Id, quantities, session.User.Id, UpdateCosts);
+        Dialogs.Info($"{quantities.Values.Sum()} units booked into stock. Order status: {Converters.EnumDisplayConverter.Humanize(result.Status.ToString())}.");
+        Close(true);
+    });
+
+    [RelayCommand]
+    private void Cancel() => Close(false);
+}

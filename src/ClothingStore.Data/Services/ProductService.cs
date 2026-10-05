@@ -1,0 +1,265 @@
+using ClothingStore.Core;
+using ClothingStore.Core.Barcodes;
+using ClothingStore.Core.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace ClothingStore.Data.Services;
+
+public class ProductService(IDbContextFactory<PosDbContext> factory)
+{
+    public async Task<List<Product>> SearchAsync(string? text = null, int? categoryId = null, bool includeInactive = false, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var query = db.Products.AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .Include(p => p.Variants)
+            .AsSplitQuery()
+            .Where(p => includeInactive || p.IsActive);
+
+        if (categoryId is not null) query = query.Where(p => p.CategoryId == categoryId);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var pattern = QueryHelpers.LikePattern(text);
+            query = query.Where(p =>
+                EF.Functions.Like(p.Name, pattern, "\\") ||
+                EF.Functions.Like(p.Brand!, pattern, "\\") ||
+                EF.Functions.Like(p.StyleCode!, pattern, "\\") ||
+                p.Variants.Any(v => EF.Functions.Like(v.Sku, pattern, "\\") || v.Barcode == text.Trim()));
+        }
+
+        return await query.OrderBy(p => p.Name).ToListAsync(ct);
+    }
+
+    public async Task<Product?> GetAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Products.AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .Include(p => p.Variants)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
+    }
+
+    /// <summary>Exact match on barcode or SKU — what a scanner sends.</summary>
+    public async Task<ProductVariant?> FindByCodeAsync(string code, CancellationToken ct = default)
+    {
+        code = code.Trim();
+        if (code.Length == 0) return null;
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.ProductVariants.AsNoTracking()
+            .Include(v => v.Product).ThenInclude(p => p!.Category)
+            .Where(v => v.IsActive && v.Product!.IsActive && (v.Barcode == code || v.Sku == code))
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<ProductVariant>> GetVariantsAsync(IEnumerable<int> ids, CancellationToken ct = default)
+    {
+        var idList = ids.Distinct().ToList();
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.ProductVariants.AsNoTracking()
+            .Include(v => v.Product).ThenInclude(p => p!.Category)
+            .Where(v => idList.Contains(v.Id))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>Free-text variant lookup for the register (name, brand, SKU, colour, size).</summary>
+    public async Task<List<ProductVariant>> SearchVariantsAsync(string text, int max = 100, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var query = db.ProductVariants.AsNoTracking()
+            .Include(v => v.Product).ThenInclude(p => p!.Category)
+            .Where(v => v.IsActive && v.Product!.IsActive);
+
+        // Every word must match something, so "oxford blue m" narrows nicely.
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pattern = QueryHelpers.LikePattern(word);
+            query = query.Where(v =>
+                EF.Functions.Like(v.Product!.Name, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.Brand!, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.Category!.Name, pattern, "\\") ||
+                EF.Functions.Like(v.Sku, pattern, "\\") ||
+                EF.Functions.Like(v.Color, pattern, "\\") ||
+                v.Size == word ||
+                v.Barcode == word);
+        }
+
+        return await query
+            .OrderBy(v => v.Product!.Name).ThenBy(v => v.Color).ThenBy(v => v.Id)
+            .Take(max)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<string>> GenerateBarcodesAsync(int count, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var next = await NextBarcodeSequenceAsync(db, ct);
+        return Enumerable.Range(0, count).Select(i => Ean13.CreateInStore(next + i)).ToList();
+    }
+
+    private static async Task<long> NextBarcodeSequenceAsync(PosDbContext db, CancellationToken ct)
+    {
+        var existing = await db.ProductVariants
+            .Where(v => v.Barcode != null && EF.Functions.Like(v.Barcode, Ean13.InStorePrefix + "%"))
+            .Select(v => v.Barcode!)
+            .ToListAsync(ct);
+
+        var max = existing
+            .Where(Ean13.IsValid)
+            .Select(b => long.Parse(b.Substring(2, 10)))
+            .DefaultIfEmpty(0)
+            .Max();
+        return max + 1;
+    }
+
+    /// <summary>
+    /// Creates or updates a product with its variants. Stock of existing variants is not touched here
+    /// (use the inventory screen); new variants may carry an opening stock quantity.
+    /// </summary>
+    public async Task<Product> SaveAsync(Product product, int userId, CancellationToken ct = default)
+    {
+        Validate(product);
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Categories.AnyAsync(c => c.Id == product.CategoryId, ct))
+            throw new BusinessRuleException("Please choose a valid category.");
+
+        Product entity;
+        if (product.Id == 0)
+        {
+            entity = new Product { CreatedAt = DateTime.Now };
+            db.Products.Add(entity);
+        }
+        else
+        {
+            entity = await db.Products.Include(p => p.Variants).FirstOrDefaultAsync(p => p.Id == product.Id, ct)
+                     ?? throw new BusinessRuleException("Product not found.");
+        }
+
+        entity.Name = product.Name.Trim();
+        entity.Description = QueryHelpers.Clean(product.Description);
+        entity.Brand = QueryHelpers.Clean(product.Brand);
+        entity.StyleCode = QueryHelpers.Clean(product.StyleCode)?.ToUpperInvariant()
+                           ?? SkuGenerator.StyleCodeFromName(entity.Name);
+        entity.Gender = product.Gender;
+        entity.Season = QueryHelpers.Clean(product.Season);
+        entity.Material = QueryHelpers.Clean(product.Material);
+        entity.CategoryId = product.CategoryId;
+        entity.SupplierId = product.SupplierId;
+        entity.Price = Money.Round(product.Price);
+        entity.Cost = Money.Round(product.Cost);
+        entity.IsActive = product.IsActive;
+
+        var ownIds = entity.Variants.Where(v => v.Id != 0).Select(v => v.Id).ToHashSet();
+        var takenSkus = (await db.ProductVariants.Where(v => !ownIds.Contains(v.Id)).Select(v => v.Sku).ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var takenBarcodes = (await db.ProductVariants.Where(v => v.Barcode != null && !ownIds.Contains(v.Id)).Select(v => v.Barcode!).ToListAsync(ct))
+            .ToHashSet();
+        var nextBarcode = await NextBarcodeSequenceAsync(db, ct);
+
+        // Remove variants the user deleted (or retire them if they have history).
+        var incomingIds = product.Variants.Where(v => v.Id != 0).Select(v => v.Id).ToHashSet();
+        foreach (var removed in entity.Variants.Where(v => v.Id != 0 && !incomingIds.Contains(v.Id)).ToList())
+        {
+            var hasHistory = await db.SaleLines.AnyAsync(l => l.ProductVariantId == removed.Id, ct)
+                             || await db.PurchaseOrderLines.AnyAsync(l => l.ProductVariantId == removed.Id, ct);
+            if (hasHistory) removed.IsActive = false;
+            else entity.Variants.Remove(removed);
+        }
+
+        foreach (var incoming in product.Variants)
+        {
+            var isNew = incoming.Id == 0;
+            var variant = isNew
+                ? new ProductVariant()
+                : entity.Variants.FirstOrDefault(v => v.Id == incoming.Id)
+                  ?? throw new BusinessRuleException("Variant does not belong to this product.");
+
+            variant.Size = incoming.Size.Trim();
+            variant.Color = incoming.Color.Trim();
+            variant.PriceOverride = incoming.PriceOverride is { } p ? Money.Round(p) : null;
+            variant.CostOverride = incoming.CostOverride is { } c ? Money.Round(c) : null;
+            variant.ReorderLevel = Math.Max(0, incoming.ReorderLevel);
+            variant.IsActive = incoming.IsActive;
+
+            var sku = QueryHelpers.Clean(incoming.Sku)?.ToUpperInvariant();
+            if (sku is null)
+                sku = SkuGenerator.MakeUnique(SkuGenerator.Build(entity.StyleCode, variant.Size, variant.Color), takenSkus);
+            else if (takenSkus.Contains(sku))
+                throw new BusinessRuleException($"SKU '{sku}' is already used by another item.");
+            takenSkus.Add(sku);
+            variant.Sku = sku;
+
+            var barcode = QueryHelpers.Clean(incoming.Barcode) ?? Ean13.CreateInStore(nextBarcode++);
+            if (!takenBarcodes.Add(barcode))
+                throw new BusinessRuleException($"Barcode '{barcode}' is already used by another item.");
+            variant.Barcode = barcode;
+
+            if (isNew)
+            {
+                entity.Variants.Add(variant);
+                variant.Product = entity;
+                if (incoming.StockQuantity < 0) throw new BusinessRuleException("Opening stock cannot be negative.");
+                if (incoming.StockQuantity > 0)
+                    StockLedger.Apply(db, variant, incoming.StockQuantity, StockMovementType.InitialStock, userId, notes: "Opening stock");
+            }
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException("This product was changed by someone else. Please reload and try again.");
+        }
+
+        return (await GetAsync(entity.Id, ct))!;
+    }
+
+    /// <summary>Deletes a product that was never sold or ordered; otherwise deactivates it.</summary>
+    public async Task<bool> DeleteAsync(int productId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var product = await db.Products.Include(p => p.Variants).FirstOrDefaultAsync(p => p.Id == productId, ct);
+        if (product is null) return false;
+
+        var variantIds = product.Variants.Select(v => v.Id).ToList();
+        var hasHistory = await db.SaleLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct)
+                         || await db.PurchaseOrderLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct);
+        if (hasHistory)
+        {
+            product.IsActive = false;
+            await db.SaveChangesAsync(ct);
+            return false;
+        }
+
+        db.Products.Remove(product);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private static void Validate(Product product)
+    {
+        if (string.IsNullOrWhiteSpace(product.Name)) throw new BusinessRuleException("Product name is required.");
+        if (product.CategoryId == 0) throw new BusinessRuleException("Please choose a category.");
+        if (product.Price < 0 || product.Cost < 0) throw new BusinessRuleException("Price and cost cannot be negative.");
+        if (product.Variants.Count == 0) throw new BusinessRuleException("Add at least one size/colour variant.");
+        if (product.Variants.Any(v => v.PriceOverride < 0 || v.CostOverride < 0))
+            throw new BusinessRuleException("Variant prices cannot be negative.");
+
+        var duplicate = product.Variants
+            .GroupBy(v => (Size: v.Size.Trim().ToUpperInvariant(), Color: v.Color.Trim().ToUpperInvariant()))
+            .FirstOrDefault(g => g.Count() > 1);
+        if (duplicate is not null)
+            throw new BusinessRuleException($"Variant '{ProductVariant.DescribeVariant(duplicate.Key.Size, duplicate.Key.Color)}' is listed twice.");
+
+        var dupSku = product.Variants
+            .Select(v => v.Sku?.Trim().ToUpperInvariant())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .GroupBy(s => s).FirstOrDefault(g => g.Count() > 1);
+        if (dupSku is not null) throw new BusinessRuleException($"SKU '{dupSku.Key}' is listed twice.");
+    }
+}

@@ -1,0 +1,100 @@
+<UserControl x:Class="ClothingStore.Desktop.Views.Dialogs.PaymentView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="clr-namespace:ClothingStore.Core;assembly=ClothingStore.Core"
+             Width="760">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width="300" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Amount" Style="{StaticResource FieldLabel}" Margin="0,0,0,3" />
+            <TextBox x:Name="AmountBox" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" FontSize="26" FontWeight="SemiBold" Padding="10,8" />
+
+            <TextBlock Text="Quick cash" Style="{StaticResource FieldLabel}" Margin="0,14,0,4" />
+            <ItemsControl ItemsSource="{Binding QuickCashOptions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Content="{Binding Label}" Margin="0,0,6,6" MinHeight="44" FontSize="15"
+                                Command="{Binding DataContext.QuickCashTenderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="Tender type" Style="{StaticResource FieldLabel}" Margin="0,10,0,4" />
+            <UniformGrid Columns="3">
+                <Button Content="Cash" Style="{StaticResource SuccessButton}" MinHeight="48" Margin="0,0,6,6"
+                        Command="{Binding AddTenderCommand}" CommandParameter="{x:Static core:PaymentMethod.Cash}" />
+                <Button Content="Card" Style="{StaticResource PrimaryButton}" MinHeight="48" Margin="0,0,6,6"
+                        Command="{Binding AddTenderCommand}" CommandParameter="{x:Static core:PaymentMethod.Card}" />
+                <Button Content="Mobile wallet" Style="{StaticResource PrimaryButton}" MinHeight="48" Margin="0,0,6,6"
+                        Command="{Binding AddTenderCommand}" CommandParameter="{x:Static core:PaymentMethod.MobileWallet}" />
+            </UniformGrid>
+            <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" Tag="Card / wallet reference or auth code (optional)" Margin="0,0,6,0" />
+
+            <StackPanel Visibility="{Binding Customer, Converter={StaticResource HasValueToVis}}" Margin="0,14,0,0">
+                <TextBlock Text="{Binding Customer.FullName, StringFormat='Customer: {0}'}" FontWeight="SemiBold" />
+                <UniformGrid Columns="2" Margin="0,6,0,0">
+                    <Button Command="{Binding UseFullStoreCreditCommand}" IsEnabled="{Binding CanUseStoreCredit}" Margin="0,0,6,0">
+                        <TextBlock Text="{Binding StoreCreditAvailable, Converter={StaticResource Money}, StringFormat='Store credit ({0})'}" />
+                    </Button>
+                    <Button Command="{Binding UseFullLoyaltyCommand}" IsEnabled="{Binding CanUseLoyalty}" Margin="0,0,6,0">
+                        <TextBlock Text="{Binding LoyaltyInfo, StringFormat='Redeem points ({0})'}" />
+                    </Button>
+                </UniformGrid>
+            </StackPanel>
+        </StackPanel>
+
+        <DockPanel Grid.Column="2">
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                <Button Content="Complete sale" Style="{StaticResource BigPayButton}" Command="{Binding CompleteCommand}" IsEnabled="{Binding IsFullyPaid}" />
+                <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" Margin="0,8,0,0" />
+            </StackPanel>
+            <Border Style="{StaticResource Card}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <DockPanel>
+                            <TextBlock Text="{Binding Total, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="22" FontWeight="Bold" />
+                            <TextBlock Text="Total due" FontSize="15" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Separator Margin="0,10" />
+                        <TextBlock Text="TENDERED" Style="{StaticResource MutedText}" FontSize="11" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Separator Margin="0,10" />
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="{Binding Remaining, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+                            <TextBlock Text="Remaining" FontSize="15" />
+                        </DockPanel>
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="{Binding Change, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="22" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
+                            <TextBlock Text="Change" FontSize="15" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Tenders}" Margin="0,6,0,0" MinHeight="80">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,3">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Foreground="{StaticResource DangerBrush}"
+                                            Command="{Binding DataContext.RemoveTenderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE711;" Style="{StaticResource Icon}" FontSize="10" />
+                                    </Button>
+                                    <TextBlock Text="{Binding Amount, Converter={StaticResource Money}}" DockPanel.Dock="Right" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Method, Converter={StaticResource EnumDisplay}}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+    </Grid>
+</UserControl>

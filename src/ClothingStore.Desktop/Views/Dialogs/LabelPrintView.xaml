@@ -1,0 +1,31 @@
+<UserControl x:Class="ClothingStore.Desktop.Views.Dialogs.LabelPrintView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="700" Height="480">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+            <RadioButton Content="Sheet labels (3 across, A4/Letter)" GroupName="Layout" IsChecked="{Binding OnePerPage, Converter={StaticResource Not}}" />
+            <RadioButton Content="Label printer (one per label)" GroupName="Layout" IsChecked="{Binding OnePerPage}" />
+            <Button Content="Copies = stock on hand" Style="{StaticResource LinkButton}" Command="{Binding CopiesFromStockCommand}" />
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+            <Button Content="Print" Style="{StaticResource PrimaryButton}" Command="{Binding PrintCommand}" Margin="0" />
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ITEM" Binding="{Binding Variant.DisplayName, Mode=OneWay}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn Header="SKU" Binding="{Binding Variant.Sku, Mode=OneWay}" Width="140" IsReadOnly="True" />
+                <DataGridTextColumn Header="PRICE" Binding="{Binding Variant.EffectivePrice, Converter={StaticResource Money}, Mode=OneWay}" Width="80" IsReadOnly="True" />
+                <DataGridTextColumn Header="STOCK" Binding="{Binding Variant.StockQuantity, Mode=OneWay}" Width="60" IsReadOnly="True" />
+                <DataGridTemplateColumn Header="COPIES" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Padding="4,1" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

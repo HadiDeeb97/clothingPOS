@@ -1,0 +1,14 @@
+<Window x:Class="ClothingStore.Desktop.Views.DialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        MinWidth="360"
+        Background="{StaticResource BackgroundBrush}"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True">
+    <ContentPresenter Content="{Binding}" Margin="20" />
+</Window>
