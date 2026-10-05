@@ -10,14 +10,13 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
     public const string DefaultAdminUser = "admin";
     public const string DefaultAdminPassword = "admin123";
 
-    /// <summary>Applies migrations and makes sure the store has settings and an administrator.</summary>
+    /// <summary>
+    /// Creates the database if needed, applies migrations and makes sure the store has settings and an administrator.
+    /// </summary>
     public async Task InitializeAsync(bool seedDemoData, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.Database.MigrateAsync(ct);
-
-        if (db.Database.GetDbConnection().DataSource is { Length: > 0 } source && !source.Contains(":memory:"))
-            await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", ct);
 
         if (!await db.Settings.AnyAsync(ct)) db.Settings.Add(new StoreSettings());
 

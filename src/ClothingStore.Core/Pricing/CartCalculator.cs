@@ -114,7 +114,7 @@ public static class CartCalculator
     /// Splits <paramref name="amount"/> across lines proportionally to <paramref name="weights"/>,
     /// to the cent, never giving a line more than its weight and always summing exactly.
     /// </summary>
-    internal static decimal[] Allocate(decimal amount, IReadOnlyList<decimal> weights)
+    public static decimal[] Allocate(decimal amount, IReadOnlyList<decimal> weights)
     {
         var shares = new decimal[weights.Count];
         var totalWeight = weights.Sum();

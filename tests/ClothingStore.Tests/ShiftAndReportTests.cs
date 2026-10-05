@@ -53,7 +53,7 @@ public class ShiftAndReportTests
         }); // 60 net + 6 tax
         await db.Returns.ProcessReturnAsync(new ReturnRequest
         {
-            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, RefundMethod = RefundMethod.Card,
+            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id,
             Lines = [new ReturnLineRequest(sale.Lines[1].Id, 1)],
         }); // refund 22 (20 net + 2 tax), restocked
 

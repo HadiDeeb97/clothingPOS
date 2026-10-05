@@ -88,10 +88,15 @@
                     <TextBlock Text="Reason" Style="{StaticResource FieldLabel}" />
                     <ComboBox IsEditable="True" ItemsSource="{Binding ReasonPresets}" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock Text="Refund to" Style="{StaticResource FieldLabel}" />
-                    <RadioButton Content="Cash" GroupName="Refund" IsChecked="{Binding RefundMethod, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
-                    <RadioButton Content="Card" GroupName="Refund" IsChecked="{Binding RefundMethod, Converter={StaticResource Equals}, ConverterParameter=Card}" />
+                    <TextBlock Text="{Binding PaidWith}" Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4" />
+                    <RadioButton Content="Original payment method" GroupName="Refund"
+                                 IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=OriginalPayment}" />
                     <RadioButton Content="Store credit (for exchanges)" GroupName="Refund" IsEnabled="{Binding CanRefundToCredit}"
-                                 IsChecked="{Binding RefundMethod, Converter={StaticResource Equals}, ConverterParameter=StoreCredit}" />
+                                 IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=StoreCredit}" />
+                    <RadioButton Content="Cash instead of card (manager)" GroupName="Refund" IsEnabled="{Binding CanRefundInCash}"
+                                 IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
+                    <TextBlock Text="Store credit and loyalty points that paid for the sale always go back as credit and points."
+                               Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,0" />
                     <Separator Margin="0,12" />
                     <DockPanel>
                         <TextBlock Text="{Binding EstimatedRefund, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="26" FontWeight="Bold" />

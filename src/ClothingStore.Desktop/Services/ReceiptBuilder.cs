@@ -66,6 +66,8 @@ public static class ReceiptBuilder
 
         var extra = new List<string>();
         if (!string.IsNullOrWhiteSpace(ret.Reason)) extra.Add($"Reason: {ret.Reason}");
+        if (ret.LoyaltyPointsRestored > 0) extra.Add($"Points given back: {ret.LoyaltyPointsRestored}");
+        if (ret.LoyaltyPointsRemoved > 0) extra.Add($"Points taken back: {ret.LoyaltyPointsRemoved}");
         extra.Add("Customer signature: ____________________");
 
         return new ReceiptDocument
@@ -87,7 +89,11 @@ public static class ReceiptBuilder
             PricesIncludeTax = true, // refunds always include the tax that was charged
             Total = ret.TotalRefund,
             TotalLabel = "REFUND",
-            Payments = [new ReceiptPayment($"Refunded to {EnumDisplayConverter.Humanize(ret.RefundMethod.ToString())}", ret.TotalRefund)],
+            Payments = ret.Refunds
+                .GroupBy(r => r.Method)
+                .OrderBy(g => g.Key)
+                .Select(g => new ReceiptPayment($"Refunded to {EnumDisplayConverter.Humanize(g.Key.ToString())}", g.Sum(r => r.Amount)))
+                .ToList(),
             ExtraLines = extra,
             CurrencySymbol = s.CurrencySymbol,
         };

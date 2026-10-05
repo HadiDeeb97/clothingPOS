@@ -30,11 +30,30 @@ public enum PaymentMethod
     LoyaltyPoints = 4,
 }
 
+/// <summary>Where one part of a refund was paid out.</summary>
 public enum RefundMethod
 {
     Cash = 0,
     Card = 1,
     StoreCredit = 2,
+    MobileWallet = 3,
+    LoyaltyPoints = 4,
+}
+
+/// <summary>
+/// What the cashier chose for the cash, card and wallet parts of a refund. Parts paid with store credit or
+/// loyalty points always go back as store credit or points.
+/// </summary>
+public enum RefundDestination
+{
+    /// <summary>Each part goes back the way it was paid: cash to cash, card to card, wallet to wallet.</summary>
+    OriginalPayment = 0,
+
+    /// <summary>Everything becomes store credit (e.g. for an exchange).</summary>
+    StoreCredit = 1,
+
+    /// <summary>Card and wallet parts are paid out in cash too. Needs manager approval.</summary>
+    Cash = 2,
 }
 
 public enum DiscountType
@@ -69,6 +88,13 @@ public enum ShiftStatus
 {
     Open = 0,
     Closed = 1,
+}
+
+public enum BackupKind
+{
+    Manual = 0,
+    Scheduled = 1,
+    ShiftClose = 2,
 }
 
 public enum CashMovementType

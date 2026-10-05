@@ -120,12 +120,12 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
             .ToListAsync(ct);
         var completed = sales.Where(s => s.Status == SaleStatus.Completed).ToList();
 
-        var returns = await db.Returns.AsNoTracking().Where(r => r.ShiftId == shiftId).ToListAsync(ct);
+        var returns = await db.Returns.AsNoTracking().Include(r => r.Refunds).Where(r => r.ShiftId == shiftId).ToListAsync(ct);
 
         var payments = completed.SelectMany(s => s.Payments)
             .GroupBy(p => p.Method)
             .ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
-        var refunds = returns.GroupBy(r => r.RefundMethod).ToDictionary(g => g.Key, g => g.Sum(r => r.TotalRefund));
+        var refunds = returns.SelectMany(r => r.Refunds).GroupBy(r => r.Method).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
 
         var payIns = shift.CashMovements.Where(m => m.Type == CashMovementType.PayIn).Sum(m => m.Amount);
         var payOuts = shift.CashMovements.Where(m => m.Type == CashMovementType.PayOut).Sum(m => m.Amount);

@@ -323,7 +323,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         {
             throw new BusinessRuleException("Stock or customer balance changed at another till. Please try again.");
         }
-        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase) == true)
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
         {
             throw new BusinessRuleException("Another till just used the same receipt number. Please try again.");
         }

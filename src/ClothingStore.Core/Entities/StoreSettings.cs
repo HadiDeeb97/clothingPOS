@@ -34,4 +34,12 @@ public class StoreSettings : Entity
 
     /// <summary>Allow selling an item the system thinks is out of stock (count was wrong).</summary>
     public bool AllowNegativeStock { get; set; }
+
+    /// <summary>Folder on the SQL Server machine for backups; empty = the server's default backup folder.</summary>
+    public string? BackupFolder { get; set; }
+
+    /// <summary>Back up when a shift closes and whenever the last backup is older than <see cref="AutoBackupIntervalHours"/>.</summary>
+    public bool AutoBackupEnabled { get; set; } = true;
+
+    public int AutoBackupIntervalHours { get; set; } = 24;
 }

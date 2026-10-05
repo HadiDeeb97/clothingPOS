@@ -1,49 +1,44 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClothingStore.Data.Services;
 
 /// <summary>
-/// Refunds items from a previous sale. Exchanges are handled as a return to store credit
-/// followed by a new sale paid with that credit.
+/// Refunds items from a previous sale. The money goes back the way it was paid (see <see cref="RefundAllocator"/>).
+/// Exchanges are handled as a return to store credit followed by a new sale paid with that credit.
 /// </summary>
 public class ReturnService(IDbContextFactory<PosDbContext> factory)
 {
+    /// <summary>Works out what returning these items would refund and how, without changing anything.</summary>
+    public async Task<RefundPlan> PlanAsync(
+        int saleId, IReadOnlyList<ReturnLineRequest> lines, RefundDestination refundTo, CancellationToken ct = default)
+    {
+        var requested = Selected(lines);
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var state = await LoadAsync(db, saleId, ct);
+        var total = PriceLines(state, requested).Sum(l => l.Refund);
+        return new RefundPlan(total, RefundAllocator.Allocate(total, state.Remaining(), refundTo));
+    }
+
     public async Task<SaleReturn> ProcessReturnAsync(ReturnRequest request, CancellationToken ct = default)
     {
-        var requested = request.Lines.Where(l => l.Quantity > 0).ToList();
-        if (requested.Count == 0) throw new BusinessRuleException("Choose at least one item to return.");
+        var requested = Selected(request.Lines);
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UserId && u.IsActive, ct)
                    ?? throw new BusinessRuleException("User not found.");
 
-        var sale = await db.Sales
-            .Include(s => s.Lines).ThenInclude(l => l.ProductVariant)
-            .Include(s => s.Customer)
-            .FirstOrDefaultAsync(s => s.Id == request.SaleId, ct)
-            ?? throw new BusinessRuleException("Sale not found.");
-
-        if (sale.Status != SaleStatus.Completed) throw new BusinessRuleException("Voided sales cannot be returned.");
+        var state = await LoadAsync(db, request.SaleId, ct);
+        var sale = state.Sale;
 
         var age = DateTime.Now - sale.CreatedAt;
-        if (settings.ReturnWindowDays > 0 && age.TotalDays > settings.ReturnWindowDays)
-        {
-            var approved = Permissions.Has(user.Role, Permission.OverrideDiscountLimit);
-            if (!approved && request.ApprovedByUserId is { } approverId)
-            {
-                var approver = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive, ct);
-                approved = approver is not null && Permissions.Has(approver.Role, Permission.OverrideDiscountLimit);
-            }
-            if (!approved)
-                throw new BusinessRuleException($"This sale is older than the {settings.ReturnWindowDays}-day return window. Manager approval required.");
-        }
-
-        if (request.RefundMethod == RefundMethod.StoreCredit && sale.Customer is null)
-            throw new BusinessRuleException("Store credit refunds need a customer on the original sale.");
+        if (settings.ReturnWindowDays > 0 && age.TotalDays > settings.ReturnWindowDays &&
+            !await IsApprovedAsync(db, user, request.ApprovedByUserId, Permission.OverrideDiscountLimit, ct))
+            throw new BusinessRuleException($"This sale is older than the {settings.ReturnWindowDays}-day return window. Manager approval required.");
 
         Shift? shift = null;
         if (request.ShiftId is { } shiftId)
@@ -51,16 +46,18 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
             if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException("The shift is closed.");
         }
-        if (request.RefundMethod == RefundMethod.Cash && shift is null)
-            throw new BusinessRuleException("Open a cash drawer shift to give cash refunds.");
 
-        // Summed in memory: SQLite stores decimals as text, so aggregate client-side to keep exact cents.
-        var previousReturns = (await db.ReturnLines
-                .Where(rl => rl.SaleLine!.SaleId == sale.Id)
-                .Select(rl => new { rl.SaleLineId, rl.RefundAmount, rl.TaxAmount })
-                .ToListAsync(ct))
-            .GroupBy(x => x.SaleLineId)
-            .ToDictionary(g => g.Key, g => (Refund: g.Sum(x => x.RefundAmount), Tax: g.Sum(x => x.TaxAmount)));
+        var priced = PriceLines(state, requested);
+        var total = priced.Sum(l => l.Refund);
+        var shares = RefundAllocator.Allocate(total, state.Remaining(), request.RefundTo);
+
+        if (shares.Any(s => s.Method == RefundMethod.StoreCredit) && sale.Customer is null)
+            throw new BusinessRuleException("Store credit refunds need a customer on the original sale.");
+        if (shares.Any(s => s.Method == RefundMethod.Cash) && shift is null)
+            throw new BusinessRuleException("Open a cash drawer shift to give cash refunds.");
+        if (shares.Any(s => s.IsCashOverride) &&
+            !await IsApprovedAsync(db, user, request.ApprovedByUserId, Permission.OverrideRefundMethod, ct))
+            throw new BusinessRuleException("Refunding a card or wallet payment in cash needs manager approval.");
 
         var now = DateTime.Now;
         var ret = new SaleReturn
@@ -70,32 +67,15 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             UserId = user.Id,
             CustomerId = sale.CustomerId,
             ShiftId = shift?.Id,
-            RefundMethod = request.RefundMethod,
             Reason = QueryHelpers.Clean(request.Reason),
             ReturnNumber = await NextReturnNumberAsync(db, now, ct),
+            TotalRefund = total,
+            TaxRefund = priced.Sum(l => l.Tax),
+            Refunds = shares.Select(s => new SaleReturnRefund { Source = s.Source, Method = s.Method, Amount = s.Amount }).ToList(),
         };
 
-        foreach (var req in requested)
+        foreach (var (line, req, refund, tax) in priced)
         {
-            var line = sale.Lines.FirstOrDefault(l => l.Id == req.SaleLineId)
-                       ?? throw new BusinessRuleException("Item does not belong to this sale.");
-            if (req.Quantity > line.ReturnableQuantity)
-                throw new BusinessRuleException($"Only {line.ReturnableQuantity} x {line.ProductName} can still be returned.");
-
-            decimal refund, tax;
-            if (req.Quantity == line.ReturnableQuantity)
-            {
-                // Last units: refund whatever is left so the line reconciles to the cent.
-                previousReturns.TryGetValue(line.Id, out var prev);
-                refund = line.LineTotal - prev.Refund;
-                tax = line.TaxAmount - prev.Tax;
-            }
-            else
-            {
-                refund = Money.Round(line.LineTotal * req.Quantity / line.Quantity);
-                tax = Money.Round(line.TaxAmount * req.Quantity / line.Quantity);
-            }
-
             line.ReturnedQuantity += req.Quantity;
             ret.Lines.Add(new SaleReturnLine
             {
@@ -105,8 +85,6 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
                 TaxAmount = tax,
                 Restocked = req.Restock,
             });
-            ret.TotalRefund += refund;
-            ret.TaxRefund += tax;
 
             if (req.Restock)
                 StockLedger.Apply(db, line.ProductVariant!, req.Quantity, StockMovementType.Return, user.Id, ret.ReturnNumber, QueryHelpers.Clean(request.Reason));
@@ -114,9 +92,14 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
 
         if (sale.Customer is { } customer)
         {
-            if (request.RefundMethod == RefundMethod.StoreCredit) customer.StoreCredit += ret.TotalRefund;
-            var pointsToRemove = (int)Math.Floor(ret.TotalRefund * settings.LoyaltyPointsPerUnit);
-            customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints - Math.Min(pointsToRemove, sale.LoyaltyPointsEarned));
+            customer.StoreCredit += shares.Where(s => s.Method == RefundMethod.StoreCredit).Sum(s => s.Amount);
+
+            // Points paid with come back; points earned on the refunded money are taken back.
+            ret.LoyaltyPointsRestored = PointsToMove(state, shares, sale.LoyaltyPointsRedeemed, state.PointsRestoredBefore,
+                m => m == PaymentMethod.LoyaltyPoints);
+            ret.LoyaltyPointsRemoved = PointsToMove(state, shares, sale.LoyaltyPointsEarned, state.PointsRemovedBefore,
+                m => m is PaymentMethod.Cash or PaymentMethod.Card or PaymentMethod.MobileWallet);
+            customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints + ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved);
         }
 
         db.Returns.Add(ret);
@@ -126,9 +109,120 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("The item or customer was updated at another till. Please try again.");
+            throw new BusinessRuleException("The sale, item or customer was updated at another till. Please try again.");
         }
         return ret;
+    }
+
+    private sealed record SaleState(
+        Sale Sale,
+        Dictionary<int, (decimal Refund, decimal Tax)> LineReturns,
+        Dictionary<PaymentMethod, decimal> Paid,
+        Dictionary<PaymentMethod, decimal> RefundedBefore,
+        int PointsRestoredBefore,
+        int PointsRemovedBefore)
+    {
+        /// <summary>What is left to refund on each tender of the sale.</summary>
+        public Dictionary<PaymentMethod, decimal> Remaining() =>
+            Paid.ToDictionary(p => p.Key, p => p.Value - RefundedBefore.GetValueOrDefault(p.Key));
+    }
+
+    private sealed record PricedLine(SaleLine Line, ReturnLineRequest Request, decimal Refund, decimal Tax);
+
+    private static List<ReturnLineRequest> Selected(IReadOnlyList<ReturnLineRequest> lines)
+    {
+        var requested = lines.Where(l => l.Quantity > 0).ToList();
+        return requested.Count == 0 ? throw new BusinessRuleException("Choose at least one item to return.") : requested;
+    }
+
+    private static async Task<SaleState> LoadAsync(PosDbContext db, int saleId, CancellationToken ct)
+    {
+        var sale = await db.Sales
+            .Include(s => s.Lines).ThenInclude(l => l.ProductVariant)
+            .Include(s => s.Payments)
+            .Include(s => s.Customer)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(s => s.Id == saleId, ct)
+            ?? throw new BusinessRuleException("Sale not found.");
+
+        if (sale.Status != SaleStatus.Completed) throw new BusinessRuleException("Voided sales cannot be returned.");
+
+        var lineReturns = (await db.ReturnLines
+                .Where(rl => rl.SaleLine!.SaleId == sale.Id)
+                .Select(rl => new { rl.SaleLineId, rl.RefundAmount, rl.TaxAmount })
+                .ToListAsync(ct))
+            .GroupBy(x => x.SaleLineId)
+            .ToDictionary(g => g.Key, g => (Refund: g.Sum(x => x.RefundAmount), Tax: g.Sum(x => x.TaxAmount)));
+
+        var refundedBefore = (await db.ReturnRefunds
+                .Where(r => r.SaleReturn!.SaleId == sale.Id)
+                .Select(r => new { r.Source, r.Amount })
+                .ToListAsync(ct))
+            .GroupBy(r => r.Source)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+
+        var points = await db.Returns
+            .Where(r => r.SaleId == sale.Id)
+            .Select(r => new { r.LoyaltyPointsRestored, r.LoyaltyPointsRemoved })
+            .ToListAsync(ct);
+
+        return new SaleState(
+            sale,
+            lineReturns,
+            sale.Payments.GroupBy(p => p.Method).ToDictionary(g => g.Key, g => g.Sum(p => p.Amount)),
+            refundedBefore,
+            points.Sum(p => p.LoyaltyPointsRestored),
+            points.Sum(p => p.LoyaltyPointsRemoved));
+    }
+
+    private static List<PricedLine> PriceLines(SaleState state, IReadOnlyList<ReturnLineRequest> requested)
+    {
+        var priced = new List<PricedLine>();
+        foreach (var req in requested)
+        {
+            var line = state.Sale.Lines.FirstOrDefault(l => l.Id == req.SaleLineId)
+                       ?? throw new BusinessRuleException("Item does not belong to this sale.");
+            var alreadyRequested = priced.Where(p => p.Line.Id == line.Id).Sum(p => p.Request.Quantity);
+            if (req.Quantity + alreadyRequested > line.ReturnableQuantity)
+                throw new BusinessRuleException($"Only {line.ReturnableQuantity} x {line.ProductName} can still be returned.");
+
+            decimal refund, tax;
+            if (req.Quantity + alreadyRequested == line.ReturnableQuantity)
+            {
+                // Last units: refund whatever is left so the line reconciles to the cent.
+                state.LineReturns.TryGetValue(line.Id, out var prev);
+                refund = line.LineTotal - prev.Refund - priced.Where(p => p.Line.Id == line.Id).Sum(p => p.Refund);
+                tax = line.TaxAmount - prev.Tax - priced.Where(p => p.Line.Id == line.Id).Sum(p => p.Tax);
+            }
+            else
+            {
+                refund = Money.Round(line.LineTotal * req.Quantity / line.Quantity);
+                tax = Money.Round(line.TaxAmount * req.Quantity / line.Quantity);
+            }
+            priced.Add(new PricedLine(line, req, refund, tax));
+        }
+        return priced;
+    }
+
+    /// <summary>
+    /// Points to give back (or take back) on this return: the share of <paramref name="totalPoints"/> matching how much
+    /// of the relevant tenders has now been refunded, minus what earlier returns already moved.
+    /// </summary>
+    private static int PointsToMove(SaleState state, IReadOnlyList<RefundShare> shares, int totalPoints, int movedBefore,
+        Func<PaymentMethod, bool> tender)
+    {
+        var paid = state.Paid.Where(p => tender(p.Key)).Sum(p => p.Value);
+        var refunded = state.RefundedBefore.Where(r => tender(r.Key)).Sum(r => r.Value)
+                       + shares.Where(s => tender(s.Source)).Sum(s => s.Amount);
+        return Math.Max(0, RefundAllocator.ProportionalPoints(totalPoints, refunded, paid) - movedBefore);
+    }
+
+    private static async Task<bool> IsApprovedAsync(PosDbContext db, User user, int? approverId, Permission permission, CancellationToken ct)
+    {
+        if (Permissions.Has(user.Role, permission)) return true;
+        if (approverId is null) return false;
+        var approver = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive, ct);
+        return approver is not null && Permissions.Has(approver.Role, permission);
     }
 
     public async Task<List<SaleReturn>> SearchAsync(DateTime from, DateTime to, CancellationToken ct = default)
@@ -139,6 +233,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             .Include(r => r.User)
             .Include(r => r.Customer)
             .Include(r => r.Lines).ThenInclude(l => l.SaleLine)
+            .Include(r => r.Refunds)
             .AsSplitQuery()
             .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
             .OrderByDescending(r => r.CreatedAt)
@@ -153,6 +248,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             .Include(r => r.User)
             .Include(r => r.Customer)
             .Include(r => r.Lines).ThenInclude(l => l.SaleLine)
+            .Include(r => r.Refunds)
             .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Id == id, ct);
     }

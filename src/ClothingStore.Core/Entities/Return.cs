@@ -16,12 +16,34 @@ public class SaleReturn : Entity
 
     public int? ShiftId { get; set; }
 
-    public RefundMethod RefundMethod { get; set; }
     public decimal TotalRefund { get; set; }
     public decimal TaxRefund { get; set; }
     public string? Reason { get; set; }
 
+    /// <summary>Points the customer paid with that were given back.</summary>
+    public int LoyaltyPointsRestored { get; set; }
+
+    /// <summary>Points earned on the sale that were taken back because the purchase was refunded.</summary>
+    public int LoyaltyPointsRemoved { get; set; }
+
     public List<SaleReturnLine> Lines { get; set; } = [];
+
+    /// <summary>How <see cref="TotalRefund"/> was paid out, one row per original tender.</summary>
+    public List<SaleReturnRefund> Refunds { get; set; } = [];
+}
+
+public class SaleReturnRefund : Entity
+{
+    public int SaleReturnId { get; set; }
+    public SaleReturn? SaleReturn { get; set; }
+
+    /// <summary>The tender on the original sale this money came from.</summary>
+    public PaymentMethod Source { get; set; }
+
+    /// <summary>How it was given back.</summary>
+    public RefundMethod Method { get; set; }
+
+    public decimal Amount { get; set; }
 }
 
 public class SaleReturnLine : Entity

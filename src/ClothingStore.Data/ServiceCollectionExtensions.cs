@@ -9,7 +9,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPosData(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContextFactory<PosDbContext>(o => o.UseSqlite(connectionString));
+        services.AddDbContextFactory<PosDbContext>(o => o.UseSqlServer(connectionString));
 
         // Services are stateless (each call opens its own short-lived DbContext) so singletons are safe.
         services.AddSingleton<DatabaseInitializer>();

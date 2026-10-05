@@ -1,4 +1,5 @@
 using ClothingStore.Core;
+using ClothingStore.Core.Pricing;
 
 namespace ClothingStore.Data.Services;
 
@@ -42,10 +43,18 @@ public sealed record ReturnRequest
     public required int SaleId { get; init; }
     public required int UserId { get; init; }
     public int? ShiftId { get; init; }
-    public required RefundMethod RefundMethod { get; init; }
+    public RefundDestination RefundTo { get; init; } = RefundDestination.OriginalPayment;
     public required IReadOnlyList<ReturnLineRequest> Lines { get; init; }
     public string? Reason { get; init; }
 
-    /// <summary>Manager who approved a return outside the return window (if any).</summary>
+    /// <summary>Manager who approved a return outside the return window or a cash refund of a card payment (if any).</summary>
     public int? ApprovedByUserId { get; init; }
+}
+
+/// <summary>What a return would refund and how, before it is processed.</summary>
+public sealed record RefundPlan(decimal Total, IReadOnlyList<RefundShare> Shares)
+{
+    public decimal CashOut => Shares.Where(s => s.Method == RefundMethod.Cash).Sum(s => s.Amount);
+    public bool NeedsCashOverride => Shares.Any(s => s.IsCashOverride);
+    public bool AddsStoreCredit => Shares.Any(s => s.Method == RefundMethod.StoreCredit);
 }

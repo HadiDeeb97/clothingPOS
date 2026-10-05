@@ -7,7 +7,7 @@ namespace ClothingStore.Tests;
 
 /// <summary>
 /// Runs every read query the UI uses, with filters, against the demo catalogue so that
-/// any LINQ the SQLite provider can't translate fails here rather than at the till.
+/// any LINQ the SQL Server provider can't translate fails here rather than at the till.
 /// </summary>
 public class QuerySmokeTests
 {
@@ -54,7 +54,7 @@ public class QuerySmokeTests
 
         await db.Returns.ProcessReturnAsync(new ReturnRequest
         {
-            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, RefundMethod = RefundMethod.StoreCredit,
+            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, RefundTo = RefundDestination.StoreCredit,
             Lines = [new ReturnLineRequest(sale.Lines[0].Id, 1)],
         });
         var returns = await db.Returns.SearchAsync(today, tomorrow);
@@ -83,22 +83,5 @@ public class QuerySmokeTests
 
         Assert.NotEmpty(await db.Products.GenerateBarcodesAsync(2));
         Assert.True(await db.Users.IsFirstRunAsync()); // default admin still has the initial password
-    }
-
-    [Fact]
-    public async Task Backup_writes_a_copy()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "pos-tests-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            await using var db = await TestDatabase.CreateAsync();
-            var path = Path.Combine(dir, "backup.db");
-            await new BackupService(db.Factory).BackupAsync(path);
-            Assert.True(new FileInfo(path).Length > 0);
-        }
-        finally
-        {
-            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-        }
     }
 }

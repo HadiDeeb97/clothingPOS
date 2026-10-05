@@ -14,7 +14,8 @@ namespace ClothingStore.Desktop.ViewModels;
 
 /// <summary>Cash drawer: open with a float, pay-ins/outs, X report, count and close (Z report).</summary>
 public sealed partial class ShiftViewModel(
-    IDialogService dialogs, ShiftService shifts, SettingsService settings, Session session, PrintService print)
+    IDialogService dialogs, ShiftService shifts, SettingsService settings, Session session, PrintService print,
+    BackupService backups)
     : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => "Cash Drawer";
@@ -123,7 +124,26 @@ public sealed partial class ShiftViewModel(
         CountedCashText = "";
         CloseNotes = null;
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, "Z report", ReceiptBuilder.ShiftReport(closed!, settings.Current)));
+        await BackUpAfterCloseAsync();
         await RefreshAsync();
+    }
+
+    private async Task BackUpAfterCloseAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            await backups.BackupAfterShiftCloseAsync(session.User.Id);
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Warning($"The shift is closed, but the end-of-day backup failed:\n\n{ex.GetBaseException().Message}\n\n" +
+                            "Please tell your manager.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
