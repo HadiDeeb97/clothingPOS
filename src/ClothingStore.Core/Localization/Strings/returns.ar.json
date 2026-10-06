@@ -1,4 +1,7 @@
 {
+  "Returns.CashAsPaid": "كما دُفع",
+  "Returns.CashIn": "استرداد النقد",
+  "Returns.CashInHint": "تُدفع الليرات على سعر اليوم مع التقريب للأسفل.",
   "Returns.CashOverrideNeedsApproval": "إعادة دفعة البطاقة أو المحفظة نقداً تتطلب موافقة المدير.",
   "Returns.Confirm": "استرداد {0}:\n{1}\n\nمتابعة؟",
   "Returns.CreditAdded": "تمت إضافة رصيد المتجر. للاستبدال، سجّل القطع الجديدة في الصندوق وادفع برصيد المتجر.",

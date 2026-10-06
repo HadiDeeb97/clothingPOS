@@ -351,6 +351,11 @@
                         <TextBlock Text="{Binding Totals.Total, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="32" FontWeight="Bold" />
                         <TextBlock Text="{l:T Common.Total}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </DockPanel>
+                    <DockPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding TotalLbp, Converter={StaticResource Lbp}}" DockPanel.Dock="Right" FontSize="17" FontWeight="SemiBold"
+                                   Foreground="{StaticResource PrimaryDarkBrush}" />
+                        <TextBlock Text="{Binding RateText}" Style="{StaticResource MutedText}" FontSize="11.5" VerticalAlignment="Center" />
+                    </DockPanel>
                 </StackPanel>
             </Border>
         </DockPanel>

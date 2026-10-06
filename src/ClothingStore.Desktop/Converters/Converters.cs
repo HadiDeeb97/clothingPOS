@@ -12,6 +12,23 @@ public static class CurrencyFormat
 {
     public static string Symbol { get; set; } = "$";
     public static string Format(decimal value) => Money.Format(value, Symbol);
+
+    /// <summary>"1,567,000 LBP" in the screen language.</summary>
+    public static string Lbp(decimal value) => Core.Pricing.Lbp.Format(value);
+}
+
+/// <summary>Formats a number of Lebanese pounds ("1,567,000 LBP").</summary>
+public sealed class LbpConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        decimal d => CurrencyFormat.Lbp(d),
+        int i => CurrencyFormat.Lbp(i),
+        null => "",
+        _ => value.ToString() ?? "",
+    };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
 public sealed class MoneyConverter : IValueConverter

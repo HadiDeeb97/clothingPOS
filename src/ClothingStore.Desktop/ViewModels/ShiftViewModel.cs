@@ -26,7 +26,25 @@ public sealed partial class ShiftViewModel(
     public partial string OpeningFloatText { get; set; } = "100.00";
 
     [ObservableProperty]
+    public partial string OpeningFloatLbpText { get; set; } = "0";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLbp))]
     public partial ShiftSummary? Summary { get; set; }
+
+    /// <summary>Lebanese pounds are counted separately from dollars.</summary>
+    public bool ShowLbp => settings.Current.ActiveLbpRate > 0 || Summary?.ShowLbp == true;
+
+    [ObservableProperty]
+    public partial CashCurrency MovementCurrency { get; set; } = CashCurrency.Usd;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VariancePreviewLbp))]
+    public partial string CountedCashLbpText { get; set; } = "";
+
+    public string VariancePreviewLbp => Summary is not null && TryParse(CountedCashLbpText, out var counted)
+        ? Loc.T("Shift.VariancePreview", CurrencyFormat.Lbp(counted - Summary.ExpectedCashLbp))
+        : "";
 
     [ObservableProperty]
     public partial CashMovementType MovementType { get; set; } = CashMovementType.PayOut;
@@ -62,6 +80,7 @@ public sealed partial class ShiftViewModel(
         session.CurrentShift = await shifts.GetOpenShiftAsync(session.User.Id);
         Summary = session.CurrentShift is { } shift ? await shifts.GetSummaryAsync(shift.Id) : null;
         OnPropertyChanged(nameof(VariancePreview));
+        OnPropertyChanged(nameof(VariancePreviewLbp));
         var userFilter = session.Can(Permission.ViewAllShifts) ? (int?)null : session.User.Id;
         History = await shifts.GetShiftsAsync(DateTime.Today.AddDays(-60), DateTime.Today.AddDays(1), userFilter);
     });
@@ -74,7 +93,13 @@ public sealed partial class ShiftViewModel(
             Dialogs.Warning(Loc.T("Shift.EnterFloat"));
             return;
         }
-        if (await RunAsync(() => shifts.OpenShiftAsync(session.User.Id, amount)))
+        var amountLbp = 0m;
+        if (ShowLbp && !string.IsNullOrWhiteSpace(OpeningFloatLbpText) && !TryParse(OpeningFloatLbpText, out amountLbp))
+        {
+            Dialogs.Warning(Loc.T("Shift.EnterFloat"));
+            return;
+        }
+        if (await RunAsync(() => shifts.OpenShiftAsync(session.User.Id, amount, amountLbp)))
         {
             Dialogs.Toast(Loc.T("Shift.Opened"));
             await RefreshAsync();
@@ -90,7 +115,7 @@ public sealed partial class ShiftViewModel(
             Dialogs.Warning(Loc.T("Shift.EnterAmount"));
             return;
         }
-        if (await RunAsync(() => shifts.AddCashMovementAsync(shift.Id, MovementType, amount, MovementReason ?? "", session.User.Id)))
+        if (await RunAsync(() => shifts.AddCashMovementAsync(shift.Id, MovementType, amount, MovementReason ?? "", session.User.Id, MovementCurrency)))
         {
             MovementAmountText = "";
             MovementReason = null;
@@ -115,18 +140,31 @@ public sealed partial class ShiftViewModel(
             return;
         }
 
-        var variance = counted - Summary.ExpectedCash;
-        var balance = variance == 0
-            ? Loc.T("Shift.Balances")
-            : Loc.T(variance > 0 ? "Shift.Over" : "Shift.Short", CurrencyFormat.Format(Math.Abs(variance)));
-        var message = Loc.T("Shift.CloseConfirm", CurrencyFormat.Format(Summary.ExpectedCash), CurrencyFormat.Format(counted), balance);
+        decimal? countedLbp = null;
+        if (ShowLbp)
+        {
+            if (!TryParse(CountedCashLbpText, out var lbp))
+            {
+                Dialogs.Warning(Loc.T("Shift.EnterCountLbp"));
+                return;
+            }
+            countedLbp = lbp;
+        }
+
+        var message = Loc.T("Shift.CloseConfirm",
+            CurrencyFormat.Format(Summary.ExpectedCash), CurrencyFormat.Format(counted), Balance(counted - Summary.ExpectedCash, CurrencyFormat.Format));
+        if (countedLbp is { } c)
+            message = Loc.T("Shift.CloseConfirmBoth",
+                CurrencyFormat.Format(Summary.ExpectedCash), CurrencyFormat.Format(counted), Balance(counted - Summary.ExpectedCash, CurrencyFormat.Format),
+                CurrencyFormat.Lbp(Summary.ExpectedCashLbp), CurrencyFormat.Lbp(c), Balance(c - Summary.ExpectedCashLbp, CurrencyFormat.Lbp));
         if (!Dialogs.Confirm(message, Loc.T("Shift.CloseShift"))) return;
 
         ShiftSummary? closed = null;
-        if (!await RunAsync(async () => closed = await shifts.CloseShiftAsync(shift.Id, counted, CloseNotes))) return;
+        if (!await RunAsync(async () => closed = await shifts.CloseShiftAsync(shift.Id, counted, CloseNotes, countedLbp))) return;
 
         session.CurrentShift = null;
         CountedCashText = "";
+        CountedCashLbpText = "";
         CloseNotes = null;
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Shift.ZReport"), ReceiptBuilder.ShiftReport(closed!, settings.Current)));
         await BackUpAfterCloseAsync();
@@ -158,6 +196,11 @@ public sealed partial class ShiftViewModel(
         if (await RunAsync(async () => summary = await shifts.GetSummaryAsync(SelectedHistory.Id)))
             Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Shift.ShiftNumber", SelectedHistory.Id), ReceiptBuilder.ShiftReport(summary!, settings.Current)));
     }
+
+    private static string Balance(decimal variance, Func<decimal, string> format) =>
+        variance == 0
+            ? Loc.T("Shift.Balances")
+            : Loc.T(variance > 0 ? "Shift.Over" : "Shift.Short", format(Math.Abs(variance)));
 
     private static bool TryParse(string? text, out decimal value) =>
         decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out value) ||

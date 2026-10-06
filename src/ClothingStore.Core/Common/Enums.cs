@@ -28,6 +28,9 @@ public enum PaymentMethod
     MobileWallet = 2,
     StoreCredit = 3,
     LoyaltyPoints = 4,
+
+    /// <summary>Cash in Lebanese pounds. The payment amount is the dollar value applied to the sale.</summary>
+    CashLbp = 5,
 }
 
 /// <summary>Where one part of a refund was paid out.</summary>
@@ -38,6 +41,9 @@ public enum RefundMethod
     StoreCredit = 2,
     MobileWallet = 3,
     LoyaltyPoints = 4,
+
+    /// <summary>Paid out in Lebanese pounds at the day's rate. The refund amount is in dollars.</summary>
+    CashLbp = 5,
 }
 
 /// <summary>
@@ -101,4 +107,21 @@ public enum CashMovementType
 {
     PayIn = 0,
     PayOut = 1,
+}
+
+/// <summary>A physical currency in the cash drawer.</summary>
+public enum CashCurrency
+{
+    Usd = 0,
+    Lbp = 1,
+}
+
+/// <summary>How change is handed back when the customer paid more than the cash due.</summary>
+public enum ChangeCurrency
+{
+    Usd = 0,
+    Lbp = 1,
+
+    /// <summary>Whole dollars in USD and the rest in LBP (there are no dollar coins).</summary>
+    Mixed = 2,
 }

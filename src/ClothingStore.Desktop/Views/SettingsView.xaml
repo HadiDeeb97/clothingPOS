@@ -117,6 +117,25 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Lebanese pounds -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <StackPanel>
+                        <TextBlock Text="{l:T Settings.Lbp}" Style="{StaticResource SectionTitle}" />
+                        <CheckBox Content="{l:T Settings.LbpEnabled}" IsChecked="{Binding Settings.LbpEnabled}" />
+                        <StackPanel IsEnabled="{Binding Settings.LbpEnabled}">
+                            <TextBlock Text="{l:T Settings.LbpRate}" Style="{StaticResource FieldLabel}" />
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="{l:T Settings.ChangeRate}" Command="{Binding ChangeRateCommand}"
+                                        IsEnabled="{Binding CanChangeRate}" Margin="8,0,0,0" />
+                                <TextBox Text="{Binding RateText, Mode=OneWay}" IsReadOnly="True" FontWeight="SemiBold" />
+                            </DockPanel>
+                            <TextBlock Text="{l:T Settings.LbpRounding}" Style="{StaticResource FieldLabel}" />
+                            <ComboBox ItemsSource="{Binding LbpRoundings}" SelectedItem="{Binding Settings.LbpRounding}" ItemStringFormat="N0" Width="160" HorizontalAlignment="Left" />
+                            <TextBlock Text="{l:T Settings.LbpHint}" Style="{StaticResource HintText}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Data & backups -->
                 <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>

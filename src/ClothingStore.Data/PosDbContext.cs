@@ -25,6 +25,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<StoreSettings> Settings => Set<StoreSettings>();
     public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
+    public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -162,6 +163,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.CashMovements).WithOne(m => m.Shift).HasForeignKey(m => m.ShiftId).OnDelete(DeleteBehavior.Cascade);
             e.Ignore(x => x.Variance);
+            e.Ignore(x => x.VarianceLbp);
         });
 
         b.Entity<HeldSale>(e => e.Property(x => x.Label).HasMaxLength(100));
@@ -180,6 +182,13 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointsPerUnit).HasPrecision(18, 4);
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
+            e.Ignore(x => x.ActiveLbpRate);
+        });
+
+        b.Entity<ExchangeRateChange>(e =>
+        {
+            e.HasIndex(x => x.ChangedAt);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 

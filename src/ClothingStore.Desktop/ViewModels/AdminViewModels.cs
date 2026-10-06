@@ -1,7 +1,9 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Security;
 using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
+using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ClothingStore.Core.Localization;
@@ -119,22 +121,39 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
 
     public bool HasNoBackups => Backups.Count == 0;
 
+    /// <summary>LBP rounding steps offered (amounts collected round up to it, change and refunds round down).</summary>
+    public int[] LbpRoundings { get; } = [1, 100, 250, 500, 1_000, 5_000, 10_000];
+
+    public string RateText => Loc.T("Rate.Short", Settings.LbpRate.ToString("N0"));
+    public bool CanChangeRate => session.Can(Permission.ChangeExchangeRate);
+
+    partial void OnSettingsChanged(StoreSettings value) => OnPropertyChanged(nameof(RateText));
+
     public async Task OnNavigatedToAsync() => await ReloadAsync();
 
     [RelayCommand]
     private Task ReloadAsync() => RunAsync(async () =>
     {
-        Settings = await settings.GetAsync();
+        Settings = (await settings.GetAsync()).Clone();
         Backups = await backup.GetRecentAsync();
     });
 
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
-        await settings.SaveAsync(Settings);
-        Settings = await settings.GetAsync();
+        await settings.SaveAsync(Settings.Clone());
+        Settings = (await settings.GetAsync()).Clone();
         Dialogs.Toast(Loc.T("Settings.Saved"));
     });
+
+    [RelayCommand]
+    private void ChangeRate()
+    {
+        if (!Dialogs.ShowDialog(new ExchangeRateViewModel(Dialogs, settings, session))) return;
+        Settings.LbpRate = settings.Current.LbpRate; // the rest of the form keeps its unsaved edits
+        OnPropertyChanged(nameof(RateText));
+        Dialogs.Toast(Loc.T("Rate.Changed", settings.Current.LbpRate.ToString("N0")));
+    }
 
     [RelayCommand]
     private async Task BackupAsync()

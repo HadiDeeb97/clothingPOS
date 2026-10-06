@@ -2,15 +2,15 @@ using System.Windows.Controls;
 
 namespace ClothingStore.Desktop.Views.Dialogs;
 
-public partial class PaymentView : UserControl
+public partial class ExchangeRateView : UserControl
 {
-    public PaymentView()
+    public ExchangeRateView()
     {
         InitializeComponent();
         Loaded += (_, _) =>
         {
-            UsdBox.Focus();
-            UsdBox.SelectAll();
+            RateBox.Focus();
+            RateBox.SelectAll();
         };
     }
 }

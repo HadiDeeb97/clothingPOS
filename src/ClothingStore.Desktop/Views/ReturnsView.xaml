@@ -106,6 +106,20 @@
                         <RadioButton Content="{l:T Returns.ToCash}" GroupName="Refund" IsEnabled="{Binding CanRefundInCash}"
                                      IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
                         <TextBlock Text="{l:T Returns.StoreFundsHint}" Style="{StaticResource HintText}" />
+                        <StackPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{l:T Returns.CashIn}" Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Returns.CashAsPaid}"
+                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=AsPaid}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Usd}"
+                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Usd}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Lbp}"
+                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Lbp}" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="{l:T Returns.CashInHint}" Style="{StaticResource HintText}" />
+                        </StackPanel>
                         <Separator Margin="0,14" />
                         <DockPanel>
                             <TextBlock Text="{Binding EstimatedRefund, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="28" FontWeight="Bold" />

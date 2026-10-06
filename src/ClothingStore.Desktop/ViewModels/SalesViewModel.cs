@@ -501,6 +501,11 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     // ---- Checkout ---------------------------------------------------------------------------
 
+    /// <summary>The total in Lebanese pounds at today's rate, under the dollar total.</summary>
+    public bool ShowLbp => _settings.Current.ActiveLbpRate > 0;
+    public decimal TotalLbp => Lbp.ToPay(Totals.Total, _settings.Current.ActiveLbpRate, _settings.Current.LbpRounding);
+    public string RateText => Loc.T("Rate.Short", _settings.Current.LbpRate.ToString("N0"));
+
     [RelayCommand]
     private async Task PayAsync()
     {
@@ -530,16 +535,30 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 CartDiscountType = CartDiscountType,
                 CartDiscountValue = CartDiscountValue,
                 Payments = payment.Payments,
+                ChangeIn = payment.EffectiveChangeIn,
+                ExchangeRate = payment.Rate,
                 ApprovedByUserId = _approvedByUserId,
             });
         });
-        if (!ok || sale is null) return;
+        if (!ok || sale is null)
+        {
+            // Most likely the rate changed on another till: pick it up so the next attempt shows the new amounts.
+            try { await _settings.RefreshCurrencyAsync(); } catch { /* checked again at checkout */ }
+            return;
+        }
 
         ResetSale();
         _ = LoadBrowseProductsAsync(); // stock on the tiles changed
         var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);
-        var title = sale.ChangeGiven > 0
-            ? Loc.T("Register.ChangeDue", CurrencyFormat.Format(sale.ChangeGiven))
+        var change = (sale.ChangeGiven, sale.ChangeGivenLbp) switch
+        {
+            ( > 0, > 0) => $"{CurrencyFormat.Format(sale.ChangeGiven)} + {CurrencyFormat.Lbp(sale.ChangeGivenLbp)}",
+            (_, > 0) => CurrencyFormat.Lbp(sale.ChangeGivenLbp),
+            ( > 0, _) => CurrencyFormat.Format(sale.ChangeGiven),
+            _ => null,
+        };
+        var title = change is not null
+            ? Loc.T("Register.ChangeDue", change)
             : Loc.T("Register.SaleComplete", sale.ReceiptNumber);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale")));
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
@@ -605,6 +624,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             OnPropertyChanged(nameof(ItemCount));
             OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(TaxLabel));
+            OnPropertyChanged(nameof(ShowLbp));
+            OnPropertyChanged(nameof(TotalLbp));
+            OnPropertyChanged(nameof(RateText));
         }
         finally
         {

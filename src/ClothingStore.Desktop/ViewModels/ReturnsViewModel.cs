@@ -34,6 +34,15 @@ public sealed partial class ReturnLineViewModel(SaleLine line) : ObservableObjec
     }
 }
 
+/// <summary>Currency for the cash part of a refund.</summary>
+public enum RefundCashChoice
+{
+    /// <summary>Dollars back as dollars, pounds back as pounds.</summary>
+    AsPaid,
+    Usd,
+    Lbp,
+}
+
 /// <summary>Refunds or exchanges: look up a receipt, choose items, refund to the original payment or store credit.</summary>
 public sealed partial class ReturnsViewModel(
     IDialogService dialogs, SalesService sales, ReturnService returns, SettingsService settings,
@@ -57,6 +66,18 @@ public sealed partial class ReturnsViewModel(
 
     [ObservableProperty]
     public partial RefundDestination RefundTo { get; set; } = RefundDestination.OriginalPayment;
+
+    [ObservableProperty]
+    public partial RefundCashChoice RefundCashIn { get; set; } = RefundCashChoice.AsPaid;
+
+    public bool ShowLbp => settings.Current.ActiveLbpRate > 0;
+
+    private CashCurrency? RefundCurrency => RefundCashIn switch
+    {
+        RefundCashChoice.Usd => CashCurrency.Usd,
+        RefundCashChoice.Lbp => CashCurrency.Lbp,
+        _ => null,
+    };
 
     [ObservableProperty]
     public partial string? Reason { get; set; }
@@ -122,6 +143,8 @@ public sealed partial class ReturnsViewModel(
             Lines.Add(vm);
         }
         RefundTo = RefundDestination.OriginalPayment;
+        RefundCashIn = RefundCashChoice.AsPaid;
+        OnPropertyChanged(nameof(ShowLbp));
         Reason = null;
         UpdateTotal();
     }
@@ -164,9 +187,9 @@ public sealed partial class ReturnsViewModel(
 
         var lines = selected.Select(l => new ReturnLineRequest(l.Line.Id, l.ReturnQuantity, l.Restock)).ToList();
         RefundPlan? plan = null;
-        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo)) || plan is null) return;
+        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo, RefundCurrency)) || plan is null) return;
 
-        if (plan.CashOut > 0 && !session.HasOpenShift)
+        if ((plan.CashOut > 0 || plan.CashOutLbp > 0) && !session.HasOpenShift)
         {
             Dialogs.Warning(Loc.T("Returns.OpenShiftForCash"));
             return;
@@ -189,7 +212,9 @@ public sealed partial class ReturnsViewModel(
         var breakdown = plan.Shares
             .GroupBy(s => s.Method)
             .OrderBy(g => g.Key)
-            .Select(g => $"  {Loc.EnumText(g.Key)}: {Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))}");
+            .Select(g => g.Key == RefundMethod.CashLbp
+                ? $"  {Loc.EnumText(g.Key)}: {Converters.CurrencyFormat.Lbp(plan.CashOutLbp)} ({Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))})"
+                : $"  {Loc.EnumText(g.Key)}: {Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))}");
         if (!Dialogs.Confirm(Loc.T("Returns.Confirm", Converters.CurrencyFormat.Format(plan.Total), string.Join("\n", breakdown))))
             return;
 
@@ -205,9 +230,15 @@ public sealed partial class ReturnsViewModel(
                 Reason = Reason,
                 ApprovedByUserId = approvedBy,
                 Lines = lines,
+                CashCurrency = RefundCurrency,
+                ExchangeRate = plan.Rate,
             });
         });
-        if (!ok || result is null) return;
+        if (!ok || result is null)
+        {
+            try { await settings.RefreshCurrencyAsync(); } catch { /* checked again on the next try */ }
+            return;
+        }
 
         var doc = ReceiptBuilder.FromReturn(result, sale, settings.Current, session.User.FullName);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Returns.RefundTitle", result.ReturnNumber),

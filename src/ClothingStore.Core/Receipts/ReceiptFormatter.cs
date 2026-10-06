@@ -53,8 +53,9 @@ public static class ReceiptFormatter
         if (!string.IsNullOrWhiteSpace(doc.SecondaryTotal)) lines.Add(Pair("", doc.SecondaryTotal, width));
         lines.Add(new string('=', width));
 
-        foreach (var p in doc.Payments) lines.Add(Pair(p.Label, M(p.Amount), width));
+        foreach (var p in doc.Payments) lines.Add(Pair(p.Label, p.AmountText ?? M(p.Amount), width));
         if (doc.Change > 0) lines.Add(Pair(R("Receipt.Change"), M(doc.Change), width));
+        if (!string.IsNullOrWhiteSpace(doc.ChangeLbp)) lines.Add(Pair(doc.Change > 0 ? "" : R("Receipt.Change"), doc.ChangeLbp, width));
 
         if (doc.ExtraLines.Count > 0)
         {

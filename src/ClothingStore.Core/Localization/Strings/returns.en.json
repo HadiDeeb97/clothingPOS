@@ -1,4 +1,7 @@
 {
+  "Returns.CashAsPaid": "As paid",
+  "Returns.CashIn": "Cash refund in",
+  "Returns.CashInHint": "Pounds are paid out at today's rate, rounded down.",
   "Returns.CashOverrideNeedsApproval": "Refunding a card or wallet payment in cash needs manager approval.",
   "Returns.Confirm": "Refund {0}:\n{1}\n\nContinue?",
   "Returns.CreditAdded": "Store credit added. For an exchange, ring up the new items on the Register and pay with store credit.",

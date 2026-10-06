@@ -15,14 +15,24 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
 {
     /// <summary>Works out what returning these items would refund and how, without changing anything.</summary>
     public async Task<RefundPlan> PlanAsync(
-        int saleId, IReadOnlyList<ReturnLineRequest> lines, RefundDestination refundTo, CancellationToken ct = default)
+        int saleId, IReadOnlyList<ReturnLineRequest> lines, RefundDestination refundTo, CashCurrency? cashCurrency = null,
+        CancellationToken ct = default)
     {
         var requested = Selected(lines);
         await using var db = await factory.CreateDbContextAsync(ct);
+        var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var state = await LoadAsync(db, saleId, ct);
         var total = PriceLines(state, requested).Sum(l => l.Refund);
-        return new RefundPlan(total, RefundAllocator.Allocate(total, state.Remaining(), refundTo));
+        var shares = Shares(total, state, refundTo, cashCurrency, settings);
+        return new RefundPlan(total, shares, settings.ActiveLbpRate, settings.LbpRounding);
     }
+
+    /// <summary>Allocates the refund, then pays the cash parts in the chosen currency (dollars when LBP is off).</summary>
+    private static IReadOnlyList<RefundShare> Shares(
+        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings) =>
+        RefundAllocator.InCurrency(
+            RefundAllocator.Allocate(total, state.Remaining(), refundTo),
+            settings.ActiveLbpRate > 0 ? cashCurrency : CashCurrency.Usd);
 
     public async Task<SaleReturn> ProcessReturnAsync(ReturnRequest request, CancellationToken ct = default)
     {
@@ -50,11 +60,13 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
 
         var priced = PriceLines(state, requested);
         var total = priced.Sum(l => l.Refund);
-        var shares = RefundAllocator.Allocate(total, state.Remaining(), request.RefundTo);
+        var shares = Shares(total, state, request.RefundTo, request.CashCurrency, settings);
+        var paysLbp = shares.Any(s => s.Method == RefundMethod.CashLbp);
+        if (paysLbp) SalesService.EnsureRate(settings, request.ExchangeRate);
 
         if (shares.Any(s => s.Method == RefundMethod.StoreCredit) && sale.Customer is null)
             throw new BusinessRuleException(Loc.T("Err.CreditRefundNeedsCustomer"));
-        if (shares.Any(s => s.Method == RefundMethod.Cash) && shift is null)
+        if (shares.Any(s => s.IsCash) && shift is null)
             throw new BusinessRuleException(Loc.T("Err.CashRefundNeedsShift"));
         if (shares.Any(s => s.IsCashOverride) &&
             !await IsApprovedAsync(db, user, request.ApprovedByUserId, Permission.OverrideRefundMethod, ct))
@@ -72,7 +84,14 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             ReturnNumber = await NextReturnNumberAsync(db, now, ct),
             TotalRefund = total,
             TaxRefund = priced.Sum(l => l.Tax),
-            Refunds = shares.Select(s => new SaleReturnRefund { Source = s.Source, Method = s.Method, Amount = s.Amount }).ToList(),
+            ExchangeRate = paysLbp ? settings.LbpRate : 0,
+            Refunds = shares.Select(s => new SaleReturnRefund
+            {
+                Source = s.Source,
+                Method = s.Method,
+                Amount = s.Amount,
+                AmountLbp = s.Method == RefundMethod.CashLbp ? Lbp.ToGive(s.Amount, settings.LbpRate, settings.LbpRounding) : 0,
+            }).ToList(),
         };
 
         foreach (var (line, req, refund, tax) in priced)
@@ -99,7 +118,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             ret.LoyaltyPointsRestored = PointsToMove(state, shares, sale.LoyaltyPointsRedeemed, state.PointsRestoredBefore,
                 m => m == PaymentMethod.LoyaltyPoints);
             ret.LoyaltyPointsRemoved = PointsToMove(state, shares, sale.LoyaltyPointsEarned, state.PointsRemovedBefore,
-                m => m is PaymentMethod.Cash or PaymentMethod.Card or PaymentMethod.MobileWallet);
+                SalesService.EarnsPoints);
             customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints + ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved);
         }
 

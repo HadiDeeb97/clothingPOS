@@ -45,4 +45,29 @@ public class StoreSettings : Entity
     public bool AutoBackupEnabled { get; set; } = true;
 
     public int AutoBackupIntervalHours { get; set; } = 24;
+
+    /// <summary>Accept Lebanese pounds as a second cash currency.</summary>
+    public bool LbpEnabled { get; set; } = true;
+
+    /// <summary>Lebanese pounds per dollar. Changed with its own permission and logged in <see cref="ExchangeRateChange"/>.</summary>
+    public decimal LbpRate { get; set; } = 89_500m;
+
+    /// <summary>LBP amounts are rounded to this step (e.g. 1,000 or 5,000): up when collecting, down when paying out.</summary>
+    public int LbpRounding { get; set; } = 1_000;
+
+    /// <summary>A copy for an edit screen, so unsaved changes don't leak into the rest of the app.</summary>
+    public StoreSettings Clone() => (StoreSettings)MemberwiseClone();
+
+    /// <summary>Rate to use for LBP right now, or 0 when LBP is off.</summary>
+    public decimal ActiveLbpRate => LbpEnabled && LbpRate > 0 ? LbpRate : 0;
+}
+
+/// <summary>History of exchange-rate changes: who changed it, when, from what to what.</summary>
+public class ExchangeRateChange : Entity
+{
+    public DateTime ChangedAt { get; set; } = DateTime.Now;
+    public decimal OldRate { get; set; }
+    public decimal NewRate { get; set; }
+    public int UserId { get; set; }
+    public User? User { get; set; }
 }

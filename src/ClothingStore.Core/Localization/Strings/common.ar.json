@@ -81,5 +81,7 @@
   "Common.Type": "النوع",
   "Common.Username": "اسم المستخدم",
   "Common.Yes": "نعم",
-  "Common.Yesterday": "أمس"
+  "Common.Yesterday": "أمس",
+  "Currency.Lbp": "ل.ل.",
+  "Currency.Usd": "دولار"
 }

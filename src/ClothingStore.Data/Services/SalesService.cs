@@ -68,7 +68,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             Notes = QueryHelpers.Clean(request.Notes),
             Status = SaleStatus.Completed,
         };
-        ApplyPayments(sale, request.Payments, customer, settings);
+        ApplyPayments(sale, request.Payments, customer, settings, request.ChangeIn, request.ExchangeRate);
 
         // Lines + stock.
         sale.ReceiptNumber = await NextReceiptNumberAsync(db, settings.ReceiptPrefix, sale.CreatedAt, ct);
@@ -117,19 +117,30 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         throw new BusinessRuleException(Loc.T("Err.DiscountNeedsApproval", settings.MaxCashierDiscountPercent));
     }
 
-    internal static void ApplyPayments(Sale sale, IReadOnlyList<PaymentInput> payments, Customer? customer, StoreSettings settings)
+    internal static void ApplyPayments(
+        Sale sale, IReadOnlyList<PaymentInput> payments, Customer? customer, StoreSettings settings,
+        ChangeCurrency changeIn = ChangeCurrency.Usd, decimal shownRate = 0)
     {
         if (payments.Any(p => p.Amount < 0)) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
 
-        var nonCash = payments.Where(p => p.Method != PaymentMethod.Cash && p.Amount > 0).ToList();
+        var nonCash = payments.Where(p => !IsCash(p.Method) && p.Amount > 0).ToList();
         var nonCashTotal = nonCash.Sum(p => Money.Round(p.Amount));
         if (nonCashTotal > sale.Total)
             throw new BusinessRuleException(Loc.T("Err.NonCashExceeds"));
 
-        var cashTendered = Money.Round(payments.Where(p => p.Method == PaymentMethod.Cash).Sum(p => p.Amount));
+        var tender = new CashTender(
+            Money.Round(payments.Where(p => p.Method == PaymentMethod.Cash).Sum(p => p.Amount)),
+            Math.Round(payments.Where(p => p.Method == PaymentMethod.CashLbp).Sum(p => p.Amount), 0, MidpointRounding.AwayFromZero),
+            changeIn);
+
+        var rate = settings.ActiveLbpRate;
+        sale.ExchangeRate = rate;
+        if (tender.Lbp > 0 || changeIn != ChangeCurrency.Usd) EnsureRate(settings, shownRate);
+
         var cashDue = sale.Total - nonCashTotal;
-        if (cashTendered < cashDue)
-            throw new BusinessRuleException(Loc.T("Err.PaymentShort", cashDue - cashTendered));
+        var cash = CashSettlement.Calculate(cashDue, tender, rate, settings.LbpRounding);
+        if (!cash.IsCovered)
+            throw new BusinessRuleException(Loc.T("Err.PaymentShort", cash.ShortUsd));
 
         foreach (var p in nonCash)
         {
@@ -156,20 +167,38 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             sale.Payments.Add(new Payment { Method = p.Method, Amount = amount, Reference = QueryHelpers.Clean(p.Reference) });
         }
 
-        if (cashDue > 0)
-            sale.Payments.Add(new Payment { Method = PaymentMethod.Cash, Amount = cashDue });
+        if (cash.AppliedUsd > 0)
+            sale.Payments.Add(new Payment { Method = PaymentMethod.Cash, Amount = cash.AppliedUsd });
+        if (cash.AppliedFromLbp > 0)
+            sale.Payments.Add(new Payment { Method = PaymentMethod.CashLbp, Amount = cash.AppliedFromLbp });
 
-        sale.CashTendered = cashTendered;
-        sale.ChangeGiven = cashTendered - Math.Max(cashDue, 0);
+        sale.CashTendered = tender.Usd;
+        sale.ChangeGiven = cash.ChangeUsd;
+        sale.CashTenderedLbp = tender.Lbp;
+        sale.ChangeGivenLbp = cash.ChangeLbp;
 
         if (customer is not null)
         {
             var earningSpend = sale.Payments
-                .Where(p => p.Method is PaymentMethod.Cash or PaymentMethod.Card or PaymentMethod.MobileWallet)
+                .Where(p => EarnsPoints(p.Method))
                 .Sum(p => p.Amount);
             sale.LoyaltyPointsEarned = (int)Math.Floor(earningSpend * settings.LoyaltyPointsPerUnit);
             customer.LoyaltyPoints += sale.LoyaltyPointsEarned;
         }
+    }
+
+    internal static bool IsCash(PaymentMethod method) => method is PaymentMethod.Cash or PaymentMethod.CashLbp;
+
+    /// <summary>Money that earns (and, when refunded, takes back) loyalty points.</summary>
+    internal static bool EarnsPoints(PaymentMethod method) =>
+        method is PaymentMethod.Cash or PaymentMethod.CashLbp or PaymentMethod.Card or PaymentMethod.MobileWallet;
+
+    /// <summary>Refuses pounds when LBP is off, or when the rate changed after the till showed it to the customer.</summary>
+    internal static void EnsureRate(StoreSettings settings, decimal shownRate)
+    {
+        if (settings.ActiveLbpRate <= 0) throw new BusinessRuleException(Loc.T("Err.LbpDisabled"));
+        if (shownRate != settings.LbpRate)
+            throw new BusinessRuleException(Loc.T("Err.RateChanged", settings.LbpRate.ToString("N0")));
     }
 
     private static async Task<string> NextReceiptNumberAsync(PosDbContext db, string prefix, DateTime date, CancellationToken ct)

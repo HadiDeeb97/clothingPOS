@@ -19,6 +19,9 @@ public enum Permission
     ManageUsers,
     ManageSettings,
     ViewAllShifts,
+
+    /// <summary>Change the LBP exchange rate.</summary>
+    ChangeExchangeRate,
 }
 
 public static class Permissions
@@ -43,6 +46,7 @@ public static class Permissions
         Permission.OverrideDiscountLimit,
         Permission.OverrideRefundMethod,
         Permission.ViewAllShifts,
+        Permission.ChangeExchangeRate,
     ];
 
     public static bool Has(UserRole role, Permission permission) => role switch

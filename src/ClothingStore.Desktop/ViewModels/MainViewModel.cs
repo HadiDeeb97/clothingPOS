@@ -72,7 +72,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _settings.SettingsChanged += OnSettingsChanged;
 
         _clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
-        _clock.Tick += (_, _) => OnPropertyChanged(nameof(Now));
+        _clock.Tick += OnClockTick;
         _clock.Start();
     }
 
@@ -93,6 +93,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public Branding Branding => Branding.Instance;
     public string RoleDisplay => Session.CurrentUser is { } u ? Loc.EnumText(u.Role) : "";
     public bool IsArabic => Loc.IsRightToLeft;
+
+    /// <summary>LBP rate chip in the top bar.</summary>
+    public bool ShowRate => _settings.Current.ActiveLbpRate > 0;
+    public string RateText => Loc.T("Rate.Short", _settings.Current.LbpRate.ToString("N0"));
+    public bool CanChangeRate => Session.Can(Permission.ChangeExchangeRate);
 
     [ObservableProperty]
     public partial bool IsSidebarCollapsed { get; set; }
@@ -133,7 +138,38 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(NavigationService.CurrentPage)) OnPropertyChanged(nameof(CurrentPage));
     }
 
-    private void OnSettingsChanged(object? sender, EventArgs e) => OnPropertyChanged(nameof(StoreName));
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(StoreName));
+        OnPropertyChanged(nameof(ShowRate));
+        OnPropertyChanged(nameof(RateText));
+    }
+
+    private int _ticks;
+
+    private async void OnClockTick(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(Now));
+
+        // Every minute, pick up a rate changed on another till.
+        if (++_ticks % 4 != 0) return;
+        try
+        {
+            if (await _settings.RefreshCurrencyAsync())
+                Dialogs.Toast(Loc.T("Rate.ChangedElsewhere", _settings.Current.LbpRate.ToString("N0")));
+        }
+        catch
+        {
+            // Offline for a moment: the next tick tries again, and checkout re-checks the rate anyway.
+        }
+    }
+
+    [RelayCommand]
+    private void ChangeRate()
+    {
+        if (Dialogs.ShowDialog(new ExchangeRateViewModel(Dialogs, _settings, Session)))
+            Dialogs.Toast(Loc.T("Rate.Changed", _settings.Current.LbpRate.ToString("N0")));
+    }
 
     [RelayCommand]
     private void ToggleSidebar() => IsSidebarCollapsed = !IsSidebarCollapsed;
@@ -180,6 +216,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _clock.Stop();
+        _clock.Tick -= OnClockTick;
         _navigation.Navigated -= OnNavigated;
         _navigation.PropertyChanged -= OnNavigationPropertyChanged;
         _settings.SettingsChanged -= OnSettingsChanged;

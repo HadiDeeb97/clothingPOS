@@ -8,14 +8,15 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | Area | What it does |
 | --- | --- |
 | **Register** | Scan barcodes or search by name/SKU/colour/size; size & colour variants; quantity +/-; line and cart discounts (% or amount); cashier discount limit with manager override; hold & resume sales (fitting room); keyboard shortcuts (F2 search, F4 customer, F6 qty, F7/F8 discounts, F9/F10 hold/resume, F12 pay) |
-| **Payments** | Split tender across cash, card, mobile wallet, store credit and loyalty points; quick-cash buttons; change calculation; printable receipts (auto-fits 58/80 mm thermal or A4) |
+| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4) |
+| **Lebanese pounds** | Prices stay in dollars; LBP is a second cash currency at the store's rate. Managers and admins change the rate from the top bar, every change is logged, and other tills pick it up within a minute. A sale or refund at an old rate is refused. LBP is rounded to a configurable step (up when collecting, down when paying out) |
 | **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
 | **Products** | Style + size × colour matrix with presets (XS–XXL, waist, shoe, kids…); auto SKU and in-store EAN-13 barcodes; per-variant price/cost overrides; brand, season, material, department |
 | **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger; Code 128 price labels (sheet or label printer) |
 | **Purchasing** | Suppliers; purchase orders; "add supplier's low-stock items"; partial and full receiving into stock with cost updates |
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
-| **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history |
+| **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
 | **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
 
@@ -99,13 +100,25 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 
 ## Daily workflow
 
-1. **Cash Drawer**: open a shift with your starting float.
+1. **Cash Drawer**: open a shift with your starting float (dollars and pounds). Check the rate in the top bar; a manager
+   clicks it to change it.
 2. **Register**: scan items, add the customer (F4), then **Pay** (F12). Print or skip the receipt.
 3. **Returns**: scan the receipt number. The refund goes back to the original payment method. For an exchange, refund to
    store credit, then sell the new item and pay with store credit.
 4. **Cash Drawer**: at closing time, count the drawer, close the shift and print the Z report.
 5. **Backups** happen automatically: after every shift close, and whenever the last backup is older than the interval set in
    **Settings** (24 hours by default). See below.
+
+### Cash in Lebanese pounds
+
+* **Settings → Lebanese pounds** switches LBP on or off and sets the rounding step (1,000 by default). New and existing
+  stores start with LBP on at 89,500.
+* On the payment screen, type what the customer handed over in the **dollars** box, the **pounds** box, or both. Choose
+  how to give change: **Dollars + LBP** (whole dollars, the rest in pounds), **USD** or **LBP**.
+* The amount to pay in pounds is rounded **up** to the step; change and refunds in pounds are rounded **down**, so the
+  drawer is never short because of rounding.
+* Refunds pay pounds back in pounds at **today's** rate (or the cashier picks dollars or pounds for the cash part).
+* The X/Z reports and the close-shift screen show what should be in the drawer in each currency.
 
 ### Backups
 

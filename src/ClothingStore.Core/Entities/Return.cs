@@ -18,6 +18,9 @@ public class SaleReturn : Entity
 
     public decimal TotalRefund { get; set; }
     public decimal TaxRefund { get; set; }
+
+    /// <summary>LBP per dollar used for any part paid out in pounds; 0 when none was.</summary>
+    public decimal ExchangeRate { get; set; }
     public string? Reason { get; set; }
 
     /// <summary>Points the customer paid with that were given back.</summary>
@@ -43,7 +46,11 @@ public class SaleReturnRefund : Entity
     /// <summary>How it was given back.</summary>
     public RefundMethod Method { get; set; }
 
+    /// <summary>Dollar value of this part of the refund.</summary>
     public decimal Amount { get; set; }
+
+    /// <summary>Lebanese pounds actually handed out, for <see cref="RefundMethod.CashLbp"/>.</summary>
+    public decimal AmountLbp { get; set; }
 }
 
 public class SaleReturnLine : Entity

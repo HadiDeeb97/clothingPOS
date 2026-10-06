@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Localization;
+using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Receipts;
 using ClothingStore.Data.Services;
 
@@ -29,9 +30,22 @@ public static class ReceiptBuilder
         }
         if (!string.IsNullOrWhiteSpace(sale.Notes)) extra.Add(R("Receipt.Note", sale.Notes));
 
+        // Cash is printed as handed over (before change), in each currency.
         var payments = sale.Payments
-            .Select(p => new ReceiptPayment(PaymentLabel(lang, p.Method, p.Reference), p.Method == PaymentMethod.Cash ? sale.CashTendered : p.Amount))
+            .Where(p => p.Method is not (PaymentMethod.Cash or PaymentMethod.CashLbp))
+            .Select(p => new ReceiptPayment(PaymentLabel(lang, p.Method, p.Reference), p.Amount))
             .ToList();
+        if (sale.CashTendered > 0)
+            payments.Add(new ReceiptPayment(PaymentLabel(lang, PaymentMethod.Cash, null), sale.CashTendered));
+        if (sale.CashTenderedLbp > 0)
+            payments.Add(new ReceiptPayment(PaymentLabel(lang, PaymentMethod.CashLbp, null), 0, Lbp.Format(sale.CashTenderedLbp, lang)));
+
+        string? secondaryTotal = null;
+        if (sale.ExchangeRate > 0)
+        {
+            secondaryTotal = Lbp.Format(Lbp.ToPay(sale.Total, sale.ExchangeRate, s.LbpRounding), lang);
+            extra.Insert(0, R("Receipt.Rate", sale.ExchangeRate.ToString("N0")));
+        }
 
         return new ReceiptDocument
         {
@@ -53,8 +67,10 @@ public static class ReceiptBuilder
             TaxRate = s.TaxRate,
             PricesIncludeTax = s.PricesIncludeTax,
             Total = sale.Total,
+            SecondaryTotal = secondaryTotal,
             Payments = payments,
             Change = sale.ChangeGiven,
+            ChangeLbp = sale.ChangeGivenLbp > 0 ? Lbp.Format(sale.ChangeGivenLbp, lang) : null,
             ExtraLines = extra,
             Footer = s.ReceiptFooter,
             CurrencySymbol = s.CurrencySymbol,
@@ -102,7 +118,10 @@ public static class ReceiptBuilder
             Payments = ret.Refunds
                 .GroupBy(r => r.Method)
                 .OrderBy(g => g.Key)
-                .Select(g => new ReceiptPayment(R("Receipt.RefundedTo", Loc.Get(lang, $"Enum.RefundMethod.{g.Key}")), g.Sum(r => r.Amount)))
+                .Select(g => new ReceiptPayment(
+                    R("Receipt.RefundedTo", Loc.Get(lang, $"Enum.RefundMethod.{g.Key}")),
+                    g.Sum(r => r.Amount),
+                    g.Key == RefundMethod.CashLbp ? Lbp.Format(g.Sum(r => r.AmountLbp), lang) : null))
                 .ToList(),
             ExtraLines = extra,
             CurrencySymbol = s.CurrencySymbol,
@@ -160,12 +179,33 @@ public static class ReceiptBuilder
             lines.Add(Row("  " + Loc.T("Report.OverShort"), M(sum.Variance ?? 0)));
         }
 
+        if (sum.ShowLbp)
+        {
+            string L(decimal v) => Lbp.Format(v);
+            lines.Add(rule);
+            lines.Add(Loc.T("Report.CashDrawerLbp"));
+            lines.Add(Row("  " + Loc.T("Shift.OpeningFloat"), L(sum.OpeningFloatLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.CashSales"), L(sum.CashSalesLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.PayIns"), L(sum.PayInsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.PayOuts"), L(-sum.PayOutsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), L(-sum.CashRefundsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.Expected"), L(sum.ExpectedCashLbp)));
+            if (sum.CountedCashLbp is { } countedLbp)
+            {
+                lines.Add(Row("  " + Loc.T("Report.Counted"), L(countedLbp)));
+                lines.Add(Row("  " + Loc.T("Report.OverShort"), L(sum.VarianceLbp ?? 0)));
+            }
+        }
+
         if (sum.CashMovements.Count > 0)
         {
             lines.Add(rule);
             lines.Add(Loc.T("Report.CashMovements"));
             foreach (var m in sum.CashMovements)
-                lines.Add(Row($"  {m.CreatedAt:HH:mm} {m.Reason}", M(m.Type == CashMovementType.PayIn ? m.Amount : -m.Amount)));
+            {
+                var signed = m.Type == CashMovementType.PayIn ? m.Amount : -m.Amount;
+                lines.Add(Row($"  {m.CreatedAt:HH:mm} {m.Reason}", m.Currency == CashCurrency.Lbp ? Lbp.Format(signed) : M(signed)));
+            }
         }
 
         lines.Add(rule);

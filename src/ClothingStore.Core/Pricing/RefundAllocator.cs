@@ -6,7 +6,9 @@ namespace ClothingStore.Core.Pricing;
 public sealed record RefundShare(PaymentMethod Source, RefundMethod Method, decimal Amount)
 {
     /// <summary>Card or wallet money paid out as cash, which needs manager approval.</summary>
-    public bool IsCashOverride => Method == RefundMethod.Cash && Source is PaymentMethod.Card or PaymentMethod.MobileWallet;
+    public bool IsCashOverride => Method is RefundMethod.Cash or RefundMethod.CashLbp && Source is PaymentMethod.Card or PaymentMethod.MobileWallet;
+
+    public bool IsCash => Method is RefundMethod.Cash or RefundMethod.CashLbp;
 }
 
 /// <summary>
@@ -41,11 +43,21 @@ public static class RefundAllocator
         PaymentMethod.StoreCredit => RefundMethod.StoreCredit,
         PaymentMethod.LoyaltyPoints => RefundMethod.LoyaltyPoints,
         _ when destination == RefundDestination.StoreCredit => RefundMethod.StoreCredit,
+        PaymentMethod.CashLbp => RefundMethod.CashLbp,
         _ when destination == RefundDestination.Cash => RefundMethod.Cash,
         PaymentMethod.Card => RefundMethod.Card,
         PaymentMethod.MobileWallet => RefundMethod.MobileWallet,
         _ => RefundMethod.Cash,
     };
+
+    /// <summary>
+    /// Pays every cash part in one currency when the cashier asks for it (e.g. a sale paid in pounds refunded in
+    /// dollars); null keeps each part in the currency it was paid in.
+    /// </summary>
+    public static IReadOnlyList<RefundShare> InCurrency(IReadOnlyList<RefundShare> shares, CashCurrency? currency) =>
+        currency is null
+            ? shares
+            : shares.Select(s => s.IsCash ? s with { Method = currency == CashCurrency.Lbp ? RefundMethod.CashLbp : RefundMethod.Cash } : s).ToList();
 
     /// <summary>
     /// Share of a whole number of points that corresponds to <paramref name="part"/> of <paramref name="whole"/>,

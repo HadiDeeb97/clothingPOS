@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Pricing;
 using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Converters;
 using ClothingStore.Desktop.Infrastructure;
@@ -78,29 +79,105 @@ public sealed partial class TenderViewModel(PaymentMethod method, decimal amount
 
 public sealed record QuickCash(string Label, decimal Amount);
 
-/// <summary>Tender screen supporting split payments and cash change.</summary>
+/// <summary>
+/// Tender screen. Cash is typed straight into a dollar box and a pound box (customers often pay with both);
+/// card, wallet, store credit and points are added as separate tenders. Change can go back in dollars, pounds or both.
+/// </summary>
 public sealed partial class PaymentViewModel : DialogViewModelBase
 {
     private readonly StoreSettings _settings;
+    private CashSettlement _cash = new();
 
     public PaymentViewModel(IDialogService dialogs, decimal total, Customer? customer, StoreSettings settings) : base(dialogs)
     {
         Total = total;
         Customer = customer;
         _settings = settings;
-        Tenders.CollectionChanged += (_, _) => Refresh();
-        Refresh();
+        Rate = settings.ActiveLbpRate;
+        Rounding = Math.Max(1, settings.LbpRounding);
+        ChangeIn = LbpEnabled ? ChangeCurrency.Mixed : ChangeCurrency.Usd;
+        Tenders.CollectionChanged += (_, _) => OnTendersChanged();
+        OnTendersChanged();
     }
 
     public override string Title => Loc.T("Payment.Title");
     public decimal Total { get; }
     public Customer? Customer { get; }
-    public ObservableCollection<TenderViewModel> Tenders { get; } = [];
 
-    public decimal Paid => Tenders.Sum(t => t.Amount);
-    public decimal Remaining => Math.Max(0, Total - Paid);
-    public decimal Change => Math.Max(0, Paid - Total);
-    public bool IsFullyPaid => Paid >= Total;
+    /// <summary>LBP per dollar shown to the customer; sent with the sale so a rate change in between is caught.</summary>
+    public decimal Rate { get; }
+    public int Rounding { get; }
+    public bool LbpEnabled => Rate > 0;
+    public decimal TotalLbp => Lbp.ToPay(Total, Rate, Rounding);
+    public string RateText => LbpEnabled ? Loc.T("Rate.Short", Rate.ToString("N0")) : "";
+
+    /// <summary>Card, wallet, store credit and points.</summary>
+    public ObservableCollection<TenderViewModel> Tenders { get; } = [];
+    public decimal NonCashPaid => Tenders.Sum(t => t.Amount);
+    public decimal CashDue => Math.Max(0, Total - NonCashPaid);
+    public decimal CashDueLbp => Lbp.ToPay(CashDue, Rate, Rounding);
+
+    // ---- Cash ------------------------------------------------------------------------------
+
+    [ObservableProperty]
+    public partial string UsdText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string LbpText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial ChangeCurrency ChangeIn { get; set; }
+
+    public decimal TenderedUsd => ParseOrZero(UsdText);
+    public decimal TenderedLbp => Math.Round(ParseOrZero(LbpText), 0, MidpointRounding.AwayFromZero);
+
+    /// <summary>What the pounds typed are worth in dollars, under the LBP box.</summary>
+    public string LbpWorth => LbpEnabled && TenderedLbp > 0 ? "≈ " + CurrencyFormat.Format(Money.Round(TenderedLbp / Rate)) : "";
+
+    public bool IsFullyPaid => _cash.IsCovered;
+    public decimal RemainingUsd => _cash.ShortUsd;
+    public decimal RemainingLbp => _cash.ShortLbp;
+    public bool HasRemaining => !_cash.IsCovered;
+    public decimal ChangeUsd => _cash.ChangeUsd;
+    public decimal ChangeLbp => _cash.ChangeLbp;
+    public bool HasChange => _cash.IsCovered && (ChangeUsd > 0 || ChangeLbp > 0);
+
+    /// <summary>
+    /// Change currency to send with the sale. When no pounds change hands it is plain dollars (same result), so a rate
+    /// change on another till doesn't stop a dollar-only sale.
+    /// </summary>
+    public ChangeCurrency EffectiveChangeIn => LbpEnabled && (TenderedLbp > 0 || ChangeLbp > 0) ? ChangeIn : ChangeCurrency.Usd;
+
+    /// <summary>"$28.00 + 44,000 LBP", or just one of them.</summary>
+    public string ChangeText => FormatPair(ChangeUsd, ChangeLbp);
+    public string RemainingText => LbpEnabled
+        ? Loc.T("Payment.RemainingPair", CurrencyFormat.Format(RemainingUsd), CurrencyFormat.Lbp(RemainingLbp))
+        : CurrencyFormat.Format(RemainingUsd);
+
+    [ObservableProperty]
+    public partial List<QuickCash> QuickUsd { get; set; } = [];
+
+    [ObservableProperty]
+    public partial List<QuickCash> QuickLbp { get; set; } = [];
+
+    partial void OnUsdTextChanged(string value) => RefreshCash();
+    partial void OnLbpTextChanged(string value) => RefreshCash();
+    partial void OnChangeInChanged(ChangeCurrency value) => RefreshCash();
+
+    [RelayCommand]
+    private void SetUsd(QuickCash option) => UsdText = option.Amount.ToString("0.##", CultureInfo.InvariantCulture);
+
+    [RelayCommand]
+    private void SetLbp(QuickCash option) => LbpText = option.Amount.ToString("#,0", CultureInfo.InvariantCulture);
+
+    [RelayCommand]
+    private void ClearCash()
+    {
+        UsdText = "";
+        LbpText = "";
+    }
+
+    // ---- Card, wallet, credit, points ------------------------------------------------------
 
     public decimal StoreCreditAvailable => Customer?.StoreCredit ?? 0;
     public decimal LoyaltyValueAvailable => Customer is null ? 0 : Money.Round(Math.Floor(Customer.LoyaltyPoints * _settings.LoyaltyPointValue * 100) / 100);
@@ -108,16 +185,23 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     public bool CanUseLoyalty => LoyaltyValueAvailable > 0 && _settings.LoyaltyPointValue > 0;
     public string LoyaltyInfo => Customer is null ? "" : Loc.T("Payment.LoyaltyInfo", Customer.LoyaltyPoints, CurrencyFormat.Format(LoyaltyValueAvailable));
 
+    /// <summary>Dollar amount for the next card / wallet tender.</summary>
     [ObservableProperty]
     public partial string AmountText { get; set; } = "";
 
     [ObservableProperty]
     public partial string? Reference { get; set; }
 
-    [ObservableProperty]
-    public partial List<QuickCash> QuickCashOptions { get; set; } = [];
-
-    public IReadOnlyList<PaymentInput> Payments => Tenders.Select(t => new PaymentInput(t.Method, t.Amount, t.Reference)).ToList();
+    public IReadOnlyList<PaymentInput> Payments
+    {
+        get
+        {
+            var list = Tenders.Select(t => new PaymentInput(t.Method, t.Amount, t.Reference)).ToList();
+            if (TenderedUsd > 0) list.Add(new PaymentInput(PaymentMethod.Cash, Money.Round(TenderedUsd)));
+            if (TenderedLbp > 0) list.Add(new PaymentInput(PaymentMethod.CashLbp, TenderedLbp));
+            return list;
+        }
+    }
 
     [RelayCommand]
     private void AddTender(PaymentMethod method)
@@ -127,10 +211,14 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
             Dialogs.Warning(Loc.T("Payment.EnterAmount"));
             return;
         }
-
-        if (method != PaymentMethod.Cash && amount > Remaining)
+        if (CashDue == 0)
         {
-            Dialogs.Warning(Loc.T("Payment.CantExceed", Loc.EnumText(method), CurrencyFormat.Format(Remaining)));
+            Dialogs.Warning(Loc.T("Payment.AlreadyPaid"));
+            return;
+        }
+        if (amount > CashDue)
+        {
+            Dialogs.Warning(Loc.T("Payment.CantExceed", Loc.EnumText(method), CurrencyFormat.Format(CashDue)));
             return;
         }
         if (method == PaymentMethod.StoreCredit && amount > StoreCreditAvailable - Used(PaymentMethod.StoreCredit))
@@ -143,11 +231,6 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
             Dialogs.Warning(Loc.T("Payment.PointsWorth", CurrencyFormat.Format(LoyaltyValueAvailable)));
             return;
         }
-        if (Remaining == 0)
-        {
-            Dialogs.Warning(Loc.T("Payment.AlreadyPaid"));
-            return;
-        }
 
         Tenders.Add(new TenderViewModel(method, Money.Round(amount), method is PaymentMethod.Card or PaymentMethod.MobileWallet ? Reference : null));
         Reference = null;
@@ -156,22 +239,15 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     [RelayCommand]
     private void UseFullStoreCredit()
     {
-        AmountText = Math.Min(StoreCreditAvailable - Used(PaymentMethod.StoreCredit), Remaining).ToString("0.00");
+        AmountText = Math.Min(StoreCreditAvailable - Used(PaymentMethod.StoreCredit), CashDue).ToString("0.00");
         AddTender(PaymentMethod.StoreCredit);
     }
 
     [RelayCommand]
     private void UseFullLoyalty()
     {
-        AmountText = Math.Min(LoyaltyValueAvailable - Used(PaymentMethod.LoyaltyPoints), Remaining).ToString("0.00");
+        AmountText = Math.Min(LoyaltyValueAvailable - Used(PaymentMethod.LoyaltyPoints), CashDue).ToString("0.00");
         AddTender(PaymentMethod.LoyaltyPoints);
-    }
-
-    [RelayCommand]
-    private void QuickCashTender(QuickCash option)
-    {
-        if (Remaining == 0) return;
-        Tenders.Add(new TenderViewModel(PaymentMethod.Cash, option.Amount, null));
     }
 
     [RelayCommand]
@@ -182,7 +258,7 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     {
         if (!IsFullyPaid)
         {
-            Dialogs.Warning(Loc.T("Payment.StillToPay", CurrencyFormat.Format(Remaining)));
+            Dialogs.Warning(Loc.T("Payment.StillToPay", RemainingText));
             return;
         }
         Close(true);
@@ -193,29 +269,84 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
 
     private decimal Used(PaymentMethod method) => Tenders.Where(t => t.Method == method).Sum(t => t.Amount);
 
-    private void Refresh()
+    private void OnTendersChanged()
     {
-        OnPropertyChanged(nameof(Paid));
-        OnPropertyChanged(nameof(Remaining));
-        OnPropertyChanged(nameof(Change));
-        OnPropertyChanged(nameof(IsFullyPaid));
-        AmountText = Remaining.ToString("0.00");
+        OnPropertyChanged(nameof(NonCashPaid));
+        OnPropertyChanged(nameof(CashDue));
+        OnPropertyChanged(nameof(CashDueLbp));
+        AmountText = CashDue.ToString("0.00");
+        RefreshCash();
+    }
 
-        var remaining = Remaining;
-        var options = new List<QuickCash>();
-        if (remaining > 0)
+    private void RefreshCash()
+    {
+        try
         {
-            options.Add(new QuickCash(Loc.T("Payment.Exact"), remaining));
-            foreach (var note in new[] { 5m, 10m, 20m, 50m, 100m, 200m })
+            _cash = CashSettlement.Calculate(CashDue, new CashTender(TenderedUsd, LbpEnabled ? TenderedLbp : 0, LbpEnabled ? ChangeIn : ChangeCurrency.Usd), Rate, Rounding);
+        }
+        catch (BusinessRuleException)
+        {
+            _cash = new CashSettlement { ShortUsd = CashDue };
+        }
+
+        foreach (var name in new[]
+                 {
+                     nameof(TenderedUsd), nameof(TenderedLbp), nameof(LbpWorth), nameof(IsFullyPaid), nameof(RemainingUsd),
+                     nameof(RemainingLbp), nameof(HasRemaining), nameof(ChangeUsd), nameof(ChangeLbp), nameof(HasChange),
+                     nameof(ChangeText), nameof(RemainingText),
+                 })
+            OnPropertyChanged(name);
+
+        BuildQuickButtons();
+    }
+
+    private void BuildQuickButtons()
+    {
+        // Dollars still needed after the pounds typed so far, and the other way round.
+        var usdNeeded = LbpEnabled ? Math.Max(0, Math.Ceiling((CashDue - TenderedLbp / Rate) * 100m) / 100m) : CashDue;
+        var lbpNeeded = Lbp.ToPay(CashDue - TenderedUsd, Rate, Rounding);
+
+        var usd = new List<QuickCash>();
+        if (usdNeeded > 0)
+        {
+            usd.Add(new QuickCash(Loc.T("Payment.Exact"), usdNeeded));
+            foreach (var note in new[] { 1m, 5m, 10m, 20m, 50m, 100m })
             {
-                var rounded = Math.Ceiling(remaining / note) * note;
-                if (rounded > remaining && options.All(o => o.Amount != rounded))
-                    options.Add(new QuickCash(CurrencyFormat.Format(rounded), rounded));
-                if (options.Count >= 6) break;
+                var rounded = Math.Ceiling(usdNeeded / note) * note;
+                if (rounded > usdNeeded && usd.All(o => o.Amount != rounded))
+                    usd.Add(new QuickCash(CurrencyFormat.Format(rounded), rounded));
+                if (usd.Count >= 6) break;
             }
         }
-        QuickCashOptions = options;
+        QuickUsd = usd;
+
+        var lbp = new List<QuickCash>();
+        if (LbpEnabled && lbpNeeded > 0)
+        {
+            lbp.Add(new QuickCash(Loc.T("Payment.Exact"), lbpNeeded));
+            foreach (var note in new[] { 100_000m, 500_000m, 1_000_000m, 5_000_000m, 10_000_000m })
+            {
+                var rounded = Math.Ceiling(lbpNeeded / note) * note;
+                if (rounded > lbpNeeded && lbp.All(o => o.Amount != rounded))
+                    lbp.Add(new QuickCash(rounded.ToString("N0"), rounded));
+                if (lbp.Count >= 6) break;
+            }
+        }
+        QuickLbp = lbp;
     }
+
+    private static string FormatPair(decimal usd, decimal lbp) => (usd, lbp) switch
+    {
+        ( > 0, > 0) => $"{CurrencyFormat.Format(usd)} + {CurrencyFormat.Lbp(lbp)}",
+        (_, > 0) => CurrencyFormat.Lbp(lbp),
+        _ => CurrencyFormat.Format(usd),
+    };
+
+    private static decimal ParseOrZero(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? 0
+        : decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out var v) && v > 0 ? v
+        : decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out v) && v > 0 ? v
+        : 0;
 
     private bool TryParseAmount(out decimal amount) =>
         decimal.TryParse(AmountText, NumberStyles.Number, CultureInfo.CurrentCulture, out amount) ||

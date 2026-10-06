@@ -81,5 +81,7 @@
   "Common.Type": "Type",
   "Common.Username": "Username",
   "Common.Yes": "Yes",
-  "Common.Yesterday": "Yesterday"
+  "Common.Yesterday": "Yesterday",
+  "Currency.Lbp": "LBP",
+  "Currency.Usd": "USD"
 }
