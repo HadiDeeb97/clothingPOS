@@ -8,6 +8,7 @@
   "Receipt.Customer": "Customer:",
   "Receipt.Date": "Date:",
   "Receipt.Delivery": "Delivery",
+  "Receipt.DeliveryRef": "Delivery invoice: {0}",
   "Receipt.Discount": "Discount",
   "Receipt.Items": "Items: {0}",
   "Receipt.No": "No:",

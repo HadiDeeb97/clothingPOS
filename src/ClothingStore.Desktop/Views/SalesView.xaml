@@ -317,13 +317,15 @@
                             <Button Style="{StaticResource IconButton}" Content="&#xE711;" Width="28" Height="28" Command="{Binding InStoreCommand}"
                                     ToolTip="{l:T Register.BackToInStore}" />
                         </StackPanel>
-                        <TextBlock Text="&#xE7BF;" Style="{StaticResource Icon}" FontSize="16" Foreground="{StaticResource PrimaryDarkBrush}" Margin="0,2,10,0" VerticalAlignment="Top" />
+                        <TextBlock Text="&#xE7B8;" Style="{StaticResource Icon}" FontSize="16" Foreground="{StaticResource PrimaryDarkBrush}" Margin="0,2,10,0" VerticalAlignment="Top" />
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
                                        Text="{Binding Channel, Converter={StaticResource EnumDisplay}, StringFormat={l:T Register.OnlineFrom}}" />
                             <TextBlock Text="{Binding DeliveryFee, Converter={StaticResource Money}, StringFormat={l:T Register.DeliveryFormat}}" Style="{StaticResource MutedText}" FontSize="12" />
                             <TextBlock Text="{Binding Courier, StringFormat={l:T Register.CourierFormat}}" Style="{StaticResource MutedText}" FontSize="12"
                                        Visibility="{Binding Courier, Converter={StaticResource HasValueToVis}}" />
+                            <TextBlock Text="{Binding DeliveryReference, StringFormat={l:T Register.DeliveryRefFormat}}" Style="{StaticResource MutedText}" FontSize="12"
+                                       Visibility="{Binding DeliveryReference, Converter={StaticResource HasValueToVis}}" />
                             <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis"
                                        Visibility="{Binding OrderNotes, Converter={StaticResource HasValueToVis}}" />
                         </StackPanel>

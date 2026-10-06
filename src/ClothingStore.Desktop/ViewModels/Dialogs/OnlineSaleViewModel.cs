@@ -11,9 +11,11 @@ namespace ClothingStore.Desktop.ViewModels.Dialogs;
 public sealed partial class OnlineSaleViewModel : DialogViewModelBase
 {
     public OnlineSaleViewModel(
-        IDialogService dialogs, SalesChannel channel, decimal deliveryFee, string? notes, string? courier, IReadOnlyList<string> couriers)
+        IDialogService dialogs, SalesChannel channel, decimal deliveryFee, string? notes, string? courier, IReadOnlyList<string> couriers,
+        string? deliveryReference = null)
         : base(dialogs)
     {
+        DeliveryReference = deliveryReference;
         Couriers = couriers;
         Courier = courier ?? (channel == SalesChannel.InStore ? couriers.FirstOrDefault() : null);
         Channel = channel == SalesChannel.InStore ? SalesChannel.WhatsApp : channel;
@@ -41,6 +43,10 @@ public sealed partial class OnlineSaleViewModel : DialogViewModelBase
 
     public IReadOnlyList<string> Couriers { get; }
 
+    /// <summary>The delivery company's invoice / tracking number: type it or scan the barcode on its slip.</summary>
+    [ObservableProperty]
+    public partial string? DeliveryReference { get; set; }
+
     public decimal DeliveryFee { get; private set; }
 
     [RelayCommand]
@@ -60,6 +66,7 @@ public sealed partial class OnlineSaleViewModel : DialogViewModelBase
         DeliveryFee = Money.Round(fee);
         Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim();
         Courier = string.IsNullOrWhiteSpace(Courier) ? null : Courier.Trim();
+        DeliveryReference = string.IsNullOrWhiteSpace(DeliveryReference) ? null : DeliveryReference.Trim().ToUpperInvariant();
         LocalPreferences.Current.LastDeliveryFee = DeliveryFee;
         LocalPreferences.Current.Save();
         Close(true);

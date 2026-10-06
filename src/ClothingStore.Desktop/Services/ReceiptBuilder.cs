@@ -30,6 +30,7 @@ public static class ReceiptBuilder
         }
         if (sale.Channel != SalesChannel.InStore) extra.Add(R("Receipt.Channel", Loc.Get(lang, $"Enum.SalesChannel.{sale.Channel}")));
         if (!string.IsNullOrWhiteSpace(sale.Courier)) extra.Add(R("Receipt.Courier", sale.Courier));
+        if (!string.IsNullOrWhiteSpace(sale.DeliveryReference)) extra.Add(R("Receipt.DeliveryRef", sale.DeliveryReference));
         if (!string.IsNullOrWhiteSpace(sale.Notes)) extra.Add(R("Receipt.Note", sale.Notes));
 
         // Cash is printed as handed over (before change), in each currency.

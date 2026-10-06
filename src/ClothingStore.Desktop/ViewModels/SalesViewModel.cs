@@ -452,7 +452,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         var cart = new HeldCart(
             Items.Select(i => new HeldCartLine(i.VariantId, i.Quantity, i.DiscountType, i.DiscountValue)).ToList(),
-            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null, IsOnline ? Courier : null);
+            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null, IsOnline ? Courier : null, IsOnline ? DeliveryReference : null);
         await _sales.HoldAsync(label, Session.User.Id, cart);
         ResetSale();
         Dialogs.Toast(Loc.T("Register.Held", label));
@@ -492,6 +492,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         DeliveryFee = cart.DeliveryFee;
         OrderNotes = cart.Notes;
         Courier = cart.Courier;
+        DeliveryReference = cart.DeliveryReference;
         Recalculate();
         await RefreshHeldCountAsync();
 
@@ -524,6 +525,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [ObservableProperty]
     public partial string? Courier { get; set; }
 
+    /// <summary>The delivery company's invoice / tracking number.</summary>
+    [ObservableProperty]
+    public partial string? DeliveryReference { get; set; }
+
     public bool IsOnline => Channel != SalesChannel.InStore;
 
     /// <summary>Items plus the delivery fee of an online order.</summary>
@@ -535,12 +540,13 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     {
         IReadOnlyList<string> couriers = [];
         try { couriers = await _deliveries.GetCouriersAsync(); } catch { /* just no suggestions */ }
-        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers);
+        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference);
         if (!Dialogs.ShowDialog(dialog)) return;
         Channel = dialog.Channel;
         DeliveryFee = dialog.DeliveryFee;
         OrderNotes = dialog.Notes;
         Courier = dialog.Courier;
+        DeliveryReference = dialog.DeliveryReference;
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -552,6 +558,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         DeliveryFee = 0;
         OrderNotes = null;
         Courier = null;
+        DeliveryReference = null;
     }
 
     // ---- Checkout ---------------------------------------------------------------------------
@@ -597,6 +604,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 DeliveryFee = IsOnline ? DeliveryFee : 0,
                 Notes = IsOnline ? OrderNotes : null,
                 Courier = IsOnline ? Courier : null,
+                DeliveryReference = IsOnline ? DeliveryReference : null,
             });
         });
         if (!ok || sale is null)
@@ -635,6 +643,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         DeliveryFee = 0;
         OrderNotes = null;
         Courier = null;
+        DeliveryReference = null;
         SearchText = "";
         HideResults();
         _approvedByUserId = null;

@@ -32,6 +32,36 @@
             </Grid.ColumnDefinitions>
 
             <DockPanel>
+                <!-- Scan the delivery company's slips when it pays -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,12">
+                    <StackPanel>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="{l:T Deliveries.CheckAll}" Style="{StaticResource LinkButton}" Command="{Binding CheckAllShownCommand}" Margin="10,0,0,0" />
+                                <Button Content="{l:T Deliveries.UncheckAll}" Style="{StaticResource LinkButton}" Command="{Binding UncheckAllCommand}" Margin="10,0,0,0" />
+                            </StackPanel>
+                            <TextBox x:Name="ScanBox" Style="{StaticResource SearchBox}" Tag="{l:T Deliveries.ScanHint}" FontFamily="{StaticResource MonoFont}"
+                                     Text="{Binding ScanText, UpdateSourceTrigger=PropertyChanged}">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding ScanCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+                        <TextBlock Text="{Binding ScanMessage}" Margin="2,6,0,0" FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Visibility="{Binding ScanMessage, Converter={StaticResource HasValueToVis}}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ScanFailed}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
                 <Border DockPanel.Dock="Bottom" Style="{StaticResource KpiCard}" Margin="0,12,0,0">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Content="{l:T Deliveries.ReceiveButton}" Style="{StaticResource SuccessButton}" Command="{Binding ReceivePaymentCommand}" Margin="0" />
@@ -40,16 +70,23 @@
                 </Border>
                 <Border Style="{StaticResource TableCard}">
                     <Grid>
-                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" SelectionMode="Extended"
-                                  infra:GridSelection.Items="{Binding Selection}" infra:LayoutMemory.Key="Deliveries.List">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" infra:LayoutMemory.Key="Deliveries.List">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding ReceiptNumber}" Width="140" />
-                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="105" />
-                                <DataGridTextColumn Header="{l:T History.Source}" Binding="{Binding Channel, Converter={StaticResource EnumDisplay}}" Width="90" />
-                                <DataGridTextColumn Header="{l:T Deliveries.Company}" Binding="{Binding Courier}" Width="120" />
-                                <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Customer}" Width="*" />
-                                <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Notes}" Width="*" />
-                                <DataGridTextColumn Header="{l:T Deliveries.Owed}" Binding="{Binding Owed, Converter={StaticResource Money}}" Width="90" ElementStyle="{StaticResource StrongRightCell}" />
+                                <DataGridTemplateColumn Width="40">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanCheck}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding Row.ReceiptNumber}" Width="130" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Invoice}" Binding="{Binding Row.DeliveryReference}" Width="120" FontFamily="{StaticResource MonoFont}" />
+                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding Row.CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="100" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Company}" Binding="{Binding Row.Courier}" Width="110" />
+                                <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Row.Customer}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Row.Notes}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Owed}" Binding="{Binding Row.Owed, Converter={StaticResource Money}}" Width="90" ElementStyle="{StaticResource StrongRightCell}" />
                                 <DataGridTemplateColumn Header="{l:T Common.Status}" Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -57,10 +94,10 @@
                                                 <TextBlock x:Name="PillText" Text="{l:T Deliveries.Awaiting}" FontSize="11.5" FontWeight="SemiBold" Foreground="#92400E" />
                                             </Border>
                                             <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding IsPaid}" Value="True">
+                                                <DataTrigger Binding="{Binding Row.IsPaid}" Value="True">
                                                     <Setter TargetName="Pill" Property="Background" Value="{StaticResource SuccessLightBrush}" />
                                                     <Setter TargetName="PillText" Property="Foreground" Value="#166534" />
-                                                    <Setter TargetName="PillText" Property="Text" Value="{Binding SettledAt, StringFormat={l:T Deliveries.PaidOn}}" />
+                                                    <Setter TargetName="PillText" Property="Text" Value="{Binding Row.SettledAt, StringFormat={l:T Deliveries.PaidOn}}" />
                                                 </DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>

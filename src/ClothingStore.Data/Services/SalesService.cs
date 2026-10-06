@@ -71,6 +71,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             DeliveryFee = Money.Round(request.DeliveryFee),
             Channel = request.Channel,
             Courier = request.Channel == SalesChannel.InStore ? null : QueryHelpers.Clean(request.Courier),
+            DeliveryReference = request.Channel == SalesChannel.InStore ? null : QueryHelpers.Clean(request.DeliveryReference)?.ToUpperInvariant(),
             CartDiscountType = request.CartDiscountType,
             CartDiscountValue = request.CartDiscountType == DiscountType.None ? 0 : request.CartDiscountValue,
             Notes = QueryHelpers.Clean(request.Notes),
@@ -254,6 +255,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             var pattern = QueryHelpers.LikePattern(text);
             query = query.Where(s =>
                 EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
+                EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.LastName, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.Phone!, pattern, "\\") ||

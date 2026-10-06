@@ -140,6 +140,8 @@
                             </Border>
                             <TextBlock Text="{Binding SelectedSale.Courier, StringFormat={l:T Register.CourierFormat}}" Style="{StaticResource HintText}"
                                        Visibility="{Binding SelectedSale.Courier, Converter={StaticResource HasValueToVis}}" />
+                            <TextBlock Text="{Binding SelectedSale.DeliveryReference, StringFormat={l:T Register.DeliveryRefFormat}}" Style="{StaticResource HintText}"
+                                       Visibility="{Binding SelectedSale.DeliveryReference, Converter={StaticResource HasValueToVis}}" />
                             <TextBlock Text="{Binding SelectedSale.Notes}" Style="{StaticResource HintText}" TextWrapping="Wrap"
                                        Visibility="{Binding SelectedSale.Notes, Converter={StaticResource HasValueToVis}}" />
                             <Border Style="{StaticResource DangerBanner}" Margin="0,10,0,0"

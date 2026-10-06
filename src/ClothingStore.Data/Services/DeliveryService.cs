@@ -14,6 +14,9 @@ public sealed record DeliveryRow
     public required DateTime CreatedAt { get; init; }
     public SalesChannel Channel { get; init; }
     public string? Courier { get; init; }
+
+    /// <summary>The delivery company's invoice / tracking number.</summary>
+    public string? DeliveryReference { get; init; }
     public string? Customer { get; init; }
     public string? Notes { get; init; }
     public decimal Total { get; init; }
@@ -63,6 +66,7 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             var pattern = QueryHelpers.LikePattern(text);
             query = query.Where(s =>
                 EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
+                EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
                 EF.Functions.Like(s.Courier!, pattern, "\\") ||
                 EF.Functions.Like(s.Notes!, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
@@ -75,6 +79,22 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             .Take(take)
             .Select(Row(db))
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// The order with this delivery invoice / tracking number (or receipt number), paid or not, for scanning the
+    /// company's slips when it pays. Null when nothing matches.
+    /// </summary>
+    public async Task<DeliveryRow?> FindAsync(string code, CancellationToken ct = default)
+    {
+        code = code.Trim();
+        if (code.Length == 0) return null;
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await DeliverySales(db)
+            .Where(s => s.DeliveryReference == code || s.ReceiptNumber == code)
+            .OrderBy(s => s.DeliverySettlementId == null ? 0 : 1).ThenByDescending(s => s.CreatedAt)
+            .Select(Row(db))
+            .FirstOrDefaultAsync(ct);
     }
 
     /// <summary>What each delivery company still owes.</summary>
@@ -170,6 +190,7 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
         CreatedAt = s.CreatedAt,
         Channel = s.Channel,
         Courier = s.Courier,
+        DeliveryReference = s.DeliveryReference,
         Customer = s.Customer != null ? s.Customer.FirstName + " " + s.Customer.LastName : null,
         Notes = s.Notes,
         Total = s.Total,

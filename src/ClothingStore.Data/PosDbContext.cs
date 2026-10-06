@@ -112,6 +112,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasMany(x => x.Payments).WithOne(p => p.Sale).HasForeignKey(p => p.SaleId).OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Courier).HasMaxLength(100);
             e.HasIndex(x => x.Courier);
+            e.Property(x => x.DeliveryReference).HasMaxLength(100).UseCollation(CaseInsensitive);
+            e.HasIndex(x => x.DeliveryReference);
             e.HasOne(x => x.DeliverySettlement).WithMany(d => d.Sales).HasForeignKey(x => x.DeliverySettlementId).OnDelete(DeleteBehavior.Restrict);
             e.Ignore(x => x.ItemCount);
         });
