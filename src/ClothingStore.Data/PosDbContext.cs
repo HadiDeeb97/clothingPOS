@@ -27,6 +27,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
     public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
     public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
+    public DbSet<AppState> AppState => Set<AppState>();
     public DbSet<OnlineOrder> OnlineOrders => Set<OnlineOrder>();
     public DbSet<OnlineOrderLine> OnlineOrderLines => Set<OnlineOrderLine>();
 
@@ -213,6 +214,13 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.ProductName).HasMaxLength(200);
             e.Property(x => x.Sku).HasMaxLength(64);
             e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<AppState>(e =>
+        {
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasMaxLength(100);
+            e.Property(x => x.Value).HasMaxLength(2000);
         });
 
         b.Entity<StoreLogo>(e =>

@@ -43,9 +43,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
 
     public MainViewModel(
         IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users,
-        BrandingService branding, OnlineOrderService orders)
+        BrandingService branding, OnlineOrderService orders, LicenseManager license)
         : base(dialogs)
     {
+        License = license;
         _navigation = navigation;
         _settings = settings;
         _users = users;
@@ -110,6 +111,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public bool CanChangeRate => Session.Can(Permission.ChangeExchangeRate);
     public bool CanChangeLogo => Session.Can(Permission.ManageBranding);
 
+    /// <summary>License status for the expiry banner.</summary>
+    public LicenseManager License { get; }
+
     [ObservableProperty]
     public partial bool IsSidebarCollapsed { get; set; }
 
@@ -162,8 +166,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(Now));
 
+        // Every hour, re-check the license (the app may stay open for days).
+        if (++_ticks % 240 == 0) await RecheckLicenseAsync();
+
         // Every minute, pick up a rate or logo changed on another till.
-        if (++_ticks % 4 != 0) return;
+        if (_ticks % 4 != 0) return;
         try
         {
             if (await _settings.RefreshCurrencyAsync())
@@ -192,6 +199,28 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         {
             // the next tick tries again
         }
+    }
+
+    private async Task RecheckLicenseAsync()
+    {
+        try
+        {
+            if ((await License.CheckAsync()).CanRun) return;
+        }
+        catch
+        {
+            return; // database unreachable for a moment: check again later
+        }
+        if (!Dialogs.ShowDialog(new ActivationViewModel(Dialogs, License, required: true)))
+            System.Windows.Application.Current.Shutdown();
+    }
+
+    [RelayCommand]
+    private void ShowLicense()
+    {
+        IsUserMenuOpen = false;
+        if (Dialogs.ShowDialog(new ActivationViewModel(Dialogs, License, required: false)))
+            Dialogs.Toast(Loc.T("License.Activated"));
     }
 
     [RelayCommand]

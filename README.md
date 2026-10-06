@@ -101,6 +101,40 @@ dotnet publish src/ClothingStore.Desktop -c Release -r win-x64 --self-contained 
 
 Copy the `publish` folder to the till PC. It does not need .NET installed.
 
+A release build needs your licensing public key in `src/ClothingStore.Desktop/licensing.json` (see **Licensing** below);
+without it the build stops with an explanation. Add `-p:AllowUnlicensedBuild=true` to build one anyway (for testing).
+
+### Licensing (selling the app)
+
+Each PC needs a license key signed by you. The key names the store, the PCs it is valid on and the last valid day.
+
+1. **Once, on your own computer:** create your signing keys and keep `private.pem` secret and backed up (it is ignored
+   by git; never put it on a customer's PC):
+   ```powershell
+   dotnet run --project tools/ClothingStore.LicenseTool -- keygen --out C:\MyLicenseKeys
+   ```
+   Paste the printed public key into `licensing.json` (`"publicKey"`), with your name, phone and email so customers
+   see how to reach you, then publish.
+2. **For each customer:** install the app. On first start it shows **this PC's ID** (e.g. `7KQ2-M9XD-ABCD-EFGH`).
+   The customer reads or sends it to you. Issue a key (one license can list several tills with repeated `--machine`):
+   ```powershell
+   dotnet run --project tools/ClothingStore.LicenseTool -- issue --key C:\MyLicenseKeys\private.pem `
+       --licensee "Boutique Rana" --machine 7KQ2-M9XD-ABCD-EFGH --days 365 --out rana.lic
+   ```
+   Send the key text or the `.lic` file; they paste or load it on the activation screen.
+3. **Renewal:** from 30 days before the last day, a banner (and a daily message) says how many days are left and how
+   to contact you. After the last day the app opens only the activation screen until a renewed key is entered
+   (user menu → **License…** accepts a new key at any time).
+
+Copying the program to another PC doesn't copy the license: that PC has a different ID (taken from Windows' install ID),
+so it asks for its own key. Setting the PC's date back doesn't help either: the check uses the latest of the PC clock,
+the SQL Server clock, the latest sale/return/shift in the database and the last date the app was used (stored signed).
+
+Honest limits: a licensing check that runs on the customer's PC can be removed by someone determined enough to modify
+the program (.NET programs are easy to decompile). It stops casual copying and makes expiry enforceable; for stronger
+protection, also run the published program through an obfuscator. Reinstalling Windows changes the PC's ID, so that
+customer will need a new key.
+
 ## Daily workflow
 
 1. **Cash Drawer**: open a shift with your starting float (dollars and pounds). Check the rate in the top bar; a manager

@@ -34,6 +34,7 @@
     <DataTemplate DataType="{x:Type dlg:PaymentViewModel}"><vd:PaymentView /></DataTemplate>
     <DataTemplate DataType="{x:Type dlg:ExchangeRateViewModel}"><vd:ExchangeRateView /></DataTemplate>
     <DataTemplate DataType="{x:Type dlg:StoreLogoViewModel}"><vd:StoreLogoView /></DataTemplate>
+    <DataTemplate DataType="{x:Type dlg:ActivationViewModel}"><vd:ActivationView /></DataTemplate>
     <DataTemplate DataType="{x:Type dlg:OnlineOrderEditorViewModel}"><vd:OnlineOrderEditorView /></DataTemplate>
     <DataTemplate DataType="{x:Type dlg:VariantPickerViewModel}"><vd:VariantPickerView /></DataTemplate>
     <DataTemplate DataType="{x:Type dlg:ProductEditorViewModel}"><vd:ProductEditorView /></DataTemplate>

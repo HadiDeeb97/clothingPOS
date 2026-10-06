@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using ClothingStore.Core.Licensing;
 using ClothingStore.Core.Localization;
 using ClothingStore.Data;
 using ClothingStore.Data.Seeding;
@@ -87,7 +88,40 @@ public partial class App : Application
         }
 
         CloseSplash();
+        if (!await EnsureLicensedAsync()) return;
         ShowLogin();
+    }
+
+    /// <summary>
+    /// Checks this PC's license; without a valid one, only the activation screen is shown (with this PC's ID to send
+    /// to the vendor). Returns false when the app was closed instead.
+    /// </summary>
+    private async Task<bool> EnsureLicensedAsync()
+    {
+        var license = Services.GetRequiredService<LicenseManager>();
+        LicenseStatus status;
+        try
+        {
+            status = await license.CheckAsync();
+        }
+        catch (Exception ex)
+        {
+            StartupError(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message));
+            return false;
+        }
+        if (status.State == LicenseState.ExpiringSoon && LocalPreferences.Current.LicenseWarnedOn != DateTime.Today)
+        {
+            // Besides the banner, say it once a day in a box nobody can miss.
+            Services.GetRequiredService<IDialogService>().Warning(license.BannerText, Loc.T("License.Title"));
+            LocalPreferences.Current.LicenseWarnedOn = DateTime.Today;
+            LocalPreferences.Current.Save();
+        }
+        if (status.CanRun) return true;
+
+        var dialogs = Services.GetRequiredService<IDialogService>();
+        if (dialogs.ShowDialog(new ActivationViewModel(dialogs, license, required: true))) return true;
+        Shutdown();
+        return false;
     }
 
     private void CloseSplash()
@@ -112,6 +146,7 @@ public partial class App : Application
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
         services.AddSingleton<PrintService>();
+        services.AddSingleton<LicenseManager>();
         services.AddHostedService<AutoBackupWorker>();
 
         services.AddTransient<LoginViewModel>();
