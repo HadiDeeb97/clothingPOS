@@ -42,7 +42,9 @@ public sealed class LatestSearch(TimeSpan delay)
             apply(result);
             return true;
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        // Overtaken by a newer search: whatever it threw is irrelevant. SQL Server reports a query cancelled mid-flight
+        // as a SqlException ("Operation cancelled by user") rather than an OperationCanceledException, so catch both.
+        catch (Exception) when (cts.IsCancellationRequested)
         {
             return false;
         }
