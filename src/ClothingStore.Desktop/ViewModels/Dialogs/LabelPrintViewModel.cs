@@ -254,8 +254,16 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
 
     // ---- Print ------------------------------------------------------------------------------
 
+    /// <summary>"Printer: …" when labels go straight to a default printer, else null.</summary>
+    public string? PrinterText { get; } = LocalPreferences.Current.LabelPrinter is { Length: > 0 } p ? Loc.T("Print.PrinterIs", p) : null;
+
     [RelayCommand]
-    private void Print()
+    private void Print() => Send(choosePrinter: false);
+
+    [RelayCommand]
+    private void PrintTo() => Send(choosePrinter: true);
+
+    private void Send(bool choosePrinter)
     {
         var labels = Rows.SelectMany(r => Enumerable.Repeat(ToLabel(r.Variant), Math.Max(0, r.Copies))).ToList();
         if (labels.Count == 0)
@@ -268,7 +276,7 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
         LocalPreferences.Current.Save();
         try
         {
-            if (_print.PrintLabels(labels, Options, Options.Sheet ? SkipLabels : 0))
+            if (_print.PrintLabels(labels, Options, Options.Sheet ? SkipLabels : 0, choosePrinter))
             {
                 Dialogs.Toast(Loc.T("Labels.Sent", labels.Count));
                 Close(true);

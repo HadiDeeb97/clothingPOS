@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace ClothingStore.Desktop.Infrastructure;
 
 /// <summary>
-/// Per-PC preferences (language on the sign-in screen, sidebar, panel sizes and column widths), kept in
+/// Per-PC preferences (language on the sign-in screen, sidebar, panel sizes and column widths, printers), kept in
 /// %LocalAppData%\ClothingStorePOS\preferences.json. Losing the file only resets the layout.
 /// </summary>
 public sealed class LocalPreferences
@@ -22,6 +22,15 @@ public sealed class LocalPreferences
 
     /// <summary>Label size and content last used on this PC (each PC has its own label printer).</summary>
     public Services.LabelOptions? Labels { get; set; }
+
+    /// <summary>Printer receipts go to without asking (null = show the Windows print dialog).</summary>
+    public string? ReceiptPrinter { get; set; }
+
+    /// <summary>Printer price labels go to without asking (null = show the Windows print dialog).</summary>
+    public string? LabelPrinter { get; set; }
+
+    /// <summary>Copies of a receipt printed by default on this PC.</summary>
+    public int ReceiptCopies { get; set; } = 1;
 
     /// <summary>Delivery fee of the last online order taken here, offered for the next one.</summary>
     public decimal? LastDeliveryFee { get; set; }

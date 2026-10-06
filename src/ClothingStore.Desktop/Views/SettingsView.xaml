@@ -145,6 +145,26 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Printers (this PC) -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="{l:T Print.Refresh}" Command="{Binding RefreshPrintersCommand}" Margin="0" Padding="10,4" />
+                            <TextBlock Text="{l:T Print.Section}" Style="{StaticResource SectionTitle}" />
+                        </DockPanel>
+                        <TextBlock Text="{l:T Print.ReceiptPrinter}" Style="{StaticResource FieldLabel}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="{l:T Print.Test}" Command="{Binding TestReceiptPrinterCommand}" Margin="8,0,0,0" />
+                            <ComboBox ItemsSource="{Binding Printers}" SelectedValuePath="Name" DisplayMemberPath="Display" SelectedValue="{Binding ReceiptPrinter}" />
+                        </DockPanel>
+                        <TextBlock Text="{l:T Print.ReceiptCopies}" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding ReceiptCopies, UpdateSourceTrigger=PropertyChanged}" Width="64" HorizontalAlignment="Left" />
+                        <TextBlock Text="{l:T Print.LabelPrinter}" Style="{StaticResource FieldLabel}" />
+                        <ComboBox ItemsSource="{Binding Printers}" SelectedValuePath="Name" DisplayMemberPath="Display" SelectedValue="{Binding LabelPrinter}" />
+                        <TextBlock Text="{l:T Print.Hint}" Style="{StaticResource HintText}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Data & backups -->
                 <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>

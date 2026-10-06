@@ -8,7 +8,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | Area | What it does |
 | --- | --- |
 | **Register** | Scan barcodes or search by name/SKU/colour/size; size & colour variants; quantity +/-; line and cart discounts (% or amount); cashier discount limit with manager override; hold & resume sales (fitting room); keyboard shortcuts (F2 search, F4 customer, F6 qty, F7/F8 discounts, F9/F10 hold/resume, F12 pay) |
-| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4) |
+| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4), number of copies per print |
 | **Lebanese pounds** | Prices stay in dollars; LBP is a second cash currency at the store's rate. Managers and admins change the rate from the top bar, every change is logged, and other tills pick it up within a minute. A sale or refund at an old rate is refused. LBP is rounded to a configurable step (up when collecting, down when paying out) |
 | **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
@@ -215,6 +215,10 @@ next to the payment in Sales history.
 
 * **Barcode scanners**: any USB/Bluetooth scanner in keyboard-wedge mode that sends Enter after each scan.
 * **Receipt printers**: any Windows-installed printer. Set *Receipt width* to 42 for 80 mm or 32 for 58 mm paper.
+* **Default printers (per PC)**: *Settings → Printers* picks the invoice/receipt printer, how many invoice copies to
+  print, and the label printer. With a printer chosen, receipts and labels print straight to it without the Windows print
+  window (**Test** prints a short slip). **Choose printer…** in the print window prints elsewhere once. *Ask every time*
+  brings the Windows print window back. If a chosen printer is removed, the Windows print window is shown instead.
 * **Labels**: 3-across A4/Letter label sheets (labels about 33 mm tall), or one label per page on a label printer. Labels use Code 128.
 * Cash drawers that open from the receipt printer work through the printer driver's "open drawer" setting.
 

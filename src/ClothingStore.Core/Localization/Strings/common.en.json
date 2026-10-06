@@ -84,5 +84,21 @@
   "Common.Yes": "Yes",
   "Common.Yesterday": "Yesterday",
   "Currency.Lbp": "LBP",
-  "Currency.Usd": "USD"
+  "Currency.Usd": "USD",
+  "Print.AskEveryTime": "Ask every time (Windows print window)",
+  "Print.ChoosePrinter": "Choose printer…",
+  "Print.ChoosePrinterTip": "Pick a printer for this print only (opens the Windows print window)",
+  "Print.Copies": "Copies",
+  "Print.Hint": "With a printer chosen, invoices and labels print straight to it without the Windows print window. Use \"Choose printer…\" when printing to print somewhere else once. Each PC keeps its own printers.",
+  "Print.LabelPrinter": "Label printer",
+  "Print.NotFound": "{0} (not found)",
+  "Print.PrinterIs": "Printer: {0}",
+  "Print.ReceiptCopies": "Invoice copies to print",
+  "Print.ReceiptPrinter": "Invoice / receipt printer",
+  "Print.Refresh": "Refresh",
+  "Print.Section": "Printers (this PC)",
+  "Print.Sent": "Sent to the printer ({0} copies)",
+  "Print.Test": "Test",
+  "Print.TestLine": "Printer test - OK",
+  "Print.TestTitle": "Test print"
 }
