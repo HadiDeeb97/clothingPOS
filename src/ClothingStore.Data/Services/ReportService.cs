@@ -5,9 +5,37 @@ using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
-public sealed record NamedAmount(string Name, int Quantity, decimal Amount, int Count = 0);
+/// <param name="Cost">Cost of the items (for profit columns); 0 where it doesn't apply.</param>
+public sealed record NamedAmount(string Name, int Quantity, decimal Amount, int Count = 0, decimal Cost = 0)
+{
+    public decimal Profit => Amount - Cost;
+    public decimal MarginPercent => Amount == 0 ? 0 : Math.Round(Profit / Amount * 100m, 1);
+}
 
 public sealed record DailySales(DateTime Date, int Transactions, decimal Total);
+
+public sealed record HourlySales(int Hour, int Transactions, decimal Total);
+
+public sealed record SettlementRow(DateTime Date, string? Courier, SettlementMethod Method, int Orders, decimal Expected, decimal Received)
+{
+    public decimal Difference => Received - Expected;
+}
+
+public sealed record CashMovementRow(DateTime Date, string User, CashMovementType Type, CashCurrency Currency, decimal Amount, string Reason);
+
+public sealed record ShiftCloseRow(
+    DateTime ClosedAt, string Cashier, decimal Expected, decimal? Counted, decimal ExpectedLbp, decimal? CountedLbp)
+{
+    public decimal? Variance => Counted - Expected;
+    public decimal? VarianceLbp => CountedLbp - ExpectedLbp;
+}
+
+internal sealed record StockLevel(int Id, string Product, string Size, string Color, string Sku, int Stock, int ReorderLevel, decimal Cost);
+
+public sealed record StockAlertRow(string Product, string Variant, string Sku, int Stock, int ReorderLevel, decimal CostValue, DateTime? LastSold);
+
+/// <summary>Variants to reorder, and stock that didn't sell in the period.</summary>
+public sealed record StockAlerts(IReadOnlyList<StockAlertRow> LowStock, IReadOnlyList<StockAlertRow> SlowMovers);
 
 public sealed record SalesReport
 {
@@ -50,6 +78,32 @@ public sealed record SalesReport
     /// <summary>Delivery charges collected on online orders (part of <see cref="TotalSales"/>).</summary>
     public decimal DeliveryFees { get; init; }
     public IReadOnlyList<DailySales> ByDay { get; init; } = [];
+    public IReadOnlyList<HourlySales> ByHour { get; init; } = [];
+    public IReadOnlyList<NamedAmount> TopCustomers { get; init; } = [];
+
+    // Returns
+    public IReadOnlyList<NamedAmount> ReturnsByReason { get; init; } = [];
+    public IReadOnlyList<NamedAmount> TopReturned { get; init; } = [];
+    public IReadOnlyList<NamedAmount> RefundsByMethod { get; init; } = [];
+
+    // Delivery companies
+    public IReadOnlyList<SettlementRow> Settlements { get; init; } = [];
+
+    // Cash
+    public IReadOnlyList<CashMovementRow> CashMovements { get; init; } = [];
+    public IReadOnlyList<ShiftCloseRow> ShiftCloses { get; init; } = [];
+
+    // The same length of time just before, for comparison.
+    public decimal PreviousTotalSales { get; init; }
+    public int PreviousTransactions { get; init; }
+    public decimal PreviousGrossProfit { get; init; }
+
+    public decimal? SalesChangePercent => Change(TotalSales, PreviousTotalSales);
+    public decimal? TransactionsChangePercent => Change(Transactions, PreviousTransactions);
+    public decimal? ProfitChangePercent => Change(GrossProfit, PreviousGrossProfit);
+
+    private static decimal? Change(decimal now, decimal before) =>
+        before == 0 ? null : Math.Round((now - before) / Math.Abs(before) * 100m, 1);
 }
 
 public sealed record InventoryValuation(
@@ -65,6 +119,19 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
 {
     public async Task<SalesReport> GetSalesReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
+        var report = await BuildAsync(from, to, details: true, ct);
+        // Same length of time just before, for the "vs previous period" figures.
+        var previous = await BuildAsync(from - (to - from), from, details: false, ct);
+        return report with
+        {
+            PreviousTotalSales = previous.TotalSales,
+            PreviousTransactions = previous.Transactions,
+            PreviousGrossProfit = previous.GrossProfit,
+        };
+    }
+
+    private async Task<SalesReport> BuildAsync(DateTime from, DateTime to, bool details, CancellationToken ct)
+    {
         await using var db = await factory.CreateDbContextAsync(ct);
 
         // Only the columns the report needs: whole sales with their products made long ranges slow.
@@ -74,6 +141,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             {
                 s.Id, s.Status, s.CreatedAt, s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total, s.Channel, s.DeliveryFee,
                 Cashier = s.User != null ? s.User.FullName : null,
+                Customer = s.Customer != null ? s.Customer.FirstName + " " + s.Customer.LastName : null,
             })
             .ToListAsync(ct);
         var completed = sales.Where(s => s.Status == SaleStatus.Completed).ToList();
@@ -96,7 +164,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
 
         var returns = await db.Returns.AsNoTracking()
             .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
-            .Select(r => new { r.TotalRefund, r.TaxRefund })
+            .Select(r => new { r.TotalRefund, r.TaxRefund, r.Reason })
             .ToListAsync(ct);
         var returnedCost = (await db.ReturnLines.AsNoTracking()
                 .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to && rl.Restocked)
@@ -105,6 +173,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             .Sum(rl => rl.Quantity * rl.UnitCost);
 
         var itemsBySale = lines.GroupBy(l => l.SaleId).ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
+        var extra = details ? await DetailsAsync(db, from, to, ct) : null;
         var totalSales = completed.Sum(s => s.Total);
         var tax = completed.Sum(s => s.TaxTotal);
         var refunds = returns.Sum(r => r.TotalRefund);
@@ -134,14 +203,14 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
 
             ByCategory = lines
                 .GroupBy(l => l.CategoryName ?? Loc.T("Reports.Uncategorised"))
-                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
+                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount), 0, g.Sum(l => l.UnitCost * l.Quantity)))
                 .OrderByDescending(x => x.Amount).ToList(),
 
             TopProducts = lines
                 .GroupBy(l => l.ProductName)
-                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
+                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount), 0, g.Sum(l => l.UnitCost * l.Quantity)))
                 .OrderByDescending(x => x.Quantity).ThenByDescending(x => x.Amount)
-                .Take(25).ToList(),
+                .Take(100).ToList(),
 
             BySize = lines
                 .GroupBy(l => string.IsNullOrWhiteSpace(l.Size) ? "-" : l.Size)
@@ -164,7 +233,106 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .GroupBy(s => s.CreatedAt.Date)
                 .Select(g => new DailySales(g.Key, g.Count(), g.Sum(s => s.Total)))
                 .OrderBy(d => d.Date).ToList(),
+
+            ByHour = completed
+                .GroupBy(s => s.CreatedAt.Hour)
+                .Select(g => new HourlySales(g.Key, g.Count(), g.Sum(s => s.Total)))
+                .OrderBy(h => h.Hour).ToList(),
+
+            TopCustomers = completed
+                .Where(s => s.Customer != null)
+                .GroupBy(s => s.Customer!.Trim())
+                .Select(g => new NamedAmount(g.Key, g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
+                .OrderByDescending(x => x.Amount).Take(50).ToList(),
+
+            ReturnsByReason = returns
+                .GroupBy(r => string.IsNullOrWhiteSpace(r.Reason) ? Loc.T("Reports.NoReason") : r.Reason.Trim())
+                .Select(g => new NamedAmount(g.Key, 0, g.Sum(r => r.TotalRefund), g.Count()))
+                .OrderByDescending(x => x.Count).ToList(),
+
+            TopReturned = extra?.TopReturned ?? [],
+            RefundsByMethod = extra?.RefundsByMethod ?? [],
+            Settlements = extra?.Settlements ?? [],
+            CashMovements = extra?.CashMovements ?? [],
+            ShiftCloses = extra?.ShiftCloses ?? [],
         };
+    }
+
+    private sealed record Details(
+        IReadOnlyList<NamedAmount> TopReturned, IReadOnlyList<NamedAmount> RefundsByMethod, IReadOnlyList<SettlementRow> Settlements,
+        IReadOnlyList<CashMovementRow> CashMovements, IReadOnlyList<ShiftCloseRow> ShiftCloses);
+
+    /// <summary>The parts only shown for the chosen period (not needed for the comparison).</summary>
+    private static async Task<Details> DetailsAsync(PosDbContext db, DateTime from, DateTime to, CancellationToken ct)
+    {
+        var returnedLines = await db.ReturnLines.AsNoTracking()
+            .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to)
+            .GroupBy(rl => rl.SaleLine!.ProductName)
+            .Select(g => new { Name = g.Key, Qty = g.Sum(x => x.Quantity), Amount = g.Sum(x => x.RefundAmount), Count = g.Count() })
+            .OrderByDescending(x => x.Qty).Take(50)
+            .ToListAsync(ct);
+
+        var refundMethods = await db.ReturnRefunds.AsNoTracking()
+            .Where(r => r.SaleReturn!.CreatedAt >= from && r.SaleReturn.CreatedAt < to)
+            .GroupBy(r => r.Method)
+            .Select(g => new { Method = g.Key, Amount = g.Sum(r => r.Amount), Count = g.Count() })
+            .ToListAsync(ct);
+
+        var settlements = await db.DeliverySettlements.AsNoTracking()
+            .Where(d => d.CreatedAt >= from && d.CreatedAt < to)
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => new SettlementRow(d.CreatedAt, d.Courier, d.Method, d.Sales.Count, d.Expected, d.Received))
+            .ToListAsync(ct);
+
+        var movements = await db.CashMovements.AsNoTracking()
+            .Where(m => m.CreatedAt >= from && m.CreatedAt < to)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => new CashMovementRow(
+                m.CreatedAt, db.Users.Where(u => u.Id == m.UserId).Select(u => u.FullName).FirstOrDefault() ?? "",
+                m.Type, m.Currency, m.Amount, m.Reason))
+            .ToListAsync(ct);
+
+        var closes = await db.Shifts.AsNoTracking()
+            .Where(s => s.Status == ShiftStatus.Closed && s.ClosedAt >= from && s.ClosedAt < to)
+            .OrderByDescending(s => s.ClosedAt)
+            .Select(s => new ShiftCloseRow(s.ClosedAt!.Value, s.User != null ? s.User.FullName : "", s.ExpectedCash, s.CountedCash, s.ExpectedCashLbp, s.CountedCashLbp))
+            .ToListAsync(ct);
+
+        return new Details(
+            returnedLines.Select(x => new NamedAmount(x.Name, x.Qty, x.Amount, x.Count)).ToList(),
+            refundMethods.Select(x => new NamedAmount(Loc.EnumText(x.Method), 0, x.Amount, x.Count)).OrderByDescending(x => x.Amount).ToList(),
+            settlements, movements, closes);
+    }
+
+    /// <summary>Variants at or below their reorder level, and stock with no sales between the two dates.</summary>
+    public async Task<StockAlerts> GetStockAlertsAsync(DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var variants = await db.ProductVariants.AsNoTracking()
+            .Where(v => v.IsActive && v.Product!.IsActive)
+            .Select(v => new StockLevel(v.Id, v.Product!.Name, v.Size, v.Color, v.Sku, v.StockQuantity, v.ReorderLevel, v.CostOverride ?? v.Product.Cost))
+            .ToListAsync(ct);
+
+        var lastSold = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.Status == SaleStatus.Completed)
+            .GroupBy(l => l.ProductVariantId)
+            .Select(g => new { Id = g.Key, Last = g.Max(l => l.Sale!.CreatedAt) })
+            .ToDictionaryAsync(x => x.Id, x => x.Last, ct);
+
+        StockAlertRow Row(StockLevel v) => new(
+            v.Product, Core.Entities.ProductVariant.DescribeVariant(v.Size, v.Color), v.Sku, v.Stock, v.ReorderLevel,
+            v.Stock > 0 ? v.Stock * v.Cost : 0m, lastSold.TryGetValue(v.Id, out var last) ? last : null);
+
+        bool SoldInPeriod(StockLevel v) => lastSold.TryGetValue(v.Id, out var last) && last >= from && last < to;
+
+        var low = variants.Where(v => v.Stock <= v.ReorderLevel)
+            .OrderBy(v => v.Stock).ThenBy(v => v.Product)
+            .Take(500).Select(Row).ToList();
+        var slow = variants
+            .Where(v => v.Stock > 0 && !SoldInPeriod(v))
+            .OrderByDescending(v => v.Stock * v.Cost)
+            .Take(500).Select(Row).ToList();
+        return new StockAlerts(low, slow);
     }
 
     public async Task<InventoryValuation> GetInventoryValuationAsync(CancellationToken ct = default)
