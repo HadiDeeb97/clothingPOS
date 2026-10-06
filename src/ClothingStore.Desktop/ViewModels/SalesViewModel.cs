@@ -438,7 +438,15 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     }
 
     [RelayCommand]
-    private void ClearCustomer() => Customer = null;
+    private void ClearCustomer()
+    {
+        if (IsOnline)
+        {
+            Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+            return;
+        }
+        Customer = null;
+    }
 
     // ---- Hold / resume ----------------------------------------------------------------------
 
@@ -538,6 +546,22 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [RelayCommand]
     private async Task OnlineOrderAsync()
     {
+        // An online order is always for someone: pick (or add) the customer first.
+        if (Customer is null)
+        {
+            var picker = new CustomerPickerViewModel(Dialogs, _customers);
+            if (!Dialogs.ShowDialog(picker) || picker.Selected is null)
+            {
+                Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+                return;
+            }
+            Customer = picker.Selected.Region is null && picker.Selected.RegionId is not null
+                ? await _customers.GetAsync(picker.Selected.Id) ?? picker.Selected
+                : picker.Selected;
+        }
+        // Their address goes into the delivery notes unless something was typed already.
+        if (string.IsNullOrWhiteSpace(OrderNotes) && Customer?.FullAddress is { } address) OrderNotes = address;
+
         IReadOnlyList<string> couriers = [];
         try { couriers = await _deliveries.GetCouriersAsync(); } catch { /* just no suggestions */ }
         var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference);
@@ -581,6 +605,11 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
 
         if (!EnsureDiscountApproved()) return;
+        if (IsOnline && Customer is null)
+        {
+            Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+            return;
+        }
 
         var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
         if (!Dialogs.ShowDialog(payment)) return;

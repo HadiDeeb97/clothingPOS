@@ -6,10 +6,10 @@ namespace ClothingStore.Tests;
 /// <summary>Online orders paid through a delivery company. The tee sells for 22.00 (20 + 10% tax).</summary>
 public class DeliveryPaymentTests
 {
-    private static Task<Core.Entities.Sale> SellAsync(TestDatabase db, int variantId, int qty, string courier, decimal fee = 3m, int? shiftId = null) =>
-        db.Sales.CompleteSaleAsync(new CheckoutRequest
+    private static async Task<Core.Entities.Sale> SellAsync(TestDatabase db, int variantId, int qty, string courier, decimal fee = 3m, int? shiftId = null) =>
+        await db.Sales.CompleteSaleAsync(new CheckoutRequest
         {
-            UserId = db.Cashier.Id, ShiftId = shiftId,
+            UserId = db.Cashier.Id, ShiftId = shiftId, CustomerId = await db.ShopperIdAsync(),
             Lines = [new CheckoutLine(variantId, qty)],
             Channel = SalesChannel.Instagram, DeliveryFee = fee, Courier = courier,
             Payments = [new PaymentInput(PaymentMethod.Delivery, 22m * qty + fee)],
@@ -126,7 +126,7 @@ public class DeliveryPaymentTests
         var sale = await db.Sales.CompleteSaleAsync(new CheckoutRequest
         {
             UserId = db.Cashier.Id, Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
-            Channel = SalesChannel.WhatsApp, Courier = "Toters", DeliveryReference = " tt-88231 ",
+            Channel = SalesChannel.WhatsApp, Courier = "Toters", DeliveryReference = " tt-88231 ", CustomerId = await db.ShopperIdAsync(),
             Payments = [new PaymentInput(PaymentMethod.Delivery, 22m)],
         });
         Assert.Equal("TT-88231", sale.DeliveryReference);

@@ -16,7 +16,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger |
 | **Price labels** | Select several products or stock rows (Ctrl/Shift+click) and print them in one go, or scan items into the list; copies per item, for all, or from stock; label size presets (A4 sheets such as 21/24/65 per page, label printers, hang tags) or a custom size and sheet position; choose what is printed (name, size/colour, price, LBP price, barcode, SKU, store name); live preview; settings remembered per PC |
 | **Purchasing** | Suppliers; purchase orders; "add supplier's low-stock items"; partial and full receiving into stock with cost updates |
-| **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
+| **Customers** | Profiles with address and state (Lebanon's governorates, more can be added), filter by state, total spent / visits / last purchase per customer, purchase history; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
 | **Online orders** | On the register, mark a sale as an online order (button or F11): where it came from (WhatsApp, Instagram, Facebook, phone, website, other), an optional delivery fee added to the total, and an address/notes line printed on the receipt. Sales history shows the source of every sale (in store or which channel) and filters by it; reports break sales down by channel |
@@ -161,8 +161,9 @@ customer will need a new key.
 
 Orders that come in by message are rung up on the **Register** like any sale:
 
-1. Scan or pick the items and choose the customer (F4) as usual.
-2. Click **Online order** (or press **F11**), pick where the order came from, enter the delivery fee (if any; the last one
+1. Scan or pick the items.
+2. Click **Online order** (or press **F11**). An online order always needs a customer: if none is chosen yet the
+   customer picker opens first (create one there with their address and state). Then pick where the order came from, enter the delivery fee (if any; the last one
    used on this PC is suggested) and the address or Instagram name. The register shows "Online order · WhatsApp" and adds
    the delivery fee to the total. The **x** turns it back into an in-store sale.
 3. Pay (cash in USD/LBP, card or wallet). The receipt says "Order via WhatsApp" and prints the address/notes.

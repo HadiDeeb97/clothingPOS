@@ -47,6 +47,7 @@
   "Register.NoShiftHint": "Open the cash drawer (Cash drawer screen) with your starting float before taking payments.",
   "Register.NoShiftTitle": "No open shift.",
   "Register.OnlineFrom": "Online order · {0}",
+  "Register.OnlineNeedsCustomer": "An online order needs a customer. Select or add the customer (F4) first.",
   "Register.OnlyInStock": "Only {0} x {1} in stock.",
   "Register.OutOfStock": "{0} is out of stock.",
   "Register.Pay": "PAY",

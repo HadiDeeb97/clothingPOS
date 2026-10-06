@@ -47,6 +47,7 @@
   "Register.NoShiftHint": "افتح درج النقد (شاشة درج النقد) برصيدك الافتتاحي قبل استلام الدفعات.",
   "Register.NoShiftTitle": "لا توجد وردية مفتوحة.",
   "Register.OnlineFrom": "طلب أونلاين · {0}",
+  "Register.OnlineNeedsCustomer": "الطلب أونلاين يحتاج إلى زبون. اختر الزبون أو أضفه (F4) أولاً.",
   "Register.OnlyInStock": "المتوفر من {1} هو {0} فقط.",
   "Register.OutOfStock": "نفد {0} من المخزون.",
   "Register.Pay": "دفع",

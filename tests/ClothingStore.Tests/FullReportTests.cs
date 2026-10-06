@@ -21,7 +21,7 @@ public class FullReportTests
         });
         var online = await db.Sales.CompleteSaleAsync(new CheckoutRequest
         {
-            UserId = db.Cashier.Id, ShiftId = shift.Id, Channel = SalesChannel.Instagram, Courier = "Toters",
+            UserId = db.Cashier.Id, ShiftId = shift.Id, Channel = SalesChannel.Instagram, Courier = "Toters", CustomerId = customer.Id,
             Lines = [new CheckoutLine(tee.Variants[1].Id, 1)], Payments = [new PaymentInput(PaymentMethod.Delivery, 22m)],
         });
         await db.Returns.ProcessReturnAsync(new ReturnRequest

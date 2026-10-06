@@ -147,13 +147,49 @@ public sealed partial class CustomerEditorViewModel : DialogViewModelBase
             {
                 Id = existing.Id, FirstName = existing.FirstName, LastName = existing.LastName, Phone = existing.Phone,
                 Email = existing.Email, Birthday = existing.Birthday, Notes = existing.Notes, IsActive = existing.IsActive,
-                LoyaltyPoints = existing.LoyaltyPoints, StoreCredit = existing.StoreCredit,
+                LoyaltyPoints = existing.LoyaltyPoints, StoreCredit = existing.StoreCredit, Address = existing.Address, RegionId = existing.RegionId,
             };
     }
 
     public override string Title => Loc.T(Customer.Id == 0 ? "Customers.New" : "Customers.Edit");
     public Customer Customer { get; }
     public Customer? Saved { get; private set; }
+
+    /// <summary>States / governorates to pick from (Lebanon's to start with; "Add state" adds more).</summary>
+    [ObservableProperty]
+    public partial List<Region> Regions { get; set; } = [];
+
+    [ObservableProperty]
+    public partial Region? SelectedRegion { get; set; }
+
+    partial void OnSelectedRegionChanged(Region? value) => Customer.RegionId = value?.Id;
+
+    public override async Task OnOpenedAsync()
+    {
+        try
+        {
+            Regions = await _customers.GetRegionsAsync();
+            SelectedRegion = Regions.FirstOrDefault(r => r.Id == Customer.RegionId);
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Common.SomethingWentWrong"), ex);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddRegionAsync()
+    {
+        var name = Dialogs.Prompt(Loc.T("Customers.AddState"), Loc.T("Customers.AddStatePrompt"));
+        if (string.IsNullOrWhiteSpace(name)) return;
+        Region? region = null;
+        if (!await RunAsync(async () => region = await _customers.AddRegionAsync(name))) return;
+        Regions = await _customers.GetRegionsAsync();
+        SelectedRegion = Regions.FirstOrDefault(r => r.Id == region!.Id);
+    }
+
+    [RelayCommand]
+    private void ClearRegion() => SelectedRegion = null;
 
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>

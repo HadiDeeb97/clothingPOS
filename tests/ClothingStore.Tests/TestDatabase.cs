@@ -109,6 +109,12 @@ public sealed class TestDatabase : IAsyncDisposable
         return await ctx.ProductVariants.AsNoTracking().SingleAsync(v => v.Id == id);
     }
 
+    private int? _shopperId;
+
+    /// <summary>A customer for online orders (created the first time it is needed).</summary>
+    public async Task<int> ShopperIdAsync() =>
+        _shopperId ??= (await Customers.SaveAsync(new Customer { FirstName = "Online", LastName = "Shopper", Phone = "70000000" })).Id;
+
     public async Task<Customer> GetCustomerAsync(int id) => (await Customers.GetAsync(id))!;
 
     public async ValueTask DisposeAsync()

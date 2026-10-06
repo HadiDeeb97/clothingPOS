@@ -17,6 +17,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (request.DeliveryFee < 0) throw new BusinessRuleException(Loc.T("Err.DeliveryFeeNegative"));
         if (request.DeliveryFee > 0 && request.Channel == SalesChannel.InStore)
             throw new BusinessRuleException(Loc.T("Err.DeliveryFeeInStore"));
+        if (request.Channel != SalesChannel.InStore && request.CustomerId is null)
+            throw new BusinessRuleException(Loc.T("Err.OnlineNeedsCustomer"));
         if (request.Channel == SalesChannel.InStore && request.Payments.Any(p => p.Method == PaymentMethod.Delivery && p.Amount > 0))
             throw new BusinessRuleException(Loc.T("Err.DeliveryPaymentInStore"));
 

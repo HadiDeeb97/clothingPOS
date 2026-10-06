@@ -23,21 +23,45 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
     [ObservableProperty]
     public partial bool IncludeInactive { get; set; }
 
+    /// <summary>States for the filter; the first entry ("All states") has Id 0.</summary>
+    [ObservableProperty]
+    public partial List<Region> Regions { get; set; } = [];
+
+    [ObservableProperty]
+    public partial Region? RegionFilter { get; set; }
+
+    partial void OnRegionFilterChanged(Region? value) => _ = SearchAsync();
+
     [ObservableProperty]
     public partial List<Customer> Customers { get; set; } = [];
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditCommand), nameof(AdjustCreditCommand))]
+    [NotifyPropertyChangedFor(nameof(LifetimeSpend), nameof(VisitCount))]
     public partial Customer? SelectedCustomer { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LifetimeSpend), nameof(VisitCount))]
     public partial List<Sale> History { get; set; } = [];
 
-    public decimal LifetimeSpend => History.Where(s => s.Status == Core.SaleStatus.Completed).Sum(s => s.Total);
-    public int VisitCount => History.Count(s => s.Status == Core.SaleStatus.Completed);
+    /// <summary>All completed purchases, net of refunds (from the list query, so not limited to the history shown).</summary>
+    public decimal LifetimeSpend => SelectedCustomer?.TotalSpent ?? 0;
+    public int VisitCount => SelectedCustomer?.Visits ?? 0;
 
-    public Task OnNavigatedToAsync() => SearchAsync();
+    public async Task OnNavigatedToAsync()
+    {
+        try
+        {
+            var all = new Region { Id = 0, Name = Loc.T("Customers.AllStates"), NameAr = Loc.T("Customers.AllStates") };
+            Regions = [all, .. await customers.GetRegionsAsync()];
+            RegionFilter ??= all;
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
+        }
+        await SearchAsync();
+    }
 
     private readonly LatestSearch _search = new();
 
@@ -62,9 +86,10 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         var selectedId = SelectedCustomer?.Id;
         var text = SearchText;
         var includeInactive = IncludeInactive;
+        int? regionId = RegionFilter is { Id: > 0 } r ? r.Id : null;
         try
         {
-            Func<CancellationToken, Task<List<Customer>>> load = ct => customers.SearchAsync(text, includeInactive, max: 500, ct);
+            Func<CancellationToken, Task<List<Customer>>> load = ct => customers.SearchAsync(text, includeInactive, max: 500, regionId, ct);
             Action<List<Customer>> apply = found =>
             {
                 Customers = found;
@@ -124,8 +149,13 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         {
             CsvExporter.Write(path,
                 [Loc.T("Customers.FirstName"), Loc.T("Customers.LastName"), Loc.T("Common.Phone"), Loc.T("Common.Email"),
+                    Loc.T("Customers.State"), Loc.T("Customers.Address"), Loc.T("Customers.TotalSpent"), Loc.T("Customers.Visits"), Loc.T("Customers.LastVisit"),
                     Loc.T("Common.Points"), Loc.T("Customers.StoreCredit"), Loc.T("Customers.Since"), Loc.T("Common.Active")],
-                Customers.Select(c => new object?[] { c.FirstName, c.LastName, c.Phone, c.Email, c.LoyaltyPoints, c.StoreCredit, c.CreatedAt, c.IsActive }));
+                Customers.Select(c => new object?[]
+                {
+                    c.FirstName, c.LastName, c.Phone, c.Email, c.Region?.DisplayName, c.Address, c.TotalSpent, c.Visits, c.LastVisit,
+                    c.LoyaltyPoints, c.StoreCredit, c.CreatedAt, c.IsActive,
+                }));
             Dialogs.Toast(Loc.T("Common.Exported", Customers.Count));
         }
         catch (Exception ex)
