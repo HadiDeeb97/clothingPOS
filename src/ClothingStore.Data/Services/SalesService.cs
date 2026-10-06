@@ -14,6 +14,9 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     {
         if (request.Lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.CartEmpty"));
         if (request.Lines.Any(l => l.Quantity <= 0)) throw new BusinessRuleException(Loc.T("Err.QtyAtLeastOne"));
+        if (request.DeliveryFee < 0) throw new BusinessRuleException(Loc.T("Err.DeliveryFeeNegative"));
+        if (request.DeliveryFee > 0 && request.Channel == SalesChannel.InStore)
+            throw new BusinessRuleException(Loc.T("Err.DeliveryFeeInStore"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
@@ -62,7 +65,9 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             Subtotal = totals.Subtotal,
             DiscountTotal = totals.DiscountTotal,
             TaxTotal = totals.TaxTotal,
-            Total = totals.Total,
+            Total = totals.Total + Money.Round(request.DeliveryFee),
+            DeliveryFee = Money.Round(request.DeliveryFee),
+            Channel = request.Channel,
             CartDiscountType = request.CartDiscountType,
             CartDiscountValue = request.CartDiscountType == DiscountType.None ? 0 : request.CartDiscountValue,
             Notes = QueryHelpers.Clean(request.Notes),
@@ -225,7 +230,9 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         return await SaleQuery(db).FirstOrDefaultAsync(s => s.ReceiptNumber == number, ct);
     }
 
-    public async Task<List<Sale>> SearchAsync(DateTime from, DateTime to, string? text = null, bool includeVoided = true, CancellationToken ct = default)
+    /// <param name="online">null = all sales, true = online orders only, false = in-store only.</param>
+    public async Task<List<Sale>> SearchAsync(
+        DateTime from, DateTime to, string? text = null, bool includeVoided = true, bool? online = null, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var query = db.Sales.AsNoTracking()
@@ -237,6 +244,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             .Where(s => s.CreatedAt >= from && s.CreatedAt < to);
 
         if (!includeVoided) query = query.Where(s => s.Status == SaleStatus.Completed);
+        if (online is true) query = query.Where(s => s.Channel != SalesChannel.InStore);
+        else if (online is false) query = query.Where(s => s.Channel == SalesChannel.InStore);
         if (!string.IsNullOrWhiteSpace(text))
         {
             var pattern = QueryHelpers.LikePattern(text);

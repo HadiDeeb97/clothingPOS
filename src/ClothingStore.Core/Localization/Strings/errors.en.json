@@ -31,6 +31,8 @@
   "Err.CustomerNotFound": "Customer not found.",
   "Err.CustomerPointsOnly": "Customer only has {0} points.",
   "Err.DamagedNegative": "Damaged stock must be a negative adjustment.",
+  "Err.DeliveryFeeInStore": "A delivery fee only applies to online orders.",
+  "Err.DeliveryFeeNegative": "The delivery fee can't be negative.",
   "Err.DiscountLimitRange": "Discount limit must be between 0 and 100.",
   "Err.DiscountNeedsApproval": "Discounts above {0:0.##}% need manager approval.",
   "Err.EmailInvalid": "Email address looks invalid.",

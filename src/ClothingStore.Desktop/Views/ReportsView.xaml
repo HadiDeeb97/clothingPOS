@@ -120,7 +120,7 @@
                     <Border Style="{StaticResource TableCard}">
                         <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByChannel}" infra:LayoutMemory.Key="Reports.Channels">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{l:T Orders.Channel}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T History.Source}" Binding="{Binding Name}" Width="*" />
                                 <DataGridTextColumn Header="{l:T Reports.Sales}" Binding="{Binding Count}" Width="100" ElementStyle="{StaticResource RightCell}" />
                                 <DataGridTextColumn Header="{l:T Common.Items}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
                                 <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />

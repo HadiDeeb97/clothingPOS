@@ -12,6 +12,14 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace ClothingStore.Desktop.ViewModels;
 
+/// <summary>Which sales to list: everything, in-store only, or online orders only.</summary>
+public enum SaleSourceFilter
+{
+    All,
+    InStore,
+    Online,
+}
+
 public sealed partial class SalesHistoryViewModel(
     IDialogService dialogs, SalesService sales, SettingsService settings, Session session,
     PrintService print, INavigationService navigation) : ViewModelBase(dialogs), IPageViewModel
@@ -33,7 +41,10 @@ public sealed partial class SalesHistoryViewModel(
     public partial bool IncludeVoided { get; set; } = true;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalSales), nameof(SaleCount))]
+    public partial SaleSourceFilter Source { get; set; } = SaleSourceFilter.All;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalSales), nameof(SaleCount), nameof(OnlineSummary))]
     public partial List<Sale> Sales { get; set; } = [];
 
     [ObservableProperty]
@@ -43,12 +54,23 @@ public sealed partial class SalesHistoryViewModel(
     public decimal TotalSales => Sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total);
     public int SaleCount => Sales.Count(s => s.Status == SaleStatus.Completed);
 
+    /// <summary>"Online orders: 3 · $120.00" under the totals (empty when there are none).</summary>
+    public string OnlineSummary
+    {
+        get
+        {
+            var online = Sales.Where(s => s.Status == SaleStatus.Completed && s.Channel != SalesChannel.InStore).ToList();
+            return online.Count == 0 ? "" : Loc.T("History.OnlineSummary", online.Count, Converters.CurrencyFormat.Format(online.Sum(s => s.Total)));
+        }
+    }
+
     private readonly LatestSearch _search = new();
 
     public Task OnNavigatedToAsync() => SearchAsync();
 
     partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
     partial void OnIncludeVoidedChanged(bool value) => _ = SearchAsync();
+    partial void OnSourceChanged(SaleSourceFilter value) => _ = SearchAsync();
     partial void OnFromChanged(DateTime value) => _ = LoadAsync(immediately: false);
     partial void OnToChanged(DateTime value) => _ = LoadAsync(immediately: false);
 
@@ -60,9 +82,10 @@ public sealed partial class SalesHistoryViewModel(
         var (from, to) = From <= To ? (From.Date, To.Date) : (To.Date, From.Date);
         var text = SearchText;
         var includeVoided = IncludeVoided;
+        bool? online = Source switch { SaleSourceFilter.Online => true, SaleSourceFilter.InStore => false, _ => null };
         try
         {
-            Func<CancellationToken, Task<List<Sale>>> load = ct => sales.SearchAsync(from, to.AddDays(1), text, includeVoided, ct);
+            Func<CancellationToken, Task<List<Sale>>> load = ct => sales.SearchAsync(from, to.AddDays(1), text, includeVoided, online, ct);
             Action<List<Sale>> apply = found =>
             {
                 Sales = found;
@@ -139,13 +162,13 @@ public sealed partial class SalesHistoryViewModel(
         try
         {
             CsvExporter.Write(path,
-                [Loc.T("Common.Receipt"), Loc.T("Common.Date"), Loc.T("Common.Status"), Loc.T("Common.Cashier"), Loc.T("Common.Customer"),
-                    Loc.T("Common.Items"), Loc.T("Common.Subtotal"), Loc.T("Common.Discount"), Loc.T("Common.Tax"), Loc.T("Common.Total"),
+                [Loc.T("Common.Receipt"), Loc.T("Common.Date"), Loc.T("Common.Status"), Loc.T("History.Source"), Loc.T("Common.Cashier"), Loc.T("Common.Customer"),
+                    Loc.T("Common.Items"), Loc.T("Common.Subtotal"), Loc.T("Common.Discount"), Loc.T("Common.Tax"), Loc.T("History.DeliveryFee"), Loc.T("Common.Total"),
                     Loc.T("Common.Payments")],
                 Sales.Select(s => new object?[]
                 {
-                    s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
-                    s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total,
+                    s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), Loc.EnumText(s.Channel), s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
+                    s.Subtotal, s.DiscountTotal, s.TaxTotal, s.DeliveryFee, s.Total,
                     string.Join(" + ", s.Payments.Select(p => $"{Loc.EnumText(p.Method)} {p.Amount:0.00}")),
                 }));
             Dialogs.Toast(Loc.T("Common.Exported", Sales.Count));

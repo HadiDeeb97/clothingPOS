@@ -450,7 +450,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         var cart = new HeldCart(
             Items.Select(i => new HeldCartLine(i.VariantId, i.Quantity, i.DiscountType, i.DiscountValue)).ToList(),
-            CartDiscountType, CartDiscountValue, Customer?.Id);
+            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null);
         await _sales.HoldAsync(label, Session.User.Id, cart);
         ResetSale();
         Dialogs.Toast(Loc.T("Register.Held", label));
@@ -486,6 +486,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         CartDiscountType = cart.CartDiscountType;
         CartDiscountValue = cart.CartDiscountValue;
         if (cart.CustomerId is { } customerId) Customer = await _customers.GetAsync(customerId);
+        Channel = cart.Channel;
+        DeliveryFee = cart.DeliveryFee;
+        OrderNotes = cart.Notes;
         Recalculate();
         await RefreshHeldCountAsync();
 
@@ -499,11 +502,52 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         if (Dialogs.Confirm(Loc.T("Register.ClearConfirm"))) ResetSale();
     }
 
+    // ---- Online order -----------------------------------------------------------------------
+
+    /// <summary>In store, or the channel of an online order (WhatsApp, Instagram...).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOnline), nameof(GrandTotal), nameof(TotalLbp))]
+    public partial SalesChannel Channel { get; set; } = SalesChannel.InStore;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GrandTotal), nameof(TotalLbp))]
+    public partial decimal DeliveryFee { get; set; }
+
+    /// <summary>Address, Instagram name or anything else about the order (saved with the sale, printed on the receipt).</summary>
+    [ObservableProperty]
+    public partial string? OrderNotes { get; set; }
+
+    public bool IsOnline => Channel != SalesChannel.InStore;
+
+    /// <summary>Items plus the delivery fee of an online order.</summary>
+    public decimal GrandTotal => Totals.Total + (IsOnline ? DeliveryFee : 0);
+
+    /// <summary>Turns this sale into an online order, or edits its details.</summary>
+    [RelayCommand]
+    private void OnlineOrder()
+    {
+        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes);
+        if (!Dialogs.ShowDialog(dialog)) return;
+        Channel = dialog.Channel;
+        DeliveryFee = dialog.DeliveryFee;
+        OrderNotes = dialog.Notes;
+        FocusSearchRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Back to a normal in-store sale.</summary>
+    [RelayCommand]
+    private void InStore()
+    {
+        Channel = SalesChannel.InStore;
+        DeliveryFee = 0;
+        OrderNotes = null;
+    }
+
     // ---- Checkout ---------------------------------------------------------------------------
 
     /// <summary>The total in Lebanese pounds at today's rate, under the dollar total.</summary>
     public bool ShowLbp => _settings.Current.ActiveLbpRate > 0;
-    public decimal TotalLbp => Lbp.ToPay(Totals.Total, _settings.Current.ActiveLbpRate, _settings.Current.LbpRounding);
+    public decimal TotalLbp => Lbp.ToPay(GrandTotal, _settings.Current.ActiveLbpRate, _settings.Current.LbpRounding);
     public string RateText => Loc.T("Rate.Short", _settings.Current.LbpRate.ToString("N0"));
 
     [RelayCommand]
@@ -520,7 +564,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         if (!EnsureDiscountApproved()) return;
 
-        var payment = new PaymentViewModel(Dialogs, Totals.Total, Customer, _settings.Current);
+        var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current);
         if (!Dialogs.ShowDialog(payment)) return;
 
         Sale? sale = null;
@@ -538,6 +582,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 ChangeIn = payment.EffectiveChangeIn,
                 ExchangeRate = payment.Rate,
                 ApprovedByUserId = _approvedByUserId,
+                Channel = Channel,
+                DeliveryFee = IsOnline ? DeliveryFee : 0,
+                Notes = IsOnline ? OrderNotes : null,
             });
         });
         if (!ok || sale is null)
@@ -572,6 +619,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         Customer = null;
         CartDiscountType = DiscountType.None;
         CartDiscountValue = 0;
+        Channel = SalesChannel.InStore;
+        DeliveryFee = 0;
+        OrderNotes = null;
         SearchText = "";
         HideResults();
         _approvedByUserId = null;
@@ -625,6 +675,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(TaxLabel));
             OnPropertyChanged(nameof(ShowLbp));
+            OnPropertyChanged(nameof(GrandTotal));
             OnPropertyChanged(nameof(TotalLbp));
             OnPropertyChanged(nameof(RateText));
         }

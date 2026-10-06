@@ -1,6 +1,7 @@
 {
   "Receipt.Cashier": "Cashier:",
   "Receipt.Change": "Change",
+  "Receipt.Channel": "Order via {0}",
   "Receipt.Copy": "*** COPY ***",
   "Receipt.CreditBalance": "Store credit balance: {0}",
   "Receipt.Customer": "Customer:",

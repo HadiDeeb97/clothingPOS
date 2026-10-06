@@ -1,6 +1,7 @@
 {
   "Receipt.Cashier": "أمين الصندوق:",
   "Receipt.Change": "الباقي",
+  "Receipt.Channel": "طلب عبر {0}",
   "Receipt.Copy": "*** نسخة ***",
   "Receipt.CreditBalance": "رصيد المتجر: {0}",
   "Receipt.Customer": "الزبون:",
