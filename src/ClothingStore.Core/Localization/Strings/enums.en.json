@@ -2,6 +2,7 @@
   "Enum.BackupKind.Manual": "Manual",
   "Enum.BackupKind.Scheduled": "Scheduled",
   "Enum.BackupKind.ShiftClose": "Shift close",
+  "Enum.BackupKind.Startup": "App start",
   "Enum.CashCurrency.Lbp": "LBP",
   "Enum.CashCurrency.Usd": "USD",
   "Enum.CashMovementType.PayIn": "Pay-in",

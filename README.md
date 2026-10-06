@@ -21,7 +21,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
 | **Online orders** | Orders from WhatsApp, Instagram, Facebook or the phone: customer, phone, address, items and delivery fee. Confirming holds the stock; then out for delivery (with the driver's name); completing records a normal sale when the money comes back (cash in USD/LBP, card or wallet), with the delivery fee on the receipt. Cancelling puts the stock back. A red badge counts new orders; delivery slip; one click opens WhatsApp with the order summary, or copies it for Instagram/Facebook; reports by channel |
 | **Store logo** | Managers and admins pick the store logo (user menu → Store logo, or Settings); it becomes the icon of every window and on the taskbar, and appears on the sign-in screen and sidebar, on all tills. The desktop shortcut keeps the program's own icon, because Windows reads that from the .exe file |
-| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
+| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; admins manage every account (add, edit, reset password, deactivate, delete unused accounts), managers add and edit cashier accounts only; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (every app start, scheduled and at shift close) with a backup log |
 
 ## Solution layout
 
@@ -185,6 +185,9 @@ chat types the order into **Online orders → New order** (scanning or searching
 * SQL Server writes each backup on its own PC, into the folder set in **Settings** (empty = the server's default backup
   folder). The SQL Server service account must be able to write there. Point it at a cloud-synced or network folder so a
   copy survives if that PC fails.
+* Every time the app starts and the database already exists, it is backed up first (before any upgrade), into
+  `ClothingStorePOS_startup_Mon.bak` ... `_Sun.bak`. Several tills opening within 10 minutes make one backup between
+  them. If it fails, the app says so and still opens.
 * Automatic backups reuse one file per weekday (`ClothingStorePOS_auto_Mon.bak` ... `_Sun.bak`), so the last seven days are
   kept. **Back up now** writes a separate timestamped file that is never overwritten.
 * Every backup is a full, copy-only backup with checksums, verified straight after it is written. Every till checks whether

@@ -107,6 +107,9 @@ public enum BackupKind
     Manual = 0,
     Scheduled = 1,
     ShiftClose = 2,
+
+    /// <summary>Taken when the app starts, before the database is upgraded.</summary>
+    Startup = 3,
 }
 
 public enum CashMovementType

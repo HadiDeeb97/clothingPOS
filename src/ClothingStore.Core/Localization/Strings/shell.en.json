@@ -44,6 +44,8 @@
   "Shell.SignOut": "Sign out",
   "Shell.SignOutConfirm": "Sign out of the register?",
   "Shell.ToggleSidebar": "Show or hide menu labels",
+  "Startup.BackingUp": "Backing up the database…",
+  "Startup.BackupFailed": "The backup taken at startup failed, so there is no fresh copy of today's data:\n\n{0}\n\nCheck the backup folder in Settings. The app will open normally.",
   "Startup.BadConnectionString": "The database connection string in appsettings.json is not valid:\n\n{0}",
   "Startup.CannotConnect": "Could not connect to the database:\n{0}\n\n{1}\n\nCheck that SQL Server is running and reachable from this PC, and that ConnectionStrings:Pos in appsettings.json is correct.",
   "Startup.Connecting": "Connecting to the database…",

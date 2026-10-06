@@ -84,7 +84,7 @@ public class ShiftAndReportTests
         Assert.Null(await db.Users.AuthenticateAsync("admin", "wrong"));
 
         db.Admin.Role = UserRole.Manager;
-        await Assert.ThrowsAsync<BusinessRuleException>(() => db.Users.SaveAsync(db.Admin, null));
+        await Assert.ThrowsAsync<BusinessRuleException>(() => db.Users.SaveAsync(db.Admin, null, db.Admin.Id));
 
         await db.Users.ChangePasswordAsync(db.Cashier.Id, "secret1", "newsecret");
         Assert.NotNull(await db.Users.AuthenticateAsync("cashier", "newsecret"));

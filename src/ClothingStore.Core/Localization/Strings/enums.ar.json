@@ -2,6 +2,7 @@
   "Enum.BackupKind.Manual": "يدوي",
   "Enum.BackupKind.Scheduled": "مجدول",
   "Enum.BackupKind.ShiftClose": "عند إغلاق الوردية",
+  "Enum.BackupKind.Startup": "تشغيل البرنامج",
   "Enum.CashCurrency.Lbp": "ليرة",
   "Enum.CashCurrency.Usd": "دولار",
   "Enum.CashMovementType.PayIn": "إيداع نقدي",

@@ -73,7 +73,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         AddGroup("Nav.Group.Insights",
             Nav<ReportsViewModel>("Nav.Reports", "", Permission.ViewReports));
         AddGroup("Nav.Group.Admin",
-            Nav<UsersViewModel>("Nav.Users", "", Permission.ManageUsers),
+            Nav<UsersViewModel>("Nav.Users", "", Permission.ManageCashiers),
             Nav<SettingsViewModel>("Nav.Settings", "", Permission.ManageSettings));
 
         _navigation.Navigated += OnNavigated;

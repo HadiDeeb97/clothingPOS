@@ -6,7 +6,7 @@
   "Shift.CashSales": "+ Cash sales",
   "Shift.CloseAndPrint": "Close shift and print Z report",
   "Shift.CloseConfirm": "Expected {0}, counted {1}.\n{2}\n\nClose the shift now?",
-  "Shift.CloseConfirmBoth": "Dollars: expected {0}, counted {1}. {2}\\nPounds: expected {3}, counted {4}. {5}\\n\\nClose the shift now?",
+  "Shift.CloseConfirmBoth": "Dollars: expected {0}, counted {1}. {2}\nPounds: expected {3}, counted {4}. {5}\n\nClose the shift now?",
   "Shift.CloseShift": "Close shift",
   "Shift.ClosedCol": "Closed",
   "Shift.CountHint": "Count all cash in the drawer (including the float) and enter the total.",

@@ -75,8 +75,8 @@ public sealed class TestDatabase : IAsyncDisposable
         await db.Settings.SaveAsync(settings);
 
         db.Admin = (await db.Users.GetAllAsync()).Single();
-        db.Cashier = await db.Users.SaveAsync(new User { Username = "cashier", FullName = "Casey Cashier", Role = UserRole.Cashier }, "secret1");
-        db.Manager = await db.Users.SaveAsync(new User { Username = "manager", FullName = "Morgan Manager", Role = UserRole.Manager }, "secret2");
+        db.Cashier = await db.Users.SaveAsync(new User { Username = "cashier", FullName = "Casey Cashier", Role = UserRole.Cashier }, "secret1", db.Admin.Id);
+        db.Manager = await db.Users.SaveAsync(new User { Username = "manager", FullName = "Morgan Manager", Role = UserRole.Manager }, "secret2", db.Admin.Id);
         return db;
     }
 

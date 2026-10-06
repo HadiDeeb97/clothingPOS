@@ -18,7 +18,7 @@
                 <TextBlock Text="&#xE719;" Style="{StaticResource Icon}" FontSize="30" Foreground="White" />
             </Border>
             <TextBlock Text="{l:T Shell.AppName}" Foreground="White" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,4" HorizontalAlignment="Center" />
-            <TextBlock Text="{l:T Startup.Connecting}" Foreground="{StaticResource SidebarTextBrush}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="StatusText" Text="{l:T Startup.Connecting}" Foreground="{StaticResource SidebarTextBrush}" HorizontalAlignment="Center" />
             <ProgressBar IsIndeterminate="True" Height="3" Width="220" Margin="0,18,0,0" BorderThickness="0"
                          Background="{StaticResource SidebarHoverBrush}" Foreground="#2DD4BF" />
         </StackPanel>

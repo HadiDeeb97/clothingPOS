@@ -9,7 +9,7 @@
         <TextBlock Text="{l:T Users.FullNameRequired}" Style="{StaticResource FieldLabel}" />
         <TextBox Text="{Binding FullName}" />
         <TextBlock Text="{l:T Common.Role}" Style="{StaticResource FieldLabel}" />
-        <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}">
+        <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" IsEnabled="{Binding CanChooseRole}">
             <ComboBox.ItemTemplate>
                 <DataTemplate>
                     <TextBlock Text="{Binding Converter={StaticResource EnumDisplay}}" />

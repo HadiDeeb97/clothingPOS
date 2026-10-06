@@ -11,4 +11,7 @@ public partial class SplashWindow : Window
         InitializeComponent();
         WindowAppearance.Apply(this);
     }
+
+    /// <summary>What the app is doing right now ("Backing up the database...").</summary>
+    public void SetStatus(string text) => StatusText.Text = text;
 }

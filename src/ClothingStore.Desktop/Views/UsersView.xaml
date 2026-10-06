@@ -6,10 +6,13 @@
     <DockPanel>
         <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="{l:T Users.ResetPassword}" Command="{Binding ResetPasswordCommand}" />
+                <Button Content="{Binding ToggleActiveText}" Command="{Binding ToggleActiveCommand}" />
+                <Button Content="{l:T Common.Delete}" Style="{StaticResource DangerButton}" Command="{Binding DeleteCommand}" />
                 <Button Content="{l:T Users.EditButton}" Command="{Binding EditCommand}" />
                 <Button Content="{l:T Users.NewButton}" Style="{StaticResource PrimaryButton}" Command="{Binding NewCommand}" Margin="0" />
             </StackPanel>
-            <TextBlock />
+            <TextBlock Text="{Binding ScopeHint}" Style="{StaticResource MutedText}" VerticalAlignment="Center" TextWrapping="Wrap" />
         </DockPanel>
         <Border DockPanel.Dock="Bottom" Style="{StaticResource InfoBanner}" Margin="0,14,0,0">
             <StackPanel>

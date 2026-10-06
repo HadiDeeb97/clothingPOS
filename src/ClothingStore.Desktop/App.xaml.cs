@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using ClothingStore.Core.Entities;
 using ClothingStore.Core.Licensing;
 using ClothingStore.Core.Localization;
 using ClothingStore.Data;
@@ -66,6 +67,19 @@ public partial class App : Application
         _host = builder.Build();
         Services = _host.Services;
 
+        // Every start: back up the existing database first, so there is a copy from before this version touches it.
+        BackupRecord? startupBackup = null;
+        try
+        {
+            _splash?.SetStatus(Loc.T("Startup.BackingUp"));
+            startupBackup = await Services.GetRequiredService<BackupService>().BackupOnStartupAsync();
+        }
+        catch (Exception)
+        {
+            // Can't even reach the server: the next step reports that properly.
+        }
+        _splash?.SetStatus(Loc.T("Startup.Connecting"));
+
         try
         {
             var seedDemo = builder.Configuration.GetValue("Pos:SeedDemoData", true);
@@ -88,6 +102,8 @@ public partial class App : Application
         }
 
         CloseSplash();
+        if (startupBackup is { Succeeded: false })
+            Services.GetRequiredService<IDialogService>().Warning(Loc.T("Startup.BackupFailed", startupBackup.Error));
         if (!await EnsureLicensedAsync()) return;
         ShowLogin();
     }

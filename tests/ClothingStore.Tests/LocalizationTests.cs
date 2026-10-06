@@ -64,6 +64,16 @@ public partial class LocalizationTests
     }
 
     [Fact]
+    public void Line_breaks_are_real_line_breaks_not_backslash_n()
+    {
+        var broken = Loc.Table(Loc.English).Concat(Loc.Table(Loc.Arabic))
+            .Where(kv => kv.Value.Contains("\\n"))
+            .Select(kv => kv.Key)
+            .ToList();
+        Assert.Empty(broken);
+    }
+
+    [Fact]
     public void Every_displayed_enum_value_is_translated()
     {
         Type[] enums =
