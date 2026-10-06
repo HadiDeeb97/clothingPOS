@@ -124,6 +124,9 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasIndex(x => x.DeliveryReference);
             e.HasOne(x => x.DeliverySettlement).WithMany(d => d.Sales).HasForeignKey(x => x.DeliverySettlementId).OnDelete(DeleteBehavior.Restrict);
             e.Ignore(x => x.ItemCount);
+            // Void, return and delivery settlement each check the sale wasn't voided or settled at another till meanwhile.
+            e.Property(x => x.Status).IsConcurrencyToken();
+            e.Property(x => x.DeliverySettlementId).IsConcurrencyToken();
         });
 
         b.Entity<SaleLine>(e =>

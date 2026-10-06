@@ -245,7 +245,15 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
         var sales = await db.Sales.Where(s => ids.Contains(s.Id)).ToListAsync(ct);
         foreach (var sale in sales) sale.DeliverySettlement = settlement;
         db.DeliverySettlements.Add(settlement);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another till settled (or voided) one of these orders after they were loaded.
+            throw new BusinessRuleException(Loc.T("Err.SettleAlreadyPaid"));
+        }
         return settlement;
     }
 

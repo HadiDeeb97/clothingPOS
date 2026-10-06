@@ -290,9 +290,15 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException(Loc.T("Err.ReturnedCantVoid"));
         if (sale.Shift is { Status: ShiftStatus.Closed })
             throw new BusinessRuleException(Loc.T("Err.VoidShiftClosed"));
+        if (sale.DeliverySettlementId is not null)
+            throw new BusinessRuleException(Loc.T("Err.VoidSettledDelivery"));
 
         foreach (var line in sale.Lines)
+        {
             StockLedger.Apply(db, line.ProductVariant!, line.Quantity, StockMovementType.Void, userId, sale.ReceiptNumber, "Sale voided");
+            // Checked on save, so a return taken at another till meanwhile stops the void.
+            db.Entry(line).Property(l => l.ReturnedQuantity).IsModified = true;
+        }
 
         if (sale.Customer is { } customer)
         {
@@ -334,6 +340,16 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     }
 
     /// <summary>Returns the cart and deletes the held record.</summary>
+    /// <summary>Reads a held cart without taking it off hold (to load its items before <see cref="ResumeAsync"/>).</summary>
+    public async Task<HeldCart> PeekHeldAsync(int heldSaleId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var payload = await db.HeldSales.AsNoTracking().Where(h => h.Id == heldSaleId).Select(h => h.Payload).FirstOrDefaultAsync(ct)
+            ?? throw new BusinessRuleException(Loc.T("Err.HeldNotFound"));
+        return JsonSerializer.Deserialize<HeldCart>(payload) ?? throw new BusinessRuleException(Loc.T("Err.HeldCorrupt"));
+    }
+
+    /// <summary>Takes a cart off hold and returns it; fails if another till already resumed it.</summary>
     public async Task<HeldCart> ResumeAsync(int heldSaleId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);

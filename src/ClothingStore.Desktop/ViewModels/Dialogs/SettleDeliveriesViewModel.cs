@@ -24,7 +24,7 @@ public sealed partial class SettleDeliveriesViewModel : DialogViewModelBase
         Couriers = string.Join(", ", rows.Select(r => r.Courier ?? Loc.T("Deliveries.NoCourier")).Distinct());
         HasOpenShift = hasOpenShift;
         Method = hasOpenShift ? SettlementMethod.Cash : SettlementMethod.Transfer;
-        ReceivedText = Expected.ToString("0.00", CultureInfo.InvariantCulture);
+        ReceivedText = Expected.ToString("0.00", CultureInfo.CurrentCulture);
     }
 
     public override string Title => Loc.T("Deliveries.ReceiveTitle");
@@ -73,8 +73,8 @@ public sealed partial class SettleDeliveriesViewModel : DialogViewModelBase
 
     partial void OnMethodChanged(SettlementMethod value) =>
         ReceivedText = value == SettlementMethod.CashLbp
-            ? ExpectedLbp.ToString("#,0", CultureInfo.InvariantCulture)
-            : Expected.ToString("0.00", CultureInfo.InvariantCulture);
+            ? ExpectedLbp.ToString("#,0", CultureInfo.CurrentCulture)
+            : Expected.ToString("0.00", CultureInfo.CurrentCulture);
 
     [RelayCommand]
     private void Save()

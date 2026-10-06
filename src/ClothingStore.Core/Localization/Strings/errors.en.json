@@ -104,6 +104,7 @@
   "Err.RefundTooMuch": "The refund is more than what is left to refund on this sale.",
   "Err.RegionNameRequired": "Enter the name of the state.",
   "Err.ReorderNegative": "Reorder level cannot be negative.",
+  "Err.ReturnNumberTaken": "Another till just used the same return number. Please try again.",
   "Err.ReturnWindow": "This sale is older than the {0}-day return window. Manager approval required.",
   "Err.ReturnWindowNegative": "Return window cannot be negative.",
   "Err.ReturnedCantVoid": "Items from this sale were returned; it can no longer be voided.",
@@ -137,6 +138,7 @@
   "Err.VariantPriceNegative": "Variant prices cannot be negative.",
   "Err.VariantTwice": "Variant '{0}' is listed twice.",
   "Err.VoidReasonRequired": "A reason is required to void a sale.",
+  "Err.VoidSettledDelivery": "The delivery company has already paid for this order, so it can't be voided. Take a return instead.",
   "Err.VoidShiftClosed": "The shift for this sale is closed. Process a return instead.",
   "Err.VoidedNoReturn": "Voided sales cannot be returned."
 }

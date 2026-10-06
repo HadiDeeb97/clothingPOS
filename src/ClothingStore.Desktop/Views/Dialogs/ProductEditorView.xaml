@@ -28,11 +28,11 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="{l:T Common.Brand}" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Brand}" />
+                            <TextBox Text="{Binding Brand, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="{l:T ProductEditor.StyleCode}" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding StyleCode}" Tag="{l:T ProductEditor.Auto}" />
+                            <TextBox Text="{Binding StyleCode, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T ProductEditor.Auto}" />
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{l:T ProductEditor.CategoryRequired}" Style="{StaticResource FieldLabel}" />
@@ -57,11 +57,11 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="{l:T ProductEditor.Season}" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Season}" Tag="{l:T ProductEditor.SeasonHint}" />
+                            <TextBox Text="{Binding Season, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T ProductEditor.SeasonHint}" />
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{l:T ProductEditor.Material}" Style="{StaticResource FieldLabel}" />
-                    <TextBox Text="{Binding Material}" />
+                    <TextBox Text="{Binding Material, UpdateSourceTrigger=PropertyChanged}" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
@@ -79,7 +79,7 @@
                     </Grid>
                     <TextBlock Text="{Binding MarginText}" Style="{StaticResource HintText}" Foreground="{StaticResource SuccessBrush}" />
                     <TextBlock Text="{l:T Common.Description}" Style="{StaticResource FieldLabel}" />
-                    <TextBox Text="{Binding Description}" Style="{StaticResource MultilineBox}" />
+                    <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}" />
                     <CheckBox Content="{l:T ProductEditor.ActiveForSale}" IsChecked="{Binding IsActive}" Margin="0,12,0,0" />
                 </StackPanel>
             </ScrollViewer>

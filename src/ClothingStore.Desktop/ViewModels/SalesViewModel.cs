@@ -342,7 +342,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         else Items.Remove(item);
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    [RelayCommand(CanExecute = nameof(CanRemoveItem))]
     private void RemoveItem(CartItemViewModel? item)
     {
         item ??= SelectedItem;
@@ -404,6 +404,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     }
 
     private bool HasSelection() => SelectedItem is not null;
+
+    /// <summary>The X on a row passes that row; the toolbar button passes nothing and removes the selected one.</summary>
+    private bool CanRemoveItem(CartItemViewModel? item) => item is not null || SelectedItem is not null;
 
     /// <summary>Cashiers need a manager's credentials for discounts above the configured limit.</summary>
     private bool EnsureDiscountApproved()
@@ -479,8 +482,11 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             return;
         }
 
-        var cart = await _sales.ResumeAsync(picker.Chosen.Id);
+        // Load everything first and only then take it off hold, so a failed load doesn't lose the cart.
+        var cart = await _sales.PeekHeldAsync(picker.Chosen.Id);
         var variants = (await _products.GetVariantsAsync(cart.Lines.Select(l => l.VariantId))).ToDictionary(v => v.Id);
+        var customer = cart.CustomerId is { } customerId ? await _customers.GetAsync(customerId) : null;
+        await _sales.ResumeAsync(picker.Chosen.Id);
 
         ResetSale();
         var missing = 0;
@@ -495,12 +501,13 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         CartDiscountType = cart.CartDiscountType;
         CartDiscountValue = cart.CartDiscountValue;
-        if (cart.CustomerId is { } customerId) Customer = await _customers.GetAsync(customerId);
+        Customer = customer;
         Channel = cart.Channel;
         DeliveryFee = cart.DeliveryFee;
         OrderNotes = cart.Notes;
         Courier = cart.Courier;
         DeliveryReference = cart.DeliveryReference;
+        SelectedItem = Items.FirstOrDefault();
         Recalculate();
         await RefreshHeldCountAsync();
 

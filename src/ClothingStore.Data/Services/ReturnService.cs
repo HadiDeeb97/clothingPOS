@@ -129,6 +129,8 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         }
 
         db.Returns.Add(ret);
+        // Checked on save: fails if the sale was voided, or its delivery money settled, at another till meanwhile.
+        db.Entry(sale).Property(s => s.Status).IsModified = true;
         try
         {
             await db.SaveChangesAsync(ct);
@@ -136,6 +138,10 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         catch (DbUpdateConcurrencyException)
         {
             throw new BusinessRuleException(Loc.T("Err.ConcurrentReturn"));
+        }
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
+        {
+            throw new BusinessRuleException(Loc.T("Err.ReturnNumberTaken"));
         }
         return ret;
     }

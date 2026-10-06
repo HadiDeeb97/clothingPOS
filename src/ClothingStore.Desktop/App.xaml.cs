@@ -302,6 +302,14 @@ public partial class App : Application
         {
             MessageBox.Show(e.Exception.GetBaseException().Message, Loc.T("Shell.AppName"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
+
+        // Failing during start-up or while switching windows would otherwise leave a process running with no window
+        // (the app only shuts down explicitly), so a second start would look like it does nothing.
+        if (!Windows.OfType<Window>().Any(w => w.IsVisible && w is not SplashWindow))
+        {
+            _splash?.Close();
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
