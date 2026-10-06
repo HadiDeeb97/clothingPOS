@@ -181,17 +181,27 @@ public sealed partial class CustomerPickerViewModel(IDialogService dialogs, Cust
 
     public Customer? Selected { get; private set; }
 
+    private readonly LatestSearch _search = new();
+
     public override Task OnOpenedAsync() => SearchAsync();
 
-    partial void OnSearchTextChanged(string value) => _ = SearchAsync();
+    partial void OnSearchTextChanged(string value) => _ = SearchAsync(immediately: false);
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task SearchAsync() => await SearchAsync(immediately: true);
+
+    private async Task SearchAsync(bool immediately)
     {
+        var text = SearchText;
         try
         {
-            Results = await customers.SearchAsync(SearchText, max: 100);
-            SelectedCustomer = Results.FirstOrDefault();
+            Func<CancellationToken, Task<List<Customer>>> load = ct => customers.SearchAsync(text, max: 100, ct: ct);
+            Action<List<Customer>> apply = found =>
+            {
+                Results = found;
+                SelectedCustomer = Results.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {

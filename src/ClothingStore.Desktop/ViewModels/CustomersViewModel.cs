@@ -38,7 +38,9 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
 
     public Task OnNavigatedToAsync() => SearchAsync();
 
-    partial void OnSearchTextChanged(string value) => _ = SearchAsync();
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = SearchAsync(immediately: false);
     partial void OnIncludeInactiveChanged(bool value) => _ = SearchAsync();
 
     async partial void OnSelectedCustomerChanged(Customer? value)
@@ -54,13 +56,20 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
     }
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task SearchAsync(bool immediately = true)
     {
         var selectedId = SelectedCustomer?.Id;
+        var text = SearchText;
+        var includeInactive = IncludeInactive;
         try
         {
-            Customers = await customers.SearchAsync(SearchText, IncludeInactive, max: 500);
-            SelectedCustomer = Customers.FirstOrDefault(c => c.Id == selectedId) ?? Customers.FirstOrDefault();
+            Func<CancellationToken, Task<List<Customer>>> load = ct => customers.SearchAsync(text, includeInactive, max: 500, ct);
+            Action<List<Customer>> apply = found =>
+            {
+                Customers = found;
+                SelectedCustomer = Customers.FirstOrDefault(c => c.Id == selectedId) ?? Customers.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {

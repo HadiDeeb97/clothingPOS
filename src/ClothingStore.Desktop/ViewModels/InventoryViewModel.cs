@@ -46,7 +46,9 @@ public sealed partial class InventoryViewModel(
         await RefreshAsync();
     }
 
-    partial void OnSearchTextChanged(string value) => _ = LoadItemsAsync();
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = LoadItemsAsync(immediately: false);
     partial void OnSelectedCategoryChanged(Category value) => _ = LoadItemsAsync();
     partial void OnLowStockOnlyChanged(bool value) => _ = LoadItemsAsync();
 
@@ -76,14 +78,21 @@ public sealed partial class InventoryViewModel(
         }
     }
 
-    private async Task LoadItemsAsync()
+    private async Task LoadItemsAsync(bool immediately = true)
     {
         var selectedId = SelectedItem?.Id;
+        var text = SearchText;
+        var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
+        var lowStockOnly = LowStockOnly;
         try
         {
-            var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
-            Items = await inventory.GetStockAsync(SearchText, categoryId, LowStockOnly);
-            SelectedItem = Items.FirstOrDefault(i => i.Id == selectedId) ?? Items.FirstOrDefault();
+            Func<CancellationToken, Task<List<ProductVariant>>> load = ct => inventory.GetStockAsync(text, categoryId, lowStockOnly, ct: ct);
+            Action<List<ProductVariant>> apply = found =>
+            {
+                Items = found;
+                SelectedItem = Items.FirstOrDefault(i => i.Id == selectedId) ?? Items.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {

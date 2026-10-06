@@ -10,7 +10,7 @@
                 <Button Content="Print labels" Command="{Binding PrintLabelsCommand}" Margin="0" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=300}" Tag="Search name, brand, style, SKU or barcode" Width="300" Margin="0,0,10,0" />
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Search name, brand, style, SKU or barcode" Width="300" Margin="0,0,10,0" />
                 <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="180" Margin="0,0,10,0" />
                 <CheckBox Content="Include inactive" IsChecked="{Binding IncludeInactive}" />
             </StackPanel>

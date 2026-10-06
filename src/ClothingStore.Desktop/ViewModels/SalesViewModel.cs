@@ -75,6 +75,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [ObservableProperty]
     public partial bool IsSearchOpen { get; set; }
 
+    /// <summary>Shown in the results panel when nothing matches.</summary>
+    [ObservableProperty]
+    public partial string? SearchMessage { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomer))]
     public partial Customer? Customer { get; set; }
@@ -117,35 +121,72 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     // ---- Adding items -----------------------------------------------------------------------
 
-    [RelayCommand]
-    private Task SearchAsync() => RunAsync(async () =>
+    private readonly LatestSearch _search = new();
+
+    /// <summary>Shows matching items while the cashier types, without adding anything.</summary>
+    partial void OnSearchTextChanged(string value)
+    {
+        var text = value.Trim();
+        if (text.Length < 2)
+        {
+            _search.Cancel();
+            if (IsSearchOpen && text.Length == 0) HideResults();
+            return;
+        }
+        _ = LiveSearchAsync(text);
+    }
+
+    private async Task LiveSearchAsync(string text)
+    {
+        try
+        {
+            await _search.RunAsync(ct => _products.SearchVariantsAsync(text, ct: ct), results => ShowResults(text, results));
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error("Product search failed.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Enter or a barcode scan: an exact barcode/SKU or a single match is added straight away, otherwise the
+    /// matches are listed. Runs even while an earlier search is still going (that one is cancelled).
+    /// </summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchAsync()
     {
         var text = SearchText.Trim();
         if (text.Length == 0) return;
-
-        var exact = await _products.FindByCodeAsync(text);
-        if (exact is not null)
+        try
         {
-            AddVariant(exact);
-            return;
+            await _search.RunNowAsync(
+                async ct => await _products.FindByCodeAsync(text, ct) is { } exact ? [exact] : await _products.SearchVariantsAsync(text, ct: ct),
+                results =>
+                {
+                    if (results.Count == 1) AddVariant(results[0]);
+                    else ShowResults(text, results);
+                });
         }
-
-        var results = await _products.SearchVariantsAsync(text);
-        switch (results.Count)
+        catch (Exception ex)
         {
-            case 0:
-                Dialogs.Warning($"No products match \"{text}\".");
-                break;
-            case 1:
-                AddVariant(results[0]);
-                break;
-            default:
-                SearchResults = results;
-                SelectedResult = results[0];
-                IsSearchOpen = true;
-                break;
+            Dialogs.Error("Product search failed.", ex);
         }
-    });
+    }
+
+    private void ShowResults(string text, List<ProductVariant> results)
+    {
+        SearchResults = results;
+        SelectedResult = results.FirstOrDefault();
+        SearchMessage = results.Count == 0 ? $"No products match \"{text}\"." : null;
+        IsSearchOpen = true;
+    }
+
+    private void HideResults()
+    {
+        IsSearchOpen = false;
+        SearchResults = [];
+        SearchMessage = null;
+    }
 
     [RelayCommand]
     private void AddResult(ProductVariant? variant)
@@ -158,8 +199,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [RelayCommand]
     private void CloseSearch()
     {
-        IsSearchOpen = false;
-        SearchResults = [];
+        _search.Cancel();
+        HideResults();
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -182,8 +223,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
 
         SearchText = "";
-        IsSearchOpen = false;
-        SearchResults = [];
+        HideResults();
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -423,8 +463,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         CartDiscountType = DiscountType.None;
         CartDiscountValue = 0;
         SearchText = "";
-        IsSearchOpen = false;
-        SearchResults = [];
+        HideResults();
         _approvedByUserId = null;
         _approvedDiscountPercent = 0;
         Recalculate();

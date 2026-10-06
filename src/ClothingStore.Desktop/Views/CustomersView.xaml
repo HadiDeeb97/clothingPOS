@@ -10,7 +10,7 @@
                 <Button Content="Export CSV" Command="{Binding ExportCommand}" Margin="0" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=300}" Tag="Search name, phone, email" Width="300" Margin="0,0,12,0" />
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Search name, phone, email" Width="300" Margin="0,0,12,0" />
                 <CheckBox Content="Include inactive" IsChecked="{Binding IncludeInactive}" />
             </StackPanel>
         </DockPanel>

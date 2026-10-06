@@ -53,19 +53,30 @@ public sealed partial class ProductsViewModel(
         await SearchAsync();
     }
 
-    partial void OnSearchTextChanged(string value) => _ = SearchAsync();
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
     partial void OnSelectedCategoryChanged(Category value) => _ = SearchAsync();
     partial void OnIncludeInactiveChanged(bool value) => _ = SearchAsync();
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private Task SearchAsync() => LoadAsync(immediately: true);
+
+    private async Task LoadAsync(bool immediately)
     {
         var selectedId = SelectedProduct?.Product.Id;
+        var text = SearchText;
+        var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
+        var includeInactive = IncludeInactive;
         try
         {
-            var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
-            Products = (await products.SearchAsync(SearchText, categoryId, IncludeInactive)).Select(p => new ProductRow(p)).ToList();
-            SelectedProduct = Products.FirstOrDefault(p => p.Product.Id == selectedId) ?? Products.FirstOrDefault();
+            Func<CancellationToken, Task<List<Product>>> load = ct => products.SearchAsync(text, categoryId, includeInactive, ct);
+            Action<List<Product>> apply = found =>
+            {
+                Products = found.Select(p => new ProductRow(p)).ToList();
+                SelectedProduct = Products.FirstOrDefault(p => p.Product.Id == selectedId) ?? Products.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {

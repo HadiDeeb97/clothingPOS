@@ -216,14 +216,38 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
         OnPropertyChanged(nameof(TotalUnits));
     }
 
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = LoadResultsAsync(immediately: false);
+
     [RelayCommand]
-    private Task SearchAsync() => RunAsync(async () =>
+    private Task SearchAsync() => LoadResultsAsync(immediately: true);
+
+    private async Task LoadResultsAsync(bool immediately)
     {
-        if (string.IsNullOrWhiteSpace(SearchText)) return;
-        var exact = await _products.FindByCodeAsync(SearchText);
-        SearchResults = exact is not null ? [exact] : await _products.SearchVariantsAsync(SearchText, 200);
-        SelectedResult = SearchResults.FirstOrDefault();
-    });
+        var text = SearchText.Trim();
+        if (text.Length == 0)
+        {
+            _search.Cancel();
+            SearchResults = [];
+            return;
+        }
+        try
+        {
+            Func<CancellationToken, Task<List<ProductVariant>>> load = async ct =>
+                await _products.FindByCodeAsync(text, ct) is { } exact ? [exact] : await _products.SearchVariantsAsync(text, 200, ct);
+            Action<List<ProductVariant>> apply = found =>
+            {
+                SearchResults = found;
+                SelectedResult = found.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error("Product search failed.", ex);
+        }
+    }
 
     [RelayCommand]
     private void AddResult(ProductVariant? variant)

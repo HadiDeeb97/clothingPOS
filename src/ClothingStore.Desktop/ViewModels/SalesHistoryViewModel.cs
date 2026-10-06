@@ -42,15 +42,38 @@ public sealed partial class SalesHistoryViewModel(
     public decimal TotalSales => Sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total);
     public int SaleCount => Sales.Count(s => s.Status == SaleStatus.Completed);
 
+    private readonly LatestSearch _search = new();
+
     public Task OnNavigatedToAsync() => SearchAsync();
 
+    partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
+    partial void OnIncludeVoidedChanged(bool value) => _ = SearchAsync();
+    partial void OnFromChanged(DateTime value) => _ = LoadAsync(immediately: false);
+    partial void OnToChanged(DateTime value) => _ = LoadAsync(immediately: false);
+
     [RelayCommand]
-    private Task SearchAsync() => RunAsync(async () =>
+    private Task SearchAsync() => LoadAsync(immediately: true);
+
+    private async Task LoadAsync(bool immediately)
     {
-        if (To < From) (From, To) = (To, From);
-        Sales = await sales.SearchAsync(From.Date, To.Date.AddDays(1), SearchText, IncludeVoided);
-        SelectedSale = Sales.FirstOrDefault();
-    });
+        var (from, to) = From <= To ? (From.Date, To.Date) : (To.Date, From.Date);
+        var text = SearchText;
+        var includeVoided = IncludeVoided;
+        try
+        {
+            Func<CancellationToken, Task<List<Sale>>> load = ct => sales.SearchAsync(from, to.AddDays(1), text, includeVoided, ct);
+            Action<List<Sale>> apply = found =>
+            {
+                Sales = found;
+                SelectedSale = Sales.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error("Sales search failed.", ex);
+        }
+    }
 
     [RelayCommand]
     private Task QuickRangeAsync(string range)

@@ -45,7 +45,7 @@
                 <Button Content="Export CSV" Command="{Binding ExportCommand}" Margin="0" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=300}" Tag="Search product, SKU, colour, size, barcode" Width="280" Margin="0,0,10,0" />
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Search product, SKU, colour, size, barcode" Width="280" Margin="0,0,10,0" />
                 <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="170" Margin="0,0,10,0" />
                 <CheckBox Content="Low stock only" IsChecked="{Binding LowStockOnly}" />
             </StackPanel>

@@ -21,4 +21,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- UI helpers with no WPF dependency, tested here because the desktop project only builds for Windows. -->
+    <Compile Include="..\..\src\ClothingStore.Desktop\Infrastructure\LatestSearch.cs" Link="Desktop\LatestSearch.cs" />
+  </ItemGroup>
+
 </Project>
