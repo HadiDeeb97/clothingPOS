@@ -7,6 +7,7 @@ using ClothingStore.Desktop.Infrastructure;
 using ClothingStore.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels.Dialogs;
 
@@ -36,12 +37,12 @@ public sealed partial class PromptViewModel(IDialogService dialogs, string title
         if (!decimal.TryParse(Value, NumberStyles.Number, CultureInfo.CurrentCulture, out var number) &&
             !decimal.TryParse(Value, NumberStyles.Number, CultureInfo.InvariantCulture, out number))
         {
-            Dialogs.Warning("Please enter a valid number.");
+            Dialogs.Warning(Loc.T("Prompt.InvalidNumber"));
             return;
         }
         if (kind == PromptKind.Integer && number != Math.Truncate(number))
         {
-            Dialogs.Warning("Please enter a whole number.");
+            Dialogs.Warning(Loc.T("Prompt.InvalidWholeNumber"));
             return;
         }
         DecimalValue = number;
@@ -55,7 +56,7 @@ public sealed partial class PromptViewModel(IDialogService dialogs, string title
 public sealed partial class ChangePasswordViewModel(IDialogService dialogs, UserService users, Session session, bool forced)
     : DialogViewModelBase(dialogs)
 {
-    public override string Title => IsForced ? "Choose a new password" : "Change password";
+    public override string Title => Loc.T(IsForced ? "Password.ChooseNew" : "Shell.ChangePassword");
     public bool IsForced { get; } = forced;
 
     public string CurrentPassword { get; set; } = "";
@@ -65,7 +66,7 @@ public sealed partial class ChangePasswordViewModel(IDialogService dialogs, User
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
-        if (NewPassword != ConfirmPassword) throw new BusinessRuleException("The new passwords do not match.");
+        if (NewPassword != ConfirmPassword) throw new BusinessRuleException(Loc.T("Password.Mismatch"));
         await users.ChangePasswordAsync(session.User.Id, CurrentPassword, NewPassword);
         session.User.MustChangePassword = false;
         Close(true);
@@ -79,7 +80,7 @@ public sealed partial class ChangePasswordViewModel(IDialogService dialogs, User
 public sealed partial class ManagerApprovalViewModel(IDialogService dialogs, UserService users, string reason, Permission permission)
     : DialogViewModelBase(dialogs)
 {
-    public override string Title => "Manager approval";
+    public override string Title => Loc.T("Approval.Title");
     public string Reason { get; } = reason;
 
     [ObservableProperty]
@@ -98,7 +99,7 @@ public sealed partial class ManagerApprovalViewModel(IDialogService dialogs, Use
         ApprovedBy = await users.AuthorizeAsync(Username, Password, permission);
         if (ApprovedBy is null)
         {
-            ErrorMessage = "Invalid credentials or insufficient permission.";
+            ErrorMessage = Loc.T("Approval.Invalid");
             return;
         }
         Close(true);
@@ -114,7 +115,7 @@ public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintSe
 {
     public override string Title { get; } = title;
     public string Text { get; } = string.Join(Environment.NewLine, lines);
-    public string CloseText { get; } = closeText ?? "Close";
+    public string CloseText { get; } = closeText ?? Loc.T("Common.Close");
 
     [RelayCommand]
     private void Print()
@@ -125,7 +126,7 @@ public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintSe
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Printing failed.", ex);
+            Dialogs.Error(Loc.T("Common.PrintFailed"), ex);
         }
     }
 
@@ -150,7 +151,7 @@ public sealed partial class CustomerEditorViewModel : DialogViewModelBase
             };
     }
 
-    public override string Title => Customer.Id == 0 ? "New customer" : "Edit customer";
+    public override string Title => Loc.T(Customer.Id == 0 ? "Customers.New" : "Customers.Edit");
     public Customer Customer { get; }
     public Customer? Saved { get; private set; }
 
@@ -167,7 +168,7 @@ public sealed partial class CustomerEditorViewModel : DialogViewModelBase
 
 public sealed partial class CustomerPickerViewModel(IDialogService dialogs, CustomerService customers) : DialogViewModelBase(dialogs)
 {
-    public override string Title => "Select customer";
+    public override string Title => Loc.T("Customers.Select");
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = "";
@@ -181,21 +182,31 @@ public sealed partial class CustomerPickerViewModel(IDialogService dialogs, Cust
 
     public Customer? Selected { get; private set; }
 
+    private readonly LatestSearch _search = new();
+
     public override Task OnOpenedAsync() => SearchAsync();
 
-    partial void OnSearchTextChanged(string value) => _ = SearchAsync();
+    partial void OnSearchTextChanged(string value) => _ = SearchAsync(immediately: false);
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task SearchAsync() => await SearchAsync(immediately: true);
+
+    private async Task SearchAsync(bool immediately)
     {
+        var text = SearchText;
         try
         {
-            Results = await customers.SearchAsync(SearchText, max: 100);
-            SelectedCustomer = Results.FirstOrDefault();
+            Func<CancellationToken, Task<List<Customer>>> load = ct => customers.SearchAsync(text, max: 100, ct: ct);
+            Action<List<Customer>> apply = found =>
+            {
+                Results = found;
+                SelectedCustomer = Results.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Customer search failed.", ex);
+            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
         }
     }
 
@@ -225,7 +236,7 @@ public sealed partial class CustomerPickerViewModel(IDialogService dialogs, Cust
 
 public sealed partial class HeldSalesViewModel(IDialogService dialogs, SalesService sales) : DialogViewModelBase(dialogs)
 {
-    public override string Title => "Held sales";
+    public override string Title => Loc.T("Held.Title");
 
     [ObservableProperty]
     public partial List<HeldSale> Items { get; set; } = [];
@@ -252,7 +263,7 @@ public sealed partial class HeldSalesViewModel(IDialogService dialogs, SalesServ
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private Task DeleteAsync() => RunAsync(async () =>
     {
-        if (SelectedItem is null || !Dialogs.Confirm($"Discard held sale '{SelectedItem.Label}'?")) return;
+        if (SelectedItem is null || !Dialogs.Confirm(Loc.T("Held.DiscardConfirm", SelectedItem.Label))) return;
         await sales.DeleteHeldAsync(SelectedItem.Id);
         await OnOpenedAsync();
     });

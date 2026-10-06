@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -18,15 +19,15 @@ public class CategoryService(IDbContextFactory<PosDbContext> factory)
     public async Task<Category> SaveAsync(Category category, CancellationToken ct = default)
     {
         category.Name = category.Name.Trim();
-        if (category.Name.Length == 0) throw new BusinessRuleException("Category name is required.");
+        if (category.Name.Length == 0) throw new BusinessRuleException(Loc.T("Err.CategoryNameRequired"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         if (await db.Categories.AnyAsync(c => c.Name == category.Name && c.Id != category.Id, ct))
-            throw new BusinessRuleException($"A category named '{category.Name}' already exists.");
+            throw new BusinessRuleException(Loc.T("Err.CategoryExists", category.Name));
 
         var entity = category.Id == 0
             ? db.Categories.Add(new Category()).Entity
-            : await db.Categories.FindAsync([category.Id], ct) ?? throw new BusinessRuleException("Category not found.");
+            : await db.Categories.FindAsync([category.Id], ct) ?? throw new BusinessRuleException(Loc.T("Err.CategoryNotFound"));
 
         entity.Name = category.Name;
         entity.Description = QueryHelpers.Clean(category.Description);
@@ -69,15 +70,15 @@ public class SupplierService(IDbContextFactory<PosDbContext> factory)
     public async Task<Supplier> SaveAsync(Supplier supplier, CancellationToken ct = default)
     {
         supplier.Name = supplier.Name.Trim();
-        if (supplier.Name.Length == 0) throw new BusinessRuleException("Supplier name is required.");
+        if (supplier.Name.Length == 0) throw new BusinessRuleException(Loc.T("Err.SupplierNameRequired"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         if (await db.Suppliers.AnyAsync(s => s.Name == supplier.Name && s.Id != supplier.Id, ct))
-            throw new BusinessRuleException($"A supplier named '{supplier.Name}' already exists.");
+            throw new BusinessRuleException(Loc.T("Err.SupplierExists", supplier.Name));
 
         var entity = supplier.Id == 0
             ? db.Suppliers.Add(new Supplier()).Entity
-            : await db.Suppliers.FindAsync([supplier.Id], ct) ?? throw new BusinessRuleException("Supplier not found.");
+            : await db.Suppliers.FindAsync([supplier.Id], ct) ?? throw new BusinessRuleException(Loc.T("Err.SupplierNotFound"));
 
         entity.Name = supplier.Name;
         entity.ContactName = QueryHelpers.Clean(supplier.ContactName);

@@ -10,4 +10,7 @@ public class User : Entity
     public bool MustChangePassword { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>"en" or "ar"; null = whatever the sign-in screen was set to.</summary>
+    public string? PreferredLanguage { get; set; }
 }

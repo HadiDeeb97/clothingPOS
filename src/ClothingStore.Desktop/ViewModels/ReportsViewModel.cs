@@ -6,6 +6,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
@@ -13,7 +14,7 @@ public sealed partial class ReportsViewModel(
     IDialogService dialogs, ReportService reports, SettingsService settings, PrintService print)
     : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Reports";
+    public string Title => Loc.T("Nav.Reports");
 
     [ObservableProperty]
     public partial DateTime From { get; set; } = new(DateTime.Today.Year, DateTime.Today.Month, 1);
@@ -57,21 +58,24 @@ public sealed partial class ReportsViewModel(
     private void Export(string section)
     {
         if (Report is null) return;
-        var path = Dialogs.SaveFile("Export report", "CSV files (*.csv)|*.csv", $"{section}_{From:yyyyMMdd}_{To:yyyyMMdd}.csv");
+        var path = Dialogs.SaveFile(Loc.T("Reports.ExportTitle"), Loc.T("Common.CsvFilter"), $"{section}_{From:yyyyMMdd}_{To:yyyyMMdd}.csv");
         if (path is null) return;
         try
         {
             switch (section)
             {
                 case "daily":
-                    CsvExporter.Write(path, ["Date", "Transactions", "Total"],
+                    CsvExporter.Write(path, [Loc.T("Common.Date"), Loc.T("Reports.Transactions"), Loc.T("Common.Total")],
                         Report.ByDay.Select(d => new object?[] { d.Date.ToString("yyyy-MM-dd"), d.Transactions, d.Total }));
                     break;
                 case "payments":
-                    CsvExporter.Write(path, ["Method", "Count", "Amount"], Report.ByPaymentMethod.Select(x => new object?[] { x.Name, x.Count, x.Amount }));
+                    CsvExporter.Write(path, [Loc.T("Reports.Method"), Loc.T("Reports.Count"), Loc.T("Common.Amount")], Report.ByPaymentMethod.Select(x => new object?[] { x.Name, x.Count, x.Amount }));
+                    break;
+                case "channels":
+                    CsvExporter.Write(path, [Loc.T("Orders.Channel"), Loc.T("Reports.Sales"), Loc.T("Common.Items"), Loc.T("Common.Total")], Report.ByChannel.Select(x => new object?[] { x.Name, x.Count, x.Quantity, x.Amount }));
                     break;
                 case "cashiers":
-                    CsvExporter.Write(path, ["Cashier", "Transactions", "Items", "Total"], Report.ByCashier.Select(x => new object?[] { x.Name, x.Count, x.Quantity, x.Amount }));
+                    CsvExporter.Write(path, [Loc.T("Common.Cashier"), Loc.T("Reports.Transactions"), Loc.T("Common.Items"), Loc.T("Common.Total")], Report.ByCashier.Select(x => new object?[] { x.Name, x.Count, x.Quantity, x.Amount }));
                     break;
                 default:
                     var rows = section switch
@@ -80,14 +84,14 @@ public sealed partial class ReportsViewModel(
                         "sizes" => Report.BySize,
                         _ => Report.TopProducts,
                     };
-                    CsvExporter.Write(path, ["Name", "Units", "Net sales"], rows.Select(x => new object?[] { x.Name, x.Quantity, x.Amount }));
+                    CsvExporter.Write(path, [Loc.T("Common.Name"), Loc.T("Reports.Units"), Loc.T("Reports.NetSales")], rows.Select(x => new object?[] { x.Name, x.Quantity, x.Amount }));
                     break;
             }
-            Dialogs.Info("Report exported.");
+            Dialogs.Toast(Loc.T("Reports.Exported"));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Export failed.", ex);
+            Dialogs.Error(Loc.T("Common.ExportFailed"), ex);
         }
     }
 
@@ -100,30 +104,37 @@ public sealed partial class ReportsViewModel(
         var lines = new List<string>
         {
             settings.Current.StoreName.ToUpperInvariant(),
-            $"SALES SUMMARY {r.From:yyyy-MM-dd} to {r.To.AddDays(-1):yyyy-MM-dd}",
+            Loc.T("Reports.SummaryHeader", r.From, r.To.AddDays(-1)),
             new('-', 42),
-            Row("Transactions", r.Transactions.ToString()),
-            Row("Items sold", r.ItemsSold.ToString()),
-            Row("Gross sales", M(r.GrossSales)),
-            Row("Discounts", M(-r.Discounts)),
-            Row("Tax collected", M(r.Tax)),
-            Row("Total sales (incl. tax)", M(r.TotalSales)),
-            Row("Refunds", M(-r.Refunds)),
-            Row("Net revenue (excl. tax)", M(r.NetRevenue)),
-            Row("Cost of goods", M(r.CostOfGoods)),
-            Row("Gross profit", M(r.GrossProfit)),
-            Row("Margin", $"{r.MarginPercent:0.0}%"),
-            Row("Average basket", M(r.AverageBasket)),
+            Row(Loc.T("Reports.Transactions"), r.Transactions.ToString()),
+            Row(Loc.T("Reports.ItemsSold"), r.ItemsSold.ToString()),
+            Row(Loc.T("Reports.GrossSales"), M(r.GrossSales)),
+            Row(Loc.T("Common.Discounts"), M(-r.Discounts)),
+            Row(Loc.T("Reports.TaxCollected"), M(r.Tax)),
+            Row(Loc.T("Reports.TotalSalesInclTax"), M(r.TotalSales)),
+            Row(Loc.T("Shift.Refunds"), M(-r.Refunds)),
+            Row(Loc.T("Reports.NetRevenueExTax"), M(r.NetRevenue)),
+            Row(Loc.T("Reports.CostOfGoods"), M(r.CostOfGoods)),
+            Row(Loc.T("Reports.GrossProfit"), M(r.GrossProfit)),
+            Row(Loc.T("Reports.Margin"), $"{r.MarginPercent:0.0}%"),
+            Row(Loc.T("Reports.AverageBasket"), M(r.AverageBasket)),
             new('-', 42),
-            "PAYMENTS",
+            Loc.T("Common.Payments"),
         };
-        lines.AddRange(r.ByPaymentMethod.Select(p => Row("  " + EnumDisplayConverter.Humanize(p.Name), M(p.Amount))));
+        lines.AddRange(r.ByPaymentMethod.Select(p => Row("  " + p.Name, M(p.Amount))));
+        if (r.ByChannel.Any(c => c.Name != Loc.EnumText(Core.SalesChannel.InStore)))
+        {
+            lines.Add(new string('-', 42));
+            lines.Add(Loc.T("Reports.Channels"));
+            lines.AddRange(r.ByChannel.Select(c => Row($"  {c.Name} ({c.Count})", M(c.Amount))));
+            lines.Add(Row("  " + Loc.T("Orders.DeliveryFee"), M(r.DeliveryFees)));
+        }
         lines.Add(new string('-', 42));
-        lines.Add("TOP CATEGORIES");
+        lines.Add(Loc.T("Reports.TopCategories"));
         lines.AddRange(r.ByCategory.Take(10).Select(c => Row($"  {c.Name} ({c.Quantity})", M(c.Amount))));
         lines.Add(new string('-', 42));
-        lines.Add("TOP PRODUCTS");
+        lines.Add(Loc.T("Reports.TopProducts"));
         lines.AddRange(r.TopProducts.Take(10).Select(p => Row($"  {(p.Name.Length > 20 ? p.Name[..20] : p.Name)} ({p.Quantity})", M(p.Amount))));
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, "Sales summary", lines));
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Reports.SalesSummary"), lines));
     }
 }

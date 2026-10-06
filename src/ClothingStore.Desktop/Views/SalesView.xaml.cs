@@ -13,13 +13,30 @@ public partial class SalesView : UserControl
         InitializeComponent();
         DataContextChanged += (_, e) =>
         {
-            if (e.OldValue is SalesViewModel old) old.FocusSearchRequested -= OnFocusSearchRequested;
-            if (e.NewValue is SalesViewModel vm) vm.FocusSearchRequested += OnFocusSearchRequested;
+            if (e.OldValue is SalesViewModel old)
+            {
+                old.FocusSearchRequested -= OnFocusSearchRequested;
+                old.PropertyChanged -= OnViewModelPropertyChanged;
+            }
+            if (e.NewValue is SalesViewModel vm)
+            {
+                vm.FocusSearchRequested += OnFocusSearchRequested;
+                vm.PropertyChanged += OnViewModelPropertyChanged;
+            }
         };
-        Loaded += (_, _) => FocusSearch();
+        Loaded += (_, _) =>
+        {
+            FocusSearch();
+            // After the saved panel sizes are restored.
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => ApplyBrowseVisibility(ViewModel?.IsBrowseVisible ?? true));
+        };
         Unloaded += (_, _) =>
         {
-            if (DataContext is SalesViewModel vm) vm.FocusSearchRequested -= OnFocusSearchRequested;
+            if (DataContext is SalesViewModel vm)
+            {
+                vm.FocusSearchRequested -= OnFocusSearchRequested;
+                vm.PropertyChanged -= OnViewModelPropertyChanged;
+            }
         };
         PreviewKeyDown += (_, e) =>
         {
@@ -32,6 +49,30 @@ public partial class SalesView : UserControl
     }
 
     private SalesViewModel? ViewModel => DataContext as SalesViewModel;
+
+    private static readonly GridLength DefaultBrowseWidth = new(330);
+    private GridLength _browseWidth = DefaultBrowseWidth;
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SalesViewModel.IsBrowseVisible)) ApplyBrowseVisibility(ViewModel?.IsBrowseVisible ?? true);
+    }
+
+    /// <summary>A hidden product list gives its whole column back to the cart; showing it restores its last width.</summary>
+    private void ApplyBrowseVisibility(bool visible)
+    {
+        if (visible)
+        {
+            BrowseColumn.Width = _browseWidth.Value >= 200 ? _browseWidth : DefaultBrowseWidth;
+            BrowseColumn.MinWidth = 220;
+        }
+        else
+        {
+            if (BrowseColumn.ActualWidth >= 200) _browseWidth = BrowseColumn.Width;
+            BrowseColumn.MinWidth = 0;
+            BrowseColumn.Width = new GridLength(0);
+        }
+    }
 
     private void OnFocusSearchRequested(object? sender, EventArgs e) => FocusSearch();
 

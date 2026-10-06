@@ -9,6 +9,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
@@ -33,15 +34,25 @@ public sealed partial class ReturnLineViewModel(SaleLine line) : ObservableObjec
     }
 }
 
+/// <summary>Currency for the cash part of a refund.</summary>
+public enum RefundCashChoice
+{
+    /// <summary>Dollars back as dollars, pounds back as pounds.</summary>
+    AsPaid,
+    Usd,
+    Lbp,
+}
+
 /// <summary>Refunds or exchanges: look up a receipt, choose items, refund to the original payment or store credit.</summary>
 public sealed partial class ReturnsViewModel(
     IDialogService dialogs, SalesService sales, ReturnService returns, SettingsService settings,
     UserService users, Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Returns & Exchanges";
+    public string Title => Loc.T("Nav.Returns");
 
     public string[] ReasonPresets { get; } =
-        ["Wrong size", "Changed mind", "Defective / damaged", "Not as described", "Unwanted gift", "Exchange"];
+        [Loc.T("Returns.Reason.WrongSize"), Loc.T("Returns.Reason.ChangedMind"), Loc.T("Returns.Reason.Defective"),
+         Loc.T("Returns.Reason.NotAsDescribed"), Loc.T("Returns.Reason.Gift"), Loc.T("Returns.Reason.Exchange")];
 
     [ObservableProperty]
     public partial string ReceiptNumber { get; set; } = "";
@@ -57,6 +68,18 @@ public sealed partial class ReturnsViewModel(
     public partial RefundDestination RefundTo { get; set; } = RefundDestination.OriginalPayment;
 
     [ObservableProperty]
+    public partial RefundCashChoice RefundCashIn { get; set; } = RefundCashChoice.AsPaid;
+
+    public bool ShowLbp => settings.Current.ActiveLbpRate > 0;
+
+    private CashCurrency? RefundCurrency => RefundCashIn switch
+    {
+        RefundCashChoice.Usd => CashCurrency.Usd,
+        RefundCashChoice.Lbp => CashCurrency.Lbp,
+        _ => null,
+    };
+
+    [ObservableProperty]
     public partial string? Reason { get; set; }
 
     [ObservableProperty]
@@ -68,16 +91,16 @@ public sealed partial class ReturnsViewModel(
     /// <summary>Only offered when part of the sale was paid by card or wallet.</summary>
     public bool CanRefundInCash => Sale?.Payments.Any(p => p.Method is PaymentMethod.Card or PaymentMethod.MobileWallet) == true;
 
-    public string PaidWith => Sale is null ? "" : "Paid with " + string.Join(", ", Sale.Payments
+    public string PaidWith => Sale is null ? "" : Loc.T("Returns.PaidWith", string.Join(", ", Sale.Payments
         .GroupBy(p => p.Method)
-        .Select(g => $"{Converters.EnumDisplayConverter.Humanize(g.Key.ToString()).ToLowerInvariant()} {Converters.CurrencyFormat.Format(g.Sum(p => p.Amount))}"));
+        .Select(g => $"{Loc.EnumText(g.Key)} {Converters.CurrencyFormat.Format(g.Sum(p => p.Amount))}")));
 
     public bool IsOutsideWindow =>
         Sale is not null && settings.Current.ReturnWindowDays > 0 &&
         (DateTime.Now - Sale.CreatedAt).TotalDays > settings.Current.ReturnWindowDays;
 
     public string WindowMessage => IsOutsideWindow
-        ? $"This sale is older than the {settings.Current.ReturnWindowDays}-day return window — manager approval is required."
+        ? Loc.T("Returns.OutsideWindow", settings.Current.ReturnWindowDays)
         : "";
 
     public Task OnNavigatedToAsync() => Task.CompletedTask;
@@ -96,13 +119,13 @@ public sealed partial class ReturnsViewModel(
         if (sale is null)
         {
             Clear();
-            Dialogs.Warning($"Receipt {ReceiptNumber.Trim().ToUpperInvariant()} was not found.");
+            Dialogs.Warning(Loc.T("Returns.NotFound", ReceiptNumber.Trim().ToUpperInvariant()));
             return;
         }
         if (sale.Status == SaleStatus.Voided)
         {
             Clear();
-            Dialogs.Warning("That sale was voided and cannot be returned.");
+            Dialogs.Warning(Loc.T("Returns.Voided"));
             return;
         }
         Show(sale);
@@ -120,6 +143,8 @@ public sealed partial class ReturnsViewModel(
             Lines.Add(vm);
         }
         RefundTo = RefundDestination.OriginalPayment;
+        RefundCashIn = RefundCashChoice.AsPaid;
+        OnPropertyChanged(nameof(ShowLbp));
         Reason = null;
         UpdateTotal();
     }
@@ -151,22 +176,22 @@ public sealed partial class ReturnsViewModel(
         var selected = Lines.Where(l => l.ReturnQuantity > 0).ToList();
         if (selected.Count == 0)
         {
-            Dialogs.Warning("Set the quantity to return for at least one item.");
+            Dialogs.Warning(Loc.T("Returns.SetQuantity"));
             return;
         }
         if (RefundTo == RefundDestination.StoreCredit && !CanRefundToCredit)
         {
-            Dialogs.Warning("Store credit needs a customer on the original sale. Refund to the original payment instead.");
+            Dialogs.Warning(Loc.T("Returns.CreditNeedsCustomer"));
             return;
         }
 
         var lines = selected.Select(l => new ReturnLineRequest(l.Line.Id, l.ReturnQuantity, l.Restock)).ToList();
         RefundPlan? plan = null;
-        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo)) || plan is null) return;
+        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo, RefundCurrency)) || plan is null) return;
 
-        if (plan.CashOut > 0 && !session.HasOpenShift)
+        if ((plan.CashOut > 0 || plan.CashOutLbp > 0) && !session.HasOpenShift)
         {
-            Dialogs.Warning("Open a cash drawer shift before giving cash refunds.");
+            Dialogs.Warning(Loc.T("Returns.OpenShiftForCash"));
             return;
         }
 
@@ -177,7 +202,7 @@ public sealed partial class ReturnsViewModel(
         {
             var reasons = new List<string>();
             if (needsWindowApproval) reasons.Add(WindowMessage);
-            if (needsCashApproval) reasons.Add("Refunding a card or wallet payment in cash needs manager approval.");
+            if (needsCashApproval) reasons.Add(Loc.T("Returns.CashOverrideNeedsApproval"));
             var approval = new ManagerApprovalViewModel(Dialogs, users, string.Join("\n", reasons),
                 needsCashApproval ? Permission.OverrideRefundMethod : Permission.OverrideDiscountLimit);
             if (!Dialogs.ShowDialog(approval) || approval.ApprovedBy is null) return;
@@ -187,8 +212,10 @@ public sealed partial class ReturnsViewModel(
         var breakdown = plan.Shares
             .GroupBy(s => s.Method)
             .OrderBy(g => g.Key)
-            .Select(g => $"  {Converters.EnumDisplayConverter.Humanize(g.Key.ToString())}: {Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))}");
-        if (!Dialogs.Confirm($"Refund {Converters.CurrencyFormat.Format(plan.Total)}:\n{string.Join("\n", breakdown)}\n\nContinue?"))
+            .Select(g => g.Key == RefundMethod.CashLbp
+                ? $"  {Loc.EnumText(g.Key)}: {Converters.CurrencyFormat.Lbp(plan.CashOutLbp)} ({Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))})"
+                : $"  {Loc.EnumText(g.Key)}: {Converters.CurrencyFormat.Format(g.Sum(s => s.Amount))}");
+        if (!Dialogs.Confirm(Loc.T("Returns.Confirm", Converters.CurrencyFormat.Format(plan.Total), string.Join("\n", breakdown))))
             return;
 
         SaleReturn? result = null;
@@ -203,16 +230,22 @@ public sealed partial class ReturnsViewModel(
                 Reason = Reason,
                 ApprovedByUserId = approvedBy,
                 Lines = lines,
+                CashCurrency = RefundCurrency,
+                ExchangeRate = plan.Rate,
             });
         });
-        if (!ok || result is null) return;
+        if (!ok || result is null)
+        {
+            try { await settings.RefreshCurrencyAsync(); } catch { /* checked again on the next try */ }
+            return;
+        }
 
         var doc = ReceiptBuilder.FromReturn(result, sale, settings.Current, session.User.FullName);
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, $"Refund {result.ReturnNumber}",
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Returns.RefundTitle", result.ReturnNumber),
             ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth)));
 
         if (result.Refunds.Any(r => r.Method == RefundMethod.StoreCredit))
-            Dialogs.Info("Store credit added. For an exchange, ring up the new items on the Register and pay with store credit.");
+            Dialogs.Toast(Loc.T("Returns.CreditAdded"));
 
         await FindAsync(); // refresh remaining returnable quantities
     }

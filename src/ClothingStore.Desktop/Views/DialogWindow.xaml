@@ -7,8 +7,10 @@
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False"
         MinWidth="360"
-        Background="{StaticResource BackgroundBrush}"
-        FontFamily="Segoe UI"
-        UseLayoutRounding="True">
-    <ContentPresenter Content="{Binding}" Margin="20" />
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        Foreground="{StaticResource TextBrush}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <ContentPresenter Content="{Binding}" Margin="24,22,24,22" />
 </Window>

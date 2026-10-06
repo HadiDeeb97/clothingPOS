@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Security;
 using ClothingStore.Data.Services;
@@ -7,6 +8,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
@@ -21,11 +23,15 @@ public sealed record ProductRow(Product Product)
 
 public sealed partial class ProductsViewModel(
     IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers,
-    Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
+    Session session, PrintService print, SettingsService settings) : ViewModelBase(dialogs), IPageViewModel
 {
-    public static readonly Category AllCategories = new() { Id = 0, Name = "All categories" };
+    /// <summary>The "All categories" filter entry (one per language, so selecting it by reference keeps working).</summary>
+    public static Category AllCategories =>
+        AllCategoriesByLanguage.GetOrAdd(Loc.Language, _ => new Category { Id = 0, Name = Loc.T("Common.AllCategories") });
 
-    public string Title => "Products";
+    private static readonly ConcurrentDictionary<string, Category> AllCategoriesByLanguage = new();
+
+    public string Title => Loc.T("Nav.Products");
     public bool CanEdit => session.Can(Permission.ManageProducts);
 
     [ObservableProperty]
@@ -53,23 +59,34 @@ public sealed partial class ProductsViewModel(
         await SearchAsync();
     }
 
-    partial void OnSearchTextChanged(string value) => _ = SearchAsync();
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
     partial void OnSelectedCategoryChanged(Category value) => _ = SearchAsync();
     partial void OnIncludeInactiveChanged(bool value) => _ = SearchAsync();
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private Task SearchAsync() => LoadAsync(immediately: true);
+
+    private async Task LoadAsync(bool immediately)
     {
         var selectedId = SelectedProduct?.Product.Id;
+        var text = SearchText;
+        var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
+        var includeInactive = IncludeInactive;
         try
         {
-            var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
-            Products = (await products.SearchAsync(SearchText, categoryId, IncludeInactive)).Select(p => new ProductRow(p)).ToList();
-            SelectedProduct = Products.FirstOrDefault(p => p.Product.Id == selectedId) ?? Products.FirstOrDefault();
+            Func<CancellationToken, Task<List<Product>>> load = ct => products.SearchAsync(text, categoryId, includeInactive, ct);
+            Action<List<Product>> apply = found =>
+            {
+                Products = found.Select(p => new ProductRow(p)).ToList();
+                SelectedProduct = Products.FirstOrDefault(p => p.Product.Id == selectedId) ?? Products.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Product search failed.", ex);
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -97,72 +114,28 @@ public sealed partial class ProductsViewModel(
     private async Task DeleteAsync()
     {
         if (SelectedProduct is not { } row || !CanEdit) return;
-        if (!Dialogs.Confirm($"Delete '{row.Product.Name}'?\n\nProducts that have been sold or ordered are deactivated instead, so history is kept."))
+        if (!Dialogs.Confirm(Loc.T("Products.DeleteConfirm", row.Product.Name)))
             return;
         var deleted = false;
         if (await RunAsync(async () => deleted = await products.DeleteAsync(row.Product.Id)))
         {
-            if (!deleted) Dialogs.Info("The product has sales or purchase history, so it was deactivated instead.");
+            Dialogs.Toast(deleted ? Loc.T("Products.Deleted", row.Product.Name) : Loc.T("Products.Deactivated"), deleted ? ToastKind.Success : ToastKind.Info);
             await SearchAsync();
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    /// <summary>Rows ticked in the list (Ctrl/Shift+click); labels are printed for all of them.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<object> Selection { get; } = [];
+
+    /// <summary>Labels for every size/colour of the selected products. With nothing selected, opens an empty list to scan into.</summary>
+    [RelayCommand]
     private void PrintLabels()
     {
-        if (SelectedProduct is null) return;
-        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, SelectedProduct.Product.Variants.Where(v => v.IsActive)
-            .Select(v => { v.Product = SelectedProduct.Product; return v; }).ToList()));
+        var rows = Selection.OfType<ProductRow>().ToList();
+        if (rows.Count == 0 && SelectedProduct is not null) rows.Add(SelectedProduct);
+        var variants = rows
+            .SelectMany(r => r.Product.Variants.Where(v => v.IsActive).Select(v => { v.Product = r.Product; return v; }))
+            .ToList();
+        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, products, settings, variants));
     }
-}
-
-public sealed partial class LabelRowViewModel(ProductVariant variant, int copies) : ObservableObject
-{
-    public ProductVariant Variant { get; } = variant;
-
-    [ObservableProperty]
-    public partial int Copies { get; set; } = copies;
-}
-
-/// <summary>Choose how many price tags to print for each variant.</summary>
-public sealed partial class LabelPrintViewModel(IDialogService dialogs, PrintService print, IReadOnlyList<ProductVariant> variants)
-    : DialogViewModelBase(dialogs)
-{
-    public override string Title => "Print price labels";
-    public List<LabelRowViewModel> Rows { get; } = variants.Select(v => new LabelRowViewModel(v, 1)).ToList();
-
-    [ObservableProperty]
-    public partial bool OnePerPage { get; set; }
-
-    [RelayCommand]
-    private void CopiesFromStock()
-    {
-        foreach (var row in Rows) row.Copies = Math.Max(0, row.Variant.StockQuantity);
-    }
-
-    [RelayCommand]
-    private void Print()
-    {
-        var labels = Rows.SelectMany(r => Enumerable.Repeat(new LabelData(
-            r.Variant.Product?.Name ?? "",
-            $"{r.Variant.Description}  {r.Variant.Sku}",
-            CurrencyFormat.Format(r.Variant.EffectivePrice),
-            r.Variant.Barcode ?? r.Variant.Sku), Math.Max(0, r.Copies))).ToList();
-        if (labels.Count == 0)
-        {
-            Dialogs.Warning("Set at least one copy.");
-            return;
-        }
-        try
-        {
-            if (print.PrintLabels(labels, OnePerPage)) Close(true);
-        }
-        catch (Exception ex)
-        {
-            Dialogs.Error("Printing failed.", ex);
-        }
-    }
-
-    [RelayCommand]
-    private void Cancel() => Close(false);
 }

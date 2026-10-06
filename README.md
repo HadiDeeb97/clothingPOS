@@ -8,16 +8,20 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | Area | What it does |
 | --- | --- |
 | **Register** | Scan barcodes or search by name/SKU/colour/size; size & colour variants; quantity +/-; line and cart discounts (% or amount); cashier discount limit with manager override; hold & resume sales (fitting room); keyboard shortcuts (F2 search, F4 customer, F6 qty, F7/F8 discounts, F9/F10 hold/resume, F12 pay) |
-| **Payments** | Split tender across cash, card, mobile wallet, store credit and loyalty points; quick-cash buttons; change calculation; printable receipts (auto-fits 58/80 mm thermal or A4) |
+| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4) |
+| **Lebanese pounds** | Prices stay in dollars; LBP is a second cash currency at the store's rate. Managers and admins change the rate from the top bar, every change is logged, and other tills pick it up within a minute. A sale or refund at an old rate is refused. LBP is rounded to a configurable step (up when collecting, down when paying out) |
 | **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
 | **Products** | Style + size × colour matrix with presets (XS–XXL, waist, shoe, kids…); auto SKU and in-store EAN-13 barcodes; per-variant price/cost overrides; brand, season, material, department |
-| **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger; Code 128 price labels (sheet or label printer) |
+| **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger |
+| **Price labels** | Select several products or stock rows (Ctrl/Shift+click) and print them in one go, or scan items into the list; copies per item, for all, or from stock; label size presets (A4 sheets such as 21/24/65 per page, label printers, hang tags) or a custom size and sheet position; choose what is printed (name, size/colour, price, LBP price, barcode, SKU, store name); live preview; settings remembered per PC |
 | **Purchasing** | Suppliers; purchase orders; "add supplier's low-stock items"; partial and full receiving into stock with cost updates |
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
-| **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history |
+| **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
-| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
+| **Online orders** | Orders from WhatsApp, Instagram, Facebook or the phone: customer, phone, address, items and delivery fee. Confirming holds the stock; then out for delivery (with the driver's name); completing records a normal sale when the money comes back (cash in USD/LBP, card or wallet), with the delivery fee on the receipt. Cancelling puts the stock back. A red badge counts new orders; delivery slip; one click opens WhatsApp with the order summary, or copies it for Instagram/Facebook; reports by channel |
+| **Store logo** | Managers and admins pick the store logo (user menu → Store logo, or Settings); it becomes the icon of every window and on the taskbar, and appears on the sign-in screen and sidebar, on all tills. The desktop shortcut keeps the program's own icon, because Windows reads that from the .exe file |
+| **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; admins manage every account (add, edit, reset password, deactivate, delete unused accounts), managers add and edit cashier accounts only; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (every app start, scheduled and at shift close) with a backup log |
 
 ## Solution layout
 
@@ -97,9 +101,44 @@ dotnet publish src/ClothingStore.Desktop -c Release -r win-x64 --self-contained 
 
 Copy the `publish` folder to the till PC. It does not need .NET installed.
 
+A release build needs your licensing public key in `src/ClothingStore.Desktop/licensing.json` (see **Licensing** below);
+without it the build stops with an explanation. Add `-p:AllowUnlicensedBuild=true` to build one anyway (for testing).
+
+### Licensing (selling the app)
+
+Each PC needs a license key signed by you. The key names the store, the PCs it is valid on and the last valid day.
+
+1. **Once, on your own computer:** create your signing keys and keep `private.pem` secret and backed up (it is ignored
+   by git; never put it on a customer's PC):
+   ```powershell
+   dotnet run --project tools/ClothingStore.LicenseTool -- keygen --out C:\MyLicenseKeys
+   ```
+   Paste the printed public key into `licensing.json` (`"publicKey"`), with your name, phone and email so customers
+   see how to reach you, then publish.
+2. **For each customer:** install the app. On first start it shows **this PC's ID** (e.g. `7KQ2-M9XD-ABCD-EFGH`).
+   The customer reads or sends it to you. Issue a key (one license can list several tills with repeated `--machine`):
+   ```powershell
+   dotnet run --project tools/ClothingStore.LicenseTool -- issue --key C:\MyLicenseKeys\private.pem `
+       --licensee "Boutique Rana" --machine 7KQ2-M9XD-ABCD-EFGH --days 365 --out rana.lic
+   ```
+   Send the key text or the `.lic` file; they paste or load it on the activation screen.
+3. **Renewal:** from 30 days before the last day, a banner (and a daily message) says how many days are left and how
+   to contact you. After the last day the app opens only the activation screen until a renewed key is entered
+   (user menu → **License…** accepts a new key at any time).
+
+Copying the program to another PC doesn't copy the license: that PC has a different ID (taken from Windows' install ID),
+so it asks for its own key. Setting the PC's date back doesn't help either: the check uses the latest of the PC clock,
+the SQL Server clock, the latest sale/return/shift in the database and the last date the app was used (stored signed).
+
+Honest limits: a licensing check that runs on the customer's PC can be removed by someone determined enough to modify
+the program (.NET programs are easy to decompile). It stops casual copying and makes expiry enforceable; for stronger
+protection, also run the published program through an obfuscator. Reinstalling Windows changes the PC's ID, so that
+customer will need a new key.
+
 ## Daily workflow
 
-1. **Cash Drawer**: open a shift with your starting float.
+1. **Cash Drawer**: open a shift with your starting float (dollars and pounds). Check the rate in the top bar; a manager
+   clicks it to change it.
 2. **Register**: scan items, add the customer (F4), then **Pay** (F12). Print or skip the receipt.
 3. **Returns**: scan the receipt number. The refund goes back to the original payment method. For an exchange, refund to
    store credit, then sell the new item and pay with store credit.
@@ -107,11 +146,48 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
 5. **Backups** happen automatically: after every shift close, and whenever the last backup is older than the interval set in
    **Settings** (24 hours by default). See below.
 
+### Cash in Lebanese pounds
+
+* **Settings → Lebanese pounds** switches LBP on or off and sets the rounding step (1,000 by default). New and existing
+  stores start with LBP on at 89,500.
+* On the payment screen, type what the customer handed over in the **dollars** box, the **pounds** box, or both. Choose
+  how to give change: **Dollars + LBP** (whole dollars, the rest in pounds), **USD** or **LBP**.
+* The amount to pay in pounds is rounded **up** to the step; change and refunds in pounds are rounded **down**, so the
+  drawer is never short because of rounding.
+* Refunds pay pounds back in pounds at **today's** rate (or the cashier picks dollars or pounds for the cash part).
+* The X/Z reports and the close-shift screen show what should be in the drawer in each currency.
+
+### Online orders (WhatsApp, Instagram, Facebook, phone)
+
+The app does not read your WhatsApp or Instagram messages by itself: connecting to Meta's business APIs needs a
+verified Meta Business account, approved message templates and an internet-facing server. Instead, whoever answers the
+chat types the order into **Online orders → New order** (scanning or searching the items), which takes under a minute:
+
+1. **New**: the order is saved but stock is not held yet. Use **WhatsApp** to send the customer a summary to confirm
+   (opens WhatsApp or WhatsApp Web with the message ready), or **Copy message** to paste it into Instagram/Facebook.
+2. **Confirm**: the items leave stock so they can't be sold twice.
+3. **Out for delivery**: enter the driver or delivery company; print the **Delivery slip** for the parcel (it shows the
+   amount to collect in dollars and pounds).
+4. **Payment received – complete**: when the driver hands over the money, take it like a normal payment. This records a
+   sale (channel and delivery fee included) in the open shift. Cancelling an open order puts held stock back.
+
+### Price labels
+
+* In **Products** or **Inventory**, select the rows you want (Ctrl+click, Shift+click, Ctrl+A) and click **Print labels**.
+  With nothing selected, Products opens an empty list you can scan items into; Inventory uses everything listed.
+* In the label window, scan or type more items, set copies (one each, a number for all, or the stock on hand), pick a
+  label size and what goes on it. The preview is drawn by the same code that prints.
+* For sheets, **Position on the sheet** adjusts the margins and gaps if labels come out shifted, and **Skip labels already
+  used** starts on a part-used sheet. Turn on **Outline** and print on plain paper to check alignment first.
+
 ### Backups
 
 * SQL Server writes each backup on its own PC, into the folder set in **Settings** (empty = the server's default backup
   folder). The SQL Server service account must be able to write there. Point it at a cloud-synced or network folder so a
   copy survives if that PC fails.
+* Every time the app starts and the database already exists, it is backed up first (before any upgrade), into
+  `ClothingStorePOS_startup_Mon.bak` ... `_Sun.bak`. Several tills opening within 10 minutes make one backup between
+  them. If it fails, the app says so and still opens.
 * Automatic backups reuse one file per weekday (`ClothingStorePOS_auto_Mon.bak` ... `_Sun.bak`), so the last seven days are
   kept. **Back up now** writes a separate timestamped file that is never overwritten.
 * Every backup is a full, copy-only backup with checksums, verified straight after it is written. Every till checks whether

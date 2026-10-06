@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -42,6 +43,12 @@ public sealed record SalesReport
     public IReadOnlyList<NamedAmount> TopProducts { get; init; } = [];
     public IReadOnlyList<NamedAmount> ByCashier { get; init; } = [];
     public IReadOnlyList<NamedAmount> BySize { get; init; } = [];
+
+    /// <summary>In store vs WhatsApp, Instagram... (Count = sales).</summary>
+    public IReadOnlyList<NamedAmount> ByChannel { get; init; } = [];
+
+    /// <summary>Delivery charges collected on online orders (part of <see cref="TotalSales"/>).</summary>
+    public decimal DeliveryFees { get; init; }
     public IReadOnlyList<DailySales> ByDay { get; init; } = [];
 }
 
@@ -60,23 +67,44 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
 
+        // Only the columns the report needs: whole sales with their products made long ranges slow.
         var sales = await db.Sales.AsNoTracking()
-            .Include(s => s.Lines).ThenInclude(l => l.ProductVariant)
-            .Include(s => s.Payments)
-            .Include(s => s.User)
-            .AsSplitQuery()
             .Where(s => s.CreatedAt >= from && s.CreatedAt < to)
+            .Select(s => new
+            {
+                s.Id, s.Status, s.CreatedAt, s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total, s.Channel, s.DeliveryFee,
+                Cashier = s.User != null ? s.User.FullName : null,
+            })
             .ToListAsync(ct);
         var completed = sales.Where(s => s.Status == SaleStatus.Completed).ToList();
 
-        var returns = await db.Returns.AsNoTracking()
-            .Include(r => r.Lines).ThenInclude(l => l.SaleLine)
-            .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
+        var lines = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed)
+            .Select(l => new
+            {
+                l.SaleId, l.Quantity, l.LineTotal, l.TaxAmount, l.UnitCost, l.ProductName, l.CategoryName,
+                Size = l.ProductVariant != null ? l.ProductVariant.Size : null,
+            })
             .ToListAsync(ct);
 
-        var lines = completed.SelectMany(s => s.Lines).ToList();
-        var returnedCost = returns.SelectMany(r => r.Lines).Where(l => l.Restocked).Sum(l => l.Quantity * (l.SaleLine?.UnitCost ?? 0));
+        // SQL Server sums decimals exactly, so payment totals are grouped on the server.
+        var payments = await db.Payments.AsNoTracking()
+            .Where(p => p.Sale!.CreatedAt >= from && p.Sale.CreatedAt < to && p.Sale.Status == SaleStatus.Completed)
+            .GroupBy(p => p.Method)
+            .Select(g => new { Method = g.Key, Amount = g.Sum(p => p.Amount), Count = g.Count() })
+            .ToListAsync(ct);
 
+        var returns = await db.Returns.AsNoTracking()
+            .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
+            .Select(r => new { r.TotalRefund, r.TaxRefund })
+            .ToListAsync(ct);
+        var returnedCost = (await db.ReturnLines.AsNoTracking()
+                .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to && rl.Restocked)
+                .Select(rl => new { rl.Quantity, UnitCost = rl.SaleLine != null ? rl.SaleLine.UnitCost : 0m })
+                .ToListAsync(ct))
+            .Sum(rl => rl.Quantity * rl.UnitCost);
+
+        var itemsBySale = lines.GroupBy(l => l.SaleId).ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
         var totalSales = completed.Sum(s => s.Total);
         var tax = completed.Sum(s => s.TaxTotal);
         var refunds = returns.Sum(r => r.TotalRefund);
@@ -100,13 +128,12 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             NetRevenue = totalSales - tax - (refunds - refundTax),
             CostOfGoods = lines.Sum(l => l.UnitCost * l.Quantity) - returnedCost,
 
-            ByPaymentMethod = completed.SelectMany(s => s.Payments)
-                .GroupBy(p => p.Method)
-                .Select(g => new NamedAmount(g.Key.ToString(), 0, g.Sum(p => p.Amount), g.Count()))
+            ByPaymentMethod = payments
+                .Select(p => new NamedAmount(Loc.EnumText(p.Method), 0, p.Amount, p.Count))
                 .OrderByDescending(x => x.Amount).ToList(),
 
             ByCategory = lines
-                .GroupBy(l => l.CategoryName ?? "Uncategorised")
+                .GroupBy(l => l.CategoryName ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
                 .OrderByDescending(x => x.Amount).ToList(),
 
@@ -117,13 +144,20 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .Take(25).ToList(),
 
             BySize = lines
-                .GroupBy(l => string.IsNullOrWhiteSpace(l.ProductVariant?.Size) ? "-" : l.ProductVariant!.Size)
+                .GroupBy(l => string.IsNullOrWhiteSpace(l.Size) ? "-" : l.Size)
                 .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
                 .OrderByDescending(x => x.Quantity).ToList(),
 
             ByCashier = completed
-                .GroupBy(s => s.User?.FullName ?? "?")
-                .Select(g => new NamedAmount(g.Key, g.Sum(s => s.Lines.Sum(l => l.Quantity)), g.Sum(s => s.Total), g.Count()))
+                .GroupBy(s => s.Cashier ?? "?")
+                .Select(g => new NamedAmount(g.Key, g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
+                .OrderByDescending(x => x.Amount).ToList(),
+
+            DeliveryFees = completed.Sum(s => s.DeliveryFee),
+
+            ByChannel = completed
+                .GroupBy(s => s.Channel)
+                .Select(g => new NamedAmount(Loc.EnumText(g.Key), g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
                 .OrderByDescending(x => x.Amount).ToList(),
 
             ByDay = completed
@@ -150,7 +184,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             LowStockCount: variants.Count(v => v.IsLowStock && v.StockQuantity > 0),
             OutOfStockCount: variants.Count(v => v.StockQuantity <= 0),
             ByCategoryCost: inStock
-                .GroupBy(v => v.Product!.Category?.Name ?? "Uncategorised")
+                .GroupBy(v => v.Product!.Category?.Name ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(v => v.StockQuantity), g.Sum(v => v.StockQuantity * v.EffectiveCost)))
                 .OrderByDescending(x => x.Amount).ToList());
     }

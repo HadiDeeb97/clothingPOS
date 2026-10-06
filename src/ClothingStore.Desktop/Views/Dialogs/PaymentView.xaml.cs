@@ -9,8 +9,8 @@ public partial class PaymentView : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
-            AmountBox.Focus();
-            AmountBox.SelectAll();
+            UsdBox.Focus();
+            UsdBox.SelectAll();
         };
     }
 }

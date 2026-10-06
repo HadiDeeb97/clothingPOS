@@ -6,14 +6,15 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
 public sealed partial class InventoryViewModel(
     IDialogService dialogs, InventoryService inventory, CategoryService categories, ReportService reports,
-    Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
+    Session session, PrintService print, ProductService products, SettingsService settings) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Inventory";
+    public string Title => Loc.T("Nav.Inventory");
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = "";
@@ -46,7 +47,9 @@ public sealed partial class InventoryViewModel(
         await RefreshAsync();
     }
 
-    partial void OnSearchTextChanged(string value) => _ = LoadItemsAsync();
+    private readonly LatestSearch _search = new();
+
+    partial void OnSearchTextChanged(string value) => _ = LoadItemsAsync(immediately: false);
     partial void OnSelectedCategoryChanged(Category value) => _ = LoadItemsAsync();
     partial void OnLowStockOnlyChanged(bool value) => _ = LoadItemsAsync();
 
@@ -58,7 +61,7 @@ public sealed partial class InventoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load stock history.", ex);
+            Dialogs.Error(Loc.T("Inventory.HistoryFailed"), ex);
         }
     }
 
@@ -72,22 +75,29 @@ public sealed partial class InventoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load stock valuation.", ex);
+            Dialogs.Error(Loc.T("Inventory.ValuationFailed"), ex);
         }
     }
 
-    private async Task LoadItemsAsync()
+    private async Task LoadItemsAsync(bool immediately = true)
     {
         var selectedId = SelectedItem?.Id;
+        var text = SearchText;
+        var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
+        var lowStockOnly = LowStockOnly;
         try
         {
-            var categoryId = SelectedCategory is { Id: > 0 } c ? c.Id : (int?)null;
-            Items = await inventory.GetStockAsync(SearchText, categoryId, LowStockOnly);
-            SelectedItem = Items.FirstOrDefault(i => i.Id == selectedId) ?? Items.FirstOrDefault();
+            Func<CancellationToken, Task<List<ProductVariant>>> load = ct => inventory.GetStockAsync(text, categoryId, lowStockOnly, ct: ct);
+            Action<List<ProductVariant>> apply = found =>
+            {
+                Items = found;
+                SelectedItem = Items.FirstOrDefault(i => i.Id == selectedId) ?? Items.FirstOrDefault();
+            };
+            await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load stock.", ex);
+            Dialogs.Error(Loc.T("Inventory.LoadFailed"), ex);
         }
     }
 
@@ -104,48 +114,58 @@ public sealed partial class InventoryViewModel(
     private async Task CountAsync()
     {
         if (SelectedItem is not { } item) return;
-        var counted = Dialogs.PromptInt("Stock count", $"Counted quantity for {item.DisplayName} ({item.Sku}).\nSystem quantity: {item.StockQuantity}", item.StockQuantity);
+        var counted = Dialogs.PromptInt(Loc.T("Inventory.StockCount"), Loc.T("Inventory.StockCountPrompt", item.DisplayName, item.Sku, item.StockQuantity), item.StockQuantity);
         if (counted is null) return;
-        if (await RunAsync(() => inventory.SetCountedStockAsync(item.Id, counted.Value, "Stock count", session.User.Id)))
+        if (await RunAsync(() => inventory.SetCountedStockAsync(item.Id, counted.Value, Loc.T("Inventory.StockCount"), session.User.Id)))
+        {
+            Dialogs.Toast(Loc.T("Inventory.CountSaved", item.DisplayName, counted.Value));
             await RefreshAsync();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task ReorderLevelAsync()
     {
         if (SelectedItem is not { } item) return;
-        var level = Dialogs.PromptInt("Reorder level", $"Warn when stock of {item.DisplayName} falls to or below:", item.ReorderLevel);
+        var level = Dialogs.PromptInt(Loc.T("Inventory.ReorderLevel"), Loc.T("Inventory.ReorderPrompt", item.DisplayName), item.ReorderLevel);
         if (level is null) return;
         if (await RunAsync(() => inventory.UpdateReorderLevelAsync(item.Id, level.Value))) await LoadItemsAsync();
     }
 
+    /// <summary>Rows ticked in the stock list (Ctrl/Shift+click).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<object> Selection { get; } = [];
+
+    /// <summary>Labels for the selected rows (Ctrl+A selects everything listed); with nothing selected, for everything listed.</summary>
     [RelayCommand]
     private void PrintLabels()
     {
-        List<ProductVariant> targets = SelectedItem is null ? Items : [SelectedItem];
-        if (targets.Count == 0) return;
-        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, targets));
+        var selected = Selection.OfType<ProductVariant>().ToList();
+        List<ProductVariant> targets = selected.Count > 0 ? selected : Items;
+        if (targets.Count > 200 && !Dialogs.Confirm(Loc.T("Labels.ManyItemsConfirm", targets.Count))) return;
+        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, products, settings, targets));
     }
 
     [RelayCommand]
     private void Export()
     {
-        var path = Dialogs.SaveFile("Export stock", "CSV files (*.csv)|*.csv", $"stock_{DateTime.Today:yyyyMMdd}.csv");
+        var path = Dialogs.SaveFile(Loc.T("Inventory.ExportTitle"), Loc.T("Common.CsvFilter"), $"stock_{DateTime.Today:yyyyMMdd}.csv");
         if (path is null) return;
         try
         {
             CsvExporter.Write(path,
-                ["Product", "Brand", "Category", "Size", "Colour", "SKU", "Barcode", "Stock", "Reorder level", "Unit cost", "Price", "Stock value (cost)"],
+                [Loc.T("Common.Product"), Loc.T("Common.Brand"), Loc.T("Common.Category"), Loc.T("Common.Size"), Loc.T("Common.Colour"),
+                    Loc.T("Common.Sku"), Loc.T("Common.Barcode"), Loc.T("Common.Stock"), Loc.T("Inventory.ReorderLevel"), Loc.T("Common.Cost"),
+                    Loc.T("Common.Price"), Loc.T("Inventory.StockValueCost")],
                 Items.Select(v => new object?[]
                 {
                     v.Product?.Name, v.Product?.Brand, v.Product?.Category?.Name, v.Size, v.Color, v.Sku, v.Barcode,
                     v.StockQuantity, v.ReorderLevel, v.EffectiveCost, v.EffectivePrice, Money.Round(Math.Max(0, v.StockQuantity) * v.EffectiveCost),
                 }));
-            Dialogs.Info($"Exported {Items.Count} items.");
+            Dialogs.Toast(Loc.T("Common.Exported", Items.Count));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Export failed.", ex);
+            Dialogs.Error(Loc.T("Common.ExportFailed"), ex);
         }
     }
 }
@@ -155,17 +175,17 @@ public sealed record AdjustmentReason(string Label, StockMovementType Type, int 
 public sealed partial class StockAdjustViewModel(IDialogService dialogs, InventoryService inventory, Session session, ProductVariant item)
     : DialogViewModelBase(dialogs)
 {
-    public override string Title => "Adjust stock";
+    public override string Title => Loc.T("Inventory.AdjustStock");
     public ProductVariant Item { get; } = item;
 
     public AdjustmentReason[] Reasons { get; } =
     [
-        new("Stock received (no PO)", StockMovementType.PurchaseReceipt, +1),
-        new("Damaged / unsellable", StockMovementType.Damaged, -1),
-        new("Lost / stolen", StockMovementType.Adjustment, -1),
-        new("Returned to supplier", StockMovementType.Adjustment, -1),
-        new("Found / correction (+)", StockMovementType.Adjustment, +1),
-        new("Correction (−)", StockMovementType.Adjustment, -1),
+        new(Loc.T("Inventory.Reason.Received"), StockMovementType.PurchaseReceipt, +1),
+        new(Loc.T("Inventory.Reason.Damaged"), StockMovementType.Damaged, -1),
+        new(Loc.T("Inventory.Reason.Lost"), StockMovementType.Adjustment, -1),
+        new(Loc.T("Inventory.Reason.ReturnedToSupplier"), StockMovementType.Adjustment, -1),
+        new(Loc.T("Inventory.Reason.FoundPlus"), StockMovementType.Adjustment, +1),
+        new(Loc.T("Inventory.Reason.CorrectionMinus"), StockMovementType.Adjustment, -1),
     ];
 
     [ObservableProperty]
@@ -180,8 +200,8 @@ public sealed partial class StockAdjustViewModel(IDialogService dialogs, Invento
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
-        if (SelectedReason is null) throw new BusinessRuleException("Choose a reason.");
-        if (Quantity <= 0) throw new BusinessRuleException("Quantity must be at least 1.");
+        if (SelectedReason is null) throw new BusinessRuleException(Loc.T("Inventory.ChooseReason"));
+        if (Quantity <= 0) throw new BusinessRuleException(Loc.T("Common.QuantityAtLeastOne"));
         var notes = string.IsNullOrWhiteSpace(Notes) ? SelectedReason.Label : $"{SelectedReason.Label}: {Notes}";
         await inventory.AdjustStockAsync(Item.Id, SelectedReason.Sign * Quantity, SelectedReason.Type, notes, session.User.Id);
         Close(true);

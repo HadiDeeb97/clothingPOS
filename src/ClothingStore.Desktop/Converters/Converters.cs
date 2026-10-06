@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using ClothingStore.Core;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.Converters;
 
@@ -11,6 +12,23 @@ public static class CurrencyFormat
 {
     public static string Symbol { get; set; } = "$";
     public static string Format(decimal value) => Money.Format(value, Symbol);
+
+    /// <summary>"1,567,000 LBP" in the screen language.</summary>
+    public static string Lbp(decimal value) => Core.Pricing.Lbp.Format(value);
+}
+
+/// <summary>Formats a number of Lebanese pounds ("1,567,000 LBP").</summary>
+public sealed class LbpConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        decimal d => CurrencyFormat.Lbp(d),
+        int i => CurrencyFormat.Lbp(i),
+        null => "",
+        _ => value.ToString() ?? "",
+    };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
 public sealed class MoneyConverter : IValueConverter
@@ -78,24 +96,25 @@ public sealed class EqualsConverter : IValueConverter
         value is true && parameter is string s ? Enum.Parse(targetType, s) : Binding.DoNothing;
 }
 
-/// <summary>Splits PascalCase enum names for display: MobileWallet -> "Mobile Wallet".</summary>
+/// <summary>Translated name of an enum value (see <see cref="Loc.EnumText"/>).</summary>
 public sealed class EnumDisplayConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is Enum e ? Humanize(e.ToString()) : value?.ToString() ?? "";
+        value is Enum e ? Loc.EnumText(e) : value?.ToString() ?? "";
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}
 
-    public static string Humanize(string name)
+/// <summary>"Morgan Manager" -> "MM", for avatar circles.</summary>
+public sealed class InitialsConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var sb = new System.Text.StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]) && !char.IsUpper(name[i - 1])) sb.Append(' ');
-            sb.Append(name[i]);
-        }
-        return sb.ToString();
+        var words = (value as string ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(words.Take(2).Select(w => char.ToUpper(w[0], culture)));
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
 /// <summary>Negative numbers -> red-ish brush key name used for variance display.</summary>

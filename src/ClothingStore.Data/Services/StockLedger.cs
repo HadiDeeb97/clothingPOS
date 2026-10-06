@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -18,8 +19,7 @@ internal static class StockLedger
     {
         var after = variant.StockQuantity + change;
         if (after < 0 && !allowNegative)
-            throw new BusinessRuleException(
-                $"Not enough stock for {variant.Sku}: {variant.StockQuantity} available, {-change} requested.");
+            throw new BusinessRuleException(Loc.T("Err.NotEnoughStock", variant.Sku, variant.StockQuantity, -change));
 
         variant.StockQuantity = after;
         var movement = new StockMovement

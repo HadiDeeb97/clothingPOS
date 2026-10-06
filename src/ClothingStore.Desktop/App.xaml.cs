@@ -1,5 +1,8 @@
 using System.Windows;
 using System.Windows.Threading;
+using ClothingStore.Core.Entities;
+using ClothingStore.Core.Licensing;
+using ClothingStore.Core.Localization;
 using ClothingStore.Data;
 using ClothingStore.Data.Seeding;
 using ClothingStore.Data.Services;
@@ -20,7 +23,7 @@ namespace ClothingStore.Desktop;
 public partial class App : Application
 {
     private IHost? _host;
-    private bool _signingOut;
+    private SplashWindow? _splash;
 
     public static IServiceProvider Services { get; private set; } = null!;
     /// <summary>Server and database name, for display (never includes credentials).</summary>
@@ -31,6 +34,9 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        Loc.SetLanguage(LocalPreferences.Current.Language);
+        _splash = new SplashWindow();
+        _splash.Show();
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -42,21 +48,17 @@ public partial class App : Application
         var connectionString = builder.Configuration.GetConnectionString("Pos");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            MessageBox.Show("No database is configured. Set ConnectionStrings:Pos in appsettings.json.",
-                "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            StartupError(Loc.T("Startup.NoConnectionString"));
             return;
         }
         try
         {
             var csb = new SqlConnectionStringBuilder(connectionString);
-            DatabaseName = $"{csb.InitialCatalog} on {csb.DataSource}";
+            DatabaseName = Loc.T("Startup.DatabaseOn", csb.InitialCatalog, csb.DataSource);
         }
         catch (ArgumentException ex)
         {
-            MessageBox.Show($"The database connection string in appsettings.json is not valid:\n\n{ex.Message}",
-                "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            StartupError(Loc.T("Startup.BadConnectionString", ex.Message));
             return;
         }
 
@@ -65,6 +67,19 @@ public partial class App : Application
         _host = builder.Build();
         Services = _host.Services;
 
+        // Every start: back up the existing database first, so there is a copy from before this version touches it.
+        BackupRecord? startupBackup = null;
+        try
+        {
+            _splash?.SetStatus(Loc.T("Startup.BackingUp"));
+            startupBackup = await Services.GetRequiredService<BackupService>().BackupOnStartupAsync();
+        }
+        catch (Exception)
+        {
+            // Can't even reach the server: the next step reports that properly.
+        }
+        _splash?.SetStatus(Loc.T("Startup.Connecting"));
+
         try
         {
             var seedDemo = builder.Configuration.GetValue("Pos:SeedDemoData", true);
@@ -72,18 +87,72 @@ public partial class App : Application
             var settings = Services.GetRequiredService<SettingsService>();
             CurrencyFormat.Symbol = (await settings.GetAsync()).CurrencySymbol;
             settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
+            try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
+            catch { /* no logo is fine */ }
             await _host.StartAsync(); // starts the automatic backup worker
+
+            // Compile the screens' queries while the sign-in screen is up, so first visits are fast too.
+            var warmUp = Services.GetRequiredService<QueryWarmUp>();
+            _ = Task.Run(() => warmUp.RunAsync());
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not connect to the database:\n{DatabaseName}\n\n{ex.GetBaseException().Message}\n\n" +
-                            "Check that SQL Server is running and reachable from this PC, and that ConnectionStrings:Pos in appsettings.json is correct.",
-                "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            StartupError(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message));
             return;
         }
 
+        CloseSplash();
+        if (startupBackup is { Succeeded: false })
+            Services.GetRequiredService<IDialogService>().Warning(Loc.T("Startup.BackupFailed", startupBackup.Error));
+        if (!await EnsureLicensedAsync()) return;
         ShowLogin();
+    }
+
+    /// <summary>
+    /// Checks this PC's license; without a valid one, only the activation screen is shown (with this PC's ID to send
+    /// to the vendor). Returns false when the app was closed instead.
+    /// </summary>
+    private async Task<bool> EnsureLicensedAsync()
+    {
+        var license = Services.GetRequiredService<LicenseManager>();
+        LicenseStatus status;
+        try
+        {
+            status = await license.CheckAsync();
+        }
+        catch (Exception ex)
+        {
+            StartupError(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message));
+            return false;
+        }
+        if (status.State == LicenseState.ExpiringSoon && LocalPreferences.Current.LicenseWarnedOn != DateTime.Today)
+        {
+            // Besides the banner, say it once a day in a box nobody can miss.
+            Services.GetRequiredService<IDialogService>().Warning(license.BannerText, Loc.T("License.Title"));
+            LocalPreferences.Current.LicenseWarnedOn = DateTime.Today;
+            LocalPreferences.Current.Save();
+        }
+        if (status.CanRun) return true;
+
+        var dialogs = Services.GetRequiredService<IDialogService>();
+        if (dialogs.ShowDialog(new ActivationViewModel(dialogs, license, required: true))) return true;
+        Shutdown();
+        return false;
+    }
+
+    private void CloseSplash()
+    {
+        _splash?.Close();
+        _splash = null;
+        MainWindow = null; // the splash was the first window, so WPF made it the main window
+    }
+
+    private void StartupError(string message)
+    {
+        CloseSplash();
+        MessageBox.Show(message, Loc.T("Shell.AppName"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK,
+            Loc.IsRightToLeft ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : MessageBoxOptions.None);
+        Shutdown(1);
     }
 
     private static void ConfigureServices(IServiceCollection services)
@@ -93,6 +162,7 @@ public partial class App : Application
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
         services.AddSingleton<PrintService>();
+        services.AddSingleton<LicenseManager>();
         services.AddHostedService<AutoBackupWorker>();
 
         services.AddTransient<LoginViewModel>();
@@ -101,6 +171,7 @@ public partial class App : Application
         // The register keeps its cart while you visit other screens.
         services.AddSingleton<SalesViewModel>();
         services.AddTransient<ReturnsViewModel>();
+        services.AddTransient<OnlineOrdersViewModel>();
         services.AddTransient<SalesHistoryViewModel>();
         services.AddTransient<CustomersViewModel>();
         services.AddTransient<ProductsViewModel>();
@@ -117,18 +188,32 @@ public partial class App : Application
     private void ShowLogin()
     {
         var session = Services.GetRequiredService<Session>();
-        var login = new LoginWindow(Services.GetRequiredService<LoginViewModel>());
-        if (login.ShowDialog() != true)
+        var dialogs = Services.GetRequiredService<IDialogService>();
+        while (true)
         {
-            Shutdown();
-            return;
+            var viewModel = Services.GetRequiredService<LoginViewModel>();
+            var login = new LoginWindow(viewModel);
+            var signedIn = login.ShowDialog() == true;
+            if (viewModel.RequestedLanguage is { } language)
+            {
+                // The sign-in screen was switched to another language: show it again in that language.
+                SetLanguage(language);
+                continue;
+            }
+            if (!signedIn)
+            {
+                Shutdown();
+                return;
+            }
+            break;
         }
+
+        if (session.User.PreferredLanguage is { } preferred) SetLanguage(preferred);
 
         if (session.User.MustChangePassword)
         {
-            var change = new ChangePasswordViewModel(
-                Services.GetRequiredService<IDialogService>(), Services.GetRequiredService<UserService>(), session, forced: true);
-            if (!Services.GetRequiredService<IDialogService>().ShowDialog(change))
+            var change = new ChangePasswordViewModel(dialogs, Services.GetRequiredService<UserService>(), session, forced: true);
+            if (!dialogs.ShowDialog(change))
             {
                 session.SignOut();
                 ShowLogin();
@@ -136,37 +221,87 @@ public partial class App : Application
             }
         }
 
+        ShowMain(startPage: null);
+    }
+
+    private static void SetLanguage(string language)
+    {
+        Loc.SetLanguage(language);
+        LocalPreferences.Current.Language = Loc.Language;
+        LocalPreferences.Current.Save();
+    }
+
+    /// <summary>Opens the main window; it is rebuilt (without signing out) to change language or reset the layout.</summary>
+    private void ShowMain(Type? startPage)
+    {
+        var session = Services.GetRequiredService<Session>();
         var vm = Services.GetRequiredService<MainViewModel>();
         var main = new MainWindow { DataContext = vm };
+        var next = AfterMain.Exit;
+        var resetLayout = false;
+
         vm.SignOutRequested += (_, _) =>
         {
-            _signingOut = true;
+            next = AfterMain.SignIn;
+            main.Close();
+        };
+        vm.LanguageChangeRequested += (_, language) =>
+        {
+            SetLanguage(language);
+            next = AfterMain.Rebuild;
+            main.Close();
+        };
+        vm.LayoutResetRequested += (_, _) =>
+        {
+            resetLayout = true;
+            next = AfterMain.Rebuild;
             main.Close();
         };
         main.Closed += (_, _) =>
         {
+            var page = vm.CurrentPage?.GetType();
             vm.Dispose();
-            if (_signingOut)
+            switch (next)
             {
-                _signingOut = false;
-                Services.GetRequiredService<NavigationService>().Reset();
-                session.SignOut();
-                Dispatcher.BeginInvoke(ShowLogin);
-            }
-            else
-            {
-                Shutdown();
+                case AfterMain.SignIn:
+                    Services.GetRequiredService<NavigationService>().Reset();
+                    session.SignOut();
+                    Dispatcher.BeginInvoke(ShowLogin);
+                    break;
+                case AfterMain.Rebuild:
+                    // Closing saved the current sizes; forget them only after that.
+                    if (resetLayout) LayoutMemory.ResetAll();
+                    Services.GetRequiredService<NavigationService>().Reset();
+                    Dispatcher.BeginInvoke(() => ShowMain(page));
+                    break;
+                default:
+                    Shutdown();
+                    break;
             }
         };
         MainWindow = main;
         main.Show();
+        _ = vm.StartAsync(startPage);
+    }
+
+    private enum AfterMain
+    {
+        Exit,
+        SignIn,
+        Rebuild,
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        MessageBox.Show($"An unexpected error occurred:\n\n{e.Exception.GetBaseException().Message}",
-            "Clothing Store POS", MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
+        try
+        {
+            Services.GetRequiredService<IDialogService>().Error(Loc.T("Startup.UnexpectedError"), e.Exception);
+        }
+        catch
+        {
+            MessageBox.Show(e.Exception.GetBaseException().Message, Loc.T("Shell.AppName"), MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

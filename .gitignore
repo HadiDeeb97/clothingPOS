@@ -6,3 +6,8 @@ obj/
 *.db-shm
 *.db-wal
 TestResults/
+
+# Licensing: the vendor private key must never be committed
+*.pem
+license-keys/
+*.lic

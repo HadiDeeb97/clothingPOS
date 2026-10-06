@@ -4,6 +4,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -31,7 +32,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
     /// </summary>
     public async Task<BackupRecord> BackupAsync(BackupKind kind, int? userId, CancellationToken ct = default) =>
         await TryBackupAsync(kind, userId, ct)
-        ?? throw new BusinessRuleException("Another till is backing up right now. Try again in a minute.");
+        ?? throw new BusinessRuleException(Loc.T("Err.BackupBusy"));
 
     /// <summary>
     /// Runs the scheduled backup if automatic backups are on and the last successful backup is older than the
@@ -67,6 +68,95 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
         }
         return await TryBackupAsync(BackupKind.ShiftClose, userId, ct);
     }
+
+    /// <summary>
+    /// Backs up an existing database when the app starts, before it is upgraded to the new version.
+    /// <para>
+    /// Runs before migrations, so it uses plain SQL against tables that exist in every version (the entity model may
+    /// already have columns the old database lacks). Returns null when there is no database yet (first run), when
+    /// another till is backing up right now, or when a backup finished less than <see cref="StartupSkipWindow"/> ago
+    /// (several tills opening together). A failure is logged and returned, never thrown: the shop must still open.
+    /// </para>
+    /// </summary>
+    public async Task<BackupRecord?> BackupOnStartupAsync(CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Database.CanConnectAsync(ct)) return null; // no database yet: nothing to protect
+
+        db.Database.SetCommandTimeout(BackupTimeout);
+        await db.Database.OpenConnectionAsync(ct);
+        try
+        {
+            var hasLog = await ScalarAsync<int>(db, "SELECT CASE WHEN OBJECT_ID(N'dbo.BackupRecords') IS NULL THEN 0 ELSE 1 END AS [Value]", ct) == 1;
+            if (hasLog)
+            {
+                var recent = await ScalarAsync<int>(db,
+                    $"SELECT COUNT(*) AS [Value] FROM BackupRecords WHERE Succeeded = 1 AND CompletedAt > '{DateTime.Now - StartupSkipWindow:yyyy-MM-ddTHH:mm:ss}'", ct);
+                if (recent > 0) return null;
+            }
+
+            if (!await TryLockAsync(db, ct)) return null;
+            var record = new BackupRecord { Kind = BackupKind.Startup, StartedAt = DateTime.Now };
+            try
+            {
+                string? configured = null;
+                try
+                {
+                    configured = (await db.Database.SqlQueryRaw<string?>("SELECT TOP 1 BackupFolder AS [Value] FROM Settings ORDER BY Id").ToListAsync(ct))
+                        .FirstOrDefault();
+                }
+                catch (SqlException)
+                {
+                    // No settings table yet: use the server's default folder.
+                }
+
+                var folder = await ResolveFolderAsync(db, configured, ct);
+                record.FilePath = CombineServerPath(folder, FileName(db.Database.GetDbConnection().Database, BackupKind.Startup, record.StartedAt));
+                await RunBackupAsync(db, record.FilePath, ct);
+                record.Succeeded = true;
+            }
+            catch (Exception ex) when (ex is SqlException or BusinessRuleException)
+            {
+                record.Error = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
+            }
+            finally
+            {
+                record.CompletedAt = DateTime.Now;
+                await ReleaseLockAsync(db);
+            }
+
+            if (hasLog)
+            {
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(
+                        "INSERT INTO BackupRecords (StartedAt, CompletedAt, Kind, FilePath, Succeeded, Error, UserId) VALUES (@s, @c, @k, @f, @ok, @e, NULL)",
+                        [
+                            new SqlParameter("@s", record.StartedAt), new SqlParameter("@c", record.CompletedAt),
+                            new SqlParameter("@k", (int)record.Kind), new SqlParameter("@f", (object?)record.FilePath ?? DBNull.Value),
+                            new SqlParameter("@ok", record.Succeeded), new SqlParameter("@e", (object?)record.Error ?? DBNull.Value),
+                        ],
+                        CancellationToken.None);
+                }
+                catch (SqlException)
+                {
+                    // The backup itself is what matters.
+                }
+            }
+            return record;
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    /// <summary>Several tills opening within this window make one startup backup between them.</summary>
+    public static readonly TimeSpan StartupSkipWindow = TimeSpan.FromMinutes(10);
+
+    /// <summary>One value from a query that names its column [Value].</summary>
+    private static async Task<T> ScalarAsync<T>(PosDbContext db, string sql, CancellationToken ct) =>
+        (await db.Database.SqlQueryRaw<T>(sql).ToListAsync(ct)).Single();
 
     public async Task<List<BackupRecord>> GetRecentAsync(int count = 10, CancellationToken ct = default)
     {
@@ -117,7 +207,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
                 ? record
                 : throw new BusinessRuleException(record.FilePath is null
                     ? record.Error!
-                    : $"The backup to {record.FilePath} failed: {record.Error}");
+                    : Loc.T("Err.BackupFailed", record.FilePath, record.Error));
         }
         finally
         {
@@ -125,9 +215,13 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
         }
     }
 
-    private static string FileName(string databaseName, BackupKind kind, DateTime at) => kind == BackupKind.Manual
-        ? $"{databaseName}_{at:yyyyMMdd-HHmmss}.bak"
-        : $"{databaseName}_auto_{at.ToString("ddd", CultureInfo.InvariantCulture)}.bak";
+    private static string FileName(string databaseName, BackupKind kind, DateTime at) => kind switch
+    {
+        BackupKind.Manual => $"{databaseName}_{at:yyyyMMdd-HHmmss}.bak",
+        // Own set of weekday files, so opening the app many times a day never overwrites the end-of-day backups.
+        BackupKind.Startup => $"{databaseName}_startup_{at.ToString("ddd", CultureInfo.InvariantCulture)}.bak",
+        _ => $"{databaseName}_auto_{at.ToString("ddd", CultureInfo.InvariantCulture)}.bak",
+    };
 
     private static async Task<StoreSettings> GetSettingsAsync(PosDbContext db, CancellationToken ct) =>
         await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
@@ -159,7 +253,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
             .SqlQueryRaw<string?>("SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(4000)) AS [Value]")
             .ToListAsync(ct)).SingleOrDefault();
         return string.IsNullOrWhiteSpace(serverDefault)
-            ? throw new BusinessRuleException("SQL Server did not report a default backup folder. Set a backup folder in Settings.")
+            ? throw new BusinessRuleException(Loc.T("Err.NoDefaultBackupFolder"))
             : serverDefault;
     }
 

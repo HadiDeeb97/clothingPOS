@@ -16,9 +16,19 @@ public enum Permission
 
     /// <summary>Refund card or wallet payments in cash.</summary>
     OverrideRefundMethod,
+    /// <summary>Create and edit any account, including managers and admins.</summary>
     ManageUsers,
+
+    /// <summary>Create and edit cashier accounts only.</summary>
+    ManageCashiers,
     ManageSettings,
     ViewAllShifts,
+
+    /// <summary>Change the LBP exchange rate.</summary>
+    ChangeExchangeRate,
+
+    /// <summary>Change the store logo (the app icon).</summary>
+    ManageBranding,
 }
 
 public static class Permissions
@@ -43,6 +53,9 @@ public static class Permissions
         Permission.OverrideDiscountLimit,
         Permission.OverrideRefundMethod,
         Permission.ViewAllShifts,
+        Permission.ChangeExchangeRate,
+        Permission.ManageBranding,
+        Permission.ManageCashiers,
     ];
 
     public static bool Has(UserRole role, Permission permission) => role switch

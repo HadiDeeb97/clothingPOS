@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Localization;
 using ClothingStore.Core.Security;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -21,11 +22,11 @@ public sealed partial class Session : ObservableObject
 
     public User User => CurrentUser ?? throw new InvalidOperationException("No user is signed in.");
 
-    public string UserDisplay => CurrentUser is null ? "" : $"{CurrentUser.FullName} · {CurrentUser.Role}";
+    public string UserDisplay => CurrentUser is null ? "" : $"{CurrentUser.FullName} · {Loc.EnumText(CurrentUser.Role)}";
 
     public string ShiftDisplay => CurrentShift is null
-        ? "No open shift"
-        : $"Shift open since {CurrentShift.OpenedAt:HH:mm}";
+        ? Loc.T("Shell.NoOpenShift")
+        : Loc.T("Shell.ShiftOpenSince", CurrentShift.OpenedAt);
 
     public bool Can(Permission permission) => CurrentUser is not null && Permissions.Has(CurrentUser.Role, permission);
 

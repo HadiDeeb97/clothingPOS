@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -36,15 +37,15 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Adds or removes stock (positive = in, negative = out) with a reason.</summary>
     public async Task<ProductVariant> AdjustStockAsync(int variantId, int change, StockMovementType type, string? notes, int userId, CancellationToken ct = default)
     {
-        if (change == 0) throw new BusinessRuleException("Quantity change cannot be zero.");
+        if (change == 0) throw new BusinessRuleException(Loc.T("Err.QtyChangeZero"));
         if (type is StockMovementType.Sale or StockMovementType.Return or StockMovementType.Void)
-            throw new BusinessRuleException("Sales and returns adjust stock automatically.");
+            throw new BusinessRuleException(Loc.T("Err.SalesAdjustAutomatically"));
         if (type == StockMovementType.Damaged && change > 0)
-            throw new BusinessRuleException("Damaged stock must be a negative adjustment.");
+            throw new BusinessRuleException(Loc.T("Err.DamagedNegative"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var variant = await db.ProductVariants.Include(v => v.Product).FirstOrDefaultAsync(v => v.Id == variantId, ct)
-                      ?? throw new BusinessRuleException("Item not found.");
+                      ?? throw new BusinessRuleException(Loc.T("Err.ItemNotFound"));
 
         StockLedger.Apply(db, variant, change, type, userId, notes: QueryHelpers.Clean(notes));
         await SaveAsync(db, ct);
@@ -54,11 +55,11 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Records a physical count; the difference is booked as a stock-count movement.</summary>
     public async Task<ProductVariant> SetCountedStockAsync(int variantId, int countedQuantity, string? notes, int userId, CancellationToken ct = default)
     {
-        if (countedQuantity < 0) throw new BusinessRuleException("Counted quantity cannot be negative.");
+        if (countedQuantity < 0) throw new BusinessRuleException(Loc.T("Err.CountedNegative"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var variant = await db.ProductVariants.Include(v => v.Product).FirstOrDefaultAsync(v => v.Id == variantId, ct)
-                      ?? throw new BusinessRuleException("Item not found.");
+                      ?? throw new BusinessRuleException(Loc.T("Err.ItemNotFound"));
 
         var change = countedQuantity - variant.StockQuantity;
         if (change != 0)
@@ -72,9 +73,9 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
 
     public async Task UpdateReorderLevelAsync(int variantId, int reorderLevel, CancellationToken ct = default)
     {
-        if (reorderLevel < 0) throw new BusinessRuleException("Reorder level cannot be negative.");
+        if (reorderLevel < 0) throw new BusinessRuleException(Loc.T("Err.ReorderNegative"));
         await using var db = await factory.CreateDbContextAsync(ct);
-        var variant = await db.ProductVariants.FindAsync([variantId], ct) ?? throw new BusinessRuleException("Item not found.");
+        var variant = await db.ProductVariants.FindAsync([variantId], ct) ?? throw new BusinessRuleException(Loc.T("Err.ItemNotFound"));
         variant.ReorderLevel = reorderLevel;
         await SaveAsync(db, ct);
     }
@@ -102,7 +103,7 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("Stock for this item changed while you were editing. Please refresh and try again.");
+            throw new BusinessRuleException(Loc.T("Err.StockChangedRefresh"));
         }
     }
 }

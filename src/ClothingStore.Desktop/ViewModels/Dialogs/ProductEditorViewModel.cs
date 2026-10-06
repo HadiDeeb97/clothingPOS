@@ -5,6 +5,7 @@ using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels.Dialogs;
 
@@ -80,7 +81,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
         return vm;
     }
 
-    public override string Title => _id == 0 ? "New product" : $"Edit product — {Name}";
+    public override string Title => _id == 0 ? Loc.T("ProductEditor.New") : Loc.T("ProductEditor.Edit", Name);
 
     public List<Category> Categories { get; private init; } = [];
     public List<Supplier> Suppliers { get; private init; } = [];
@@ -88,13 +89,13 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
 
     public SizePreset[] SizePresets { get; } =
     [
-        new("Letter XS–XXL", "XS, S, M, L, XL, XXL"),
-        new("Letter S–XL", "S, M, L, XL"),
-        new("Women's 4–16", "4, 6, 8, 10, 12, 14, 16"),
-        new("Waist 28–38", "28, 30, 32, 34, 36, 38"),
-        new("Shoes EU 36–45", "36, 37, 38, 39, 40, 41, 42, 43, 44, 45"),
-        new("Kids 2Y–14Y", "2Y, 4Y, 6Y, 8Y, 10Y, 12Y, 14Y"),
-        new("One size", "One Size"),
+        new(Loc.T("ProductEditor.Preset.Letters"), "XS, S, M, L, XL, XXL"),
+        new(Loc.T("ProductEditor.Preset.LettersShort"), "S, M, L, XL"),
+        new(Loc.T("ProductEditor.Preset.Women"), "4, 6, 8, 10, 12, 14, 16"),
+        new(Loc.T("ProductEditor.Preset.Waist"), "28, 30, 32, 34, 36, 38"),
+        new(Loc.T("ProductEditor.Preset.Shoes"), "36, 37, 38, 39, 40, 41, 42, 43, 44, 45"),
+        new(Loc.T("ProductEditor.Preset.Kids"), "2Y, 4Y, 6Y, 8Y, 10Y, 12Y, 14Y"),
+        new(Loc.T("ProductEditor.Preset.OneSize"), "One Size"),
     ];
 
     [ObservableProperty] public partial string Name { get; set; } = "";
@@ -110,7 +111,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     [ObservableProperty] public partial Category? SelectedCategory { get; set; }
     [ObservableProperty] public partial Supplier? SelectedSupplier { get; set; }
 
-    public string MarginText => Price <= 0 ? "" : $"Margin {(Price - Cost) / Price * 100m:0.#}%";
+    public string MarginText => Price <= 0 ? "" : Loc.T("ProductEditor.Margin", (Price - Cost) / Price * 100m);
 
     partial void OnPriceChanged(decimal value) => OnPropertyChanged(nameof(MarginText));
     partial void OnCostChanged(decimal value) => OnPropertyChanged(nameof(MarginText));
@@ -136,7 +137,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
         if (colors.Length == 0) colors = [""];
         if (sizes is [""] && colors is [""])
         {
-            Dialogs.Warning("Enter at least one size or colour.");
+            Dialogs.Warning(Loc.T("ProductEditor.NeedSizeOrColour"));
             return;
         }
 
@@ -153,7 +154,8 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
                 added++;
             }
         }
-        if (added == 0) Dialogs.Info("All of those size/colour combinations already exist.");
+        if (added == 0) Dialogs.Toast(Loc.T("ProductEditor.AllExist"), ToastKind.Info);
+        else Dialogs.Toast(Loc.T("ProductEditor.VariantsAdded", added));
     }
 
     [RelayCommand]
@@ -162,7 +164,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     [RelayCommand]
     private void RemoveVariant(VariantRowViewModel row)
     {
-        if (!row.IsNew && !Dialogs.Confirm($"Remove {ProductVariant.DescribeVariant(row.Size, row.Color)}?\n\nVariants with sales history are deactivated rather than deleted."))
+        if (!row.IsNew && !Dialogs.Confirm(Loc.T("ProductEditor.RemoveVariantConfirm", ProductVariant.DescribeVariant(row.Size, row.Color))))
             return;
         Variants.Remove(row);
     }
@@ -170,7 +172,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
-        if (SelectedCategory is null) throw new BusinessRuleException("Please choose a category.");
+        if (SelectedCategory is null) throw new BusinessRuleException(Loc.T("ProductEditor.NeedCategory"));
         var product = new Product
         {
             Id = _id,

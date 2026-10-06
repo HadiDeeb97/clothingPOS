@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -31,12 +32,12 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Creates or updates a draft/ordered PO. Lines are replaced wholesale.</summary>
     public async Task<PurchaseOrder> SaveAsync(PurchaseOrder order, int userId, CancellationToken ct = default)
     {
-        if (order.SupplierId == 0) throw new BusinessRuleException("Choose a supplier.");
+        if (order.SupplierId == 0) throw new BusinessRuleException(Loc.T("Err.ChooseSupplier"));
         var lines = order.Lines.Where(l => l.QuantityOrdered > 0).ToList();
-        if (lines.Count == 0) throw new BusinessRuleException("Add at least one item to the order.");
-        if (lines.Any(l => l.UnitCost < 0)) throw new BusinessRuleException("Unit cost cannot be negative.");
+        if (lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.OrderNeedsItem"));
+        if (lines.Any(l => l.UnitCost < 0)) throw new BusinessRuleException(Loc.T("Err.UnitCostNegative"));
         if (lines.GroupBy(l => l.ProductVariantId).Any(g => g.Count() > 1))
-            throw new BusinessRuleException("Each item can only appear once on an order.");
+            throw new BusinessRuleException(Loc.T("Err.ItemOnceOnOrder"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         PurchaseOrder entity;
@@ -58,9 +59,9 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
         else
         {
             entity = await db.PurchaseOrders.Include(p => p.Lines).FirstOrDefaultAsync(p => p.Id == order.Id, ct)
-                     ?? throw new BusinessRuleException("Purchase order not found.");
+                     ?? throw new BusinessRuleException(Loc.T("Err.PoNotFound"));
             if (entity.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.Ordered))
-                throw new BusinessRuleException("Only draft or ordered purchase orders can be edited.");
+                throw new BusinessRuleException(Loc.T("Err.PoNotEditable"));
             db.PurchaseOrderLines.RemoveRange(entity.Lines);
             entity.Lines.Clear();
         }
@@ -85,8 +86,8 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
     public async Task MarkOrderedAsync(int id, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException("Purchase order not found.");
-        if (po.Status != PurchaseOrderStatus.Draft) throw new BusinessRuleException("Only drafts can be marked as ordered.");
+        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException(Loc.T("Err.PoNotFound"));
+        if (po.Status != PurchaseOrderStatus.Draft) throw new BusinessRuleException(Loc.T("Err.PoOnlyDraftOrdered"));
         po.Status = PurchaseOrderStatus.Ordered;
         po.OrderedAt = DateTime.Now;
         await db.SaveChangesAsync(ct);
@@ -98,21 +99,21 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
     /// </summary>
     public async Task<PurchaseOrder> ReceiveAsync(int id, IReadOnlyDictionary<int, int> receivedByLineId, int userId, bool updateCosts = true, CancellationToken ct = default)
     {
-        if (receivedByLineId.Values.Any(q => q < 0)) throw new BusinessRuleException("Received quantities cannot be negative.");
-        if (receivedByLineId.Values.All(q => q == 0)) throw new BusinessRuleException("Enter the quantities received.");
+        if (receivedByLineId.Values.Any(q => q < 0)) throw new BusinessRuleException(Loc.T("Err.ReceivedNegative"));
+        if (receivedByLineId.Values.All(q => q == 0)) throw new BusinessRuleException(Loc.T("Err.EnterReceived"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var po = await db.PurchaseOrders
             .Include(p => p.Lines).ThenInclude(l => l.ProductVariant).ThenInclude(v => v!.Product)
             .FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new BusinessRuleException("Purchase order not found.");
+            ?? throw new BusinessRuleException(Loc.T("Err.PoNotFound"));
 
         if (po.Status is PurchaseOrderStatus.Cancelled or PurchaseOrderStatus.Received)
-            throw new BusinessRuleException("This purchase order is already closed.");
+            throw new BusinessRuleException(Loc.T("Err.PoClosed"));
 
         foreach (var (lineId, qty) in receivedByLineId.Where(kv => kv.Value > 0))
         {
-            var line = po.Lines.FirstOrDefault(l => l.Id == lineId) ?? throw new BusinessRuleException("Line not found on this order.");
+            var line = po.Lines.FirstOrDefault(l => l.Id == lineId) ?? throw new BusinessRuleException(Loc.T("Err.PoLineNotFound"));
             line.QuantityReceived += qty;
             var variant = line.ProductVariant!;
             StockLedger.Apply(db, variant, qty, StockMovementType.PurchaseReceipt, userId, po.OrderNumber);
@@ -132,7 +133,7 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("Stock changed while receiving. Please try again.");
+            throw new BusinessRuleException(Loc.T("Err.StockChangedReceiving"));
         }
         return (await GetAsync(id, ct))!;
     }
@@ -141,9 +142,9 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
     public async Task CancelAsync(int id, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException("Purchase order not found.");
+        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException(Loc.T("Err.PoNotFound"));
         if (po.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Cancelled)
-            throw new BusinessRuleException("This purchase order is already closed.");
+            throw new BusinessRuleException(Loc.T("Err.PoClosed"));
         po.Status = po.Status == PurchaseOrderStatus.PartiallyReceived ? PurchaseOrderStatus.Received : PurchaseOrderStatus.Cancelled;
         if (po.Status == PurchaseOrderStatus.Received) po.ReceivedAt = DateTime.Now;
         await db.SaveChangesAsync(ct);
@@ -152,8 +153,8 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
     public async Task DeleteDraftAsync(int id, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException("Purchase order not found.");
-        if (po.Status != PurchaseOrderStatus.Draft) throw new BusinessRuleException("Only drafts can be deleted.");
+        var po = await db.PurchaseOrders.FindAsync([id], ct) ?? throw new BusinessRuleException(Loc.T("Err.PoNotFound"));
+        if (po.Status != PurchaseOrderStatus.Draft) throw new BusinessRuleException(Loc.T("Err.PoOnlyDraftDelete"));
         db.PurchaseOrders.Remove(po);
         await db.SaveChangesAsync(ct);
     }

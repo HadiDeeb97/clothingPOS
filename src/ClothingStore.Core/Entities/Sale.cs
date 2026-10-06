@@ -24,14 +24,31 @@ public class Sale : Entity
     public DiscountType CartDiscountType { get; set; }
     public decimal CartDiscountValue { get; set; }
 
-    /// <summary>Cash handed over by the customer (may exceed the cash applied).</summary>
+    /// <summary>Dollars handed over by the customer (may exceed the cash applied).</summary>
     public decimal CashTendered { get; set; }
+
+    /// <summary>Dollars handed back as change.</summary>
     public decimal ChangeGiven { get; set; }
+
+    /// <summary>Lebanese pounds handed over by the customer.</summary>
+    public decimal CashTenderedLbp { get; set; }
+
+    /// <summary>Lebanese pounds handed back as change.</summary>
+    public decimal ChangeGivenLbp { get; set; }
+
+    /// <summary>LBP per dollar when the sale was made; 0 when LBP was not in use.</summary>
+    public decimal ExchangeRate { get; set; }
 
     public int LoyaltyPointsEarned { get; set; }
     public int LoyaltyPointsRedeemed { get; set; }
 
     public string? Notes { get; set; }
+
+    /// <summary>In store, or the channel of the online order it completed.</summary>
+    public SalesChannel Channel { get; set; }
+
+    /// <summary>Delivery charge included in <see cref="Total"/> (not in the lines, not taxed).</summary>
+    public decimal DeliveryFee { get; set; }
 
     public DateTime? VoidedAt { get; set; }
     public int? VoidedByUserId { get; set; }

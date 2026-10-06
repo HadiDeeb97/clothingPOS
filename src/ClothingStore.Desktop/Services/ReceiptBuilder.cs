@@ -1,35 +1,56 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Localization;
+using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Receipts;
 using ClothingStore.Data.Services;
-using ClothingStore.Desktop.Converters;
 
 namespace ClothingStore.Desktop.Services;
 
-/// <summary>Turns sales, returns and shift summaries into printable documents.</summary>
+/// <summary>
+/// Turns sales, returns and shift summaries into printable documents. Customer receipts use the receipt language
+/// from Settings; internal reports (X/Z, purchase orders) use the language of the screen.
+/// </summary>
 public static class ReceiptBuilder
 {
     public static ReceiptDocument FromSale(Sale sale, StoreSettings s, bool isCopy = false)
     {
+        var lang = s.ReceiptLanguage;
+        string R(string key, params object?[] args) => Loc.Format(lang, key, args);
+
         var extra = new List<string>();
         if (sale.Status == SaleStatus.Voided)
-            extra.Add($"*** VOIDED {sale.VoidedAt:yyyy-MM-dd HH:mm}: {sale.VoidReason} ***");
+            extra.Add(R("Receipt.Voided", sale.VoidedAt, sale.VoidReason));
         if (sale.Customer is not null)
         {
-            if (sale.LoyaltyPointsEarned > 0) extra.Add($"Points earned: {sale.LoyaltyPointsEarned}");
-            if (sale.LoyaltyPointsRedeemed > 0) extra.Add($"Points redeemed: {sale.LoyaltyPointsRedeemed}");
-            extra.Add($"Points balance: {sale.Customer.LoyaltyPoints}");
-            if (sale.Customer.StoreCredit > 0) extra.Add($"Store credit balance: {Money.Format(sale.Customer.StoreCredit, s.CurrencySymbol)}");
+            if (sale.LoyaltyPointsEarned > 0) extra.Add(R("Receipt.PointsEarned", sale.LoyaltyPointsEarned));
+            if (sale.LoyaltyPointsRedeemed > 0) extra.Add(R("Receipt.PointsRedeemed", sale.LoyaltyPointsRedeemed));
+            extra.Add(R("Receipt.PointsBalance", sale.Customer.LoyaltyPoints));
+            if (sale.Customer.StoreCredit > 0) extra.Add(R("Receipt.CreditBalance", Money.Format(sale.Customer.StoreCredit, s.CurrencySymbol)));
         }
-        if (!string.IsNullOrWhiteSpace(sale.Notes)) extra.Add($"Note: {sale.Notes}");
+        if (!string.IsNullOrWhiteSpace(sale.Notes)) extra.Add(R("Receipt.Note", sale.Notes));
 
+        // Cash is printed as handed over (before change), in each currency.
         var payments = sale.Payments
-            .Select(p => new ReceiptPayment(PaymentLabel(p.Method, p.Reference), p.Method == PaymentMethod.Cash ? sale.CashTendered : p.Amount))
+            .Where(p => p.Method is not (PaymentMethod.Cash or PaymentMethod.CashLbp))
+            .Select(p => new ReceiptPayment(PaymentLabel(lang, p.Method, p.Reference), p.Amount))
             .ToList();
+        if (sale.CashTendered > 0)
+            payments.Add(new ReceiptPayment(PaymentLabel(lang, PaymentMethod.Cash, null), sale.CashTendered));
+        if (sale.CashTenderedLbp > 0)
+            payments.Add(new ReceiptPayment(PaymentLabel(lang, PaymentMethod.CashLbp, null), 0, Lbp.Format(sale.CashTenderedLbp, lang)));
+
+        string? secondaryTotal = null;
+        if (sale.ExchangeRate > 0)
+        {
+            secondaryTotal = Lbp.Format(Lbp.ToPay(sale.Total, sale.ExchangeRate, s.LbpRounding), lang);
+            extra.Insert(0, R("Receipt.Rate", sale.ExchangeRate.ToString("N0")));
+        }
 
         return new ReceiptDocument
         {
-            Title = "Sales Receipt",
+            Title = R("Receipt.SalesTitle"),
+            Language = lang,
             StoreName = s.StoreName,
             StoreAddress = s.Address,
             StorePhone = s.Phone,
@@ -45,9 +66,12 @@ public static class ReceiptBuilder
             Tax = sale.TaxTotal,
             TaxRate = s.TaxRate,
             PricesIncludeTax = s.PricesIncludeTax,
+            DeliveryFee = sale.DeliveryFee,
             Total = sale.Total,
+            SecondaryTotal = secondaryTotal,
             Payments = payments,
             Change = sale.ChangeGiven,
+            ChangeLbp = sale.ChangeGivenLbp > 0 ? Lbp.Format(sale.ChangeGivenLbp, lang) : null,
             ExtraLines = extra,
             Footer = s.ReceiptFooter,
             CurrencySymbol = s.CurrencySymbol,
@@ -57,28 +81,31 @@ public static class ReceiptBuilder
 
     public static ReceiptDocument FromReturn(SaleReturn ret, Sale sale, StoreSettings s, string cashier)
     {
+        var lang = s.ReceiptLanguage;
+        string R(string key, params object?[] args) => Loc.Format(lang, key, args);
+
         var lines = ret.Lines.Select(rl =>
         {
             var sl = sale.Lines.First(l => l.Id == rl.SaleLineId);
-            return new ReceiptLine(sl.ProductName, Detail(sl.VariantDescription, sl.Sku) + (rl.Restocked ? "" : " (not restocked)"),
+            return new ReceiptLine(sl.ProductName, Detail(sl.VariantDescription, sl.Sku) + (rl.Restocked ? "" : R("Receipt.NotRestocked")),
                 rl.Quantity, Money.Round(rl.RefundAmount / rl.Quantity), 0, rl.RefundAmount);
         }).ToList();
 
         var extra = new List<string>();
-        if (!string.IsNullOrWhiteSpace(ret.Reason)) extra.Add($"Reason: {ret.Reason}");
-        if (ret.LoyaltyPointsRestored > 0) extra.Add($"Points given back: {ret.LoyaltyPointsRestored}");
-        if (ret.LoyaltyPointsRemoved > 0) extra.Add($"Points taken back: {ret.LoyaltyPointsRemoved}");
-        extra.Add("Customer signature: ____________________");
+        if (!string.IsNullOrWhiteSpace(ret.Reason)) extra.Add(R("Receipt.Reason", ret.Reason));
+        if (ret.LoyaltyPointsRestored > 0) extra.Add(R("Receipt.PointsBack", ret.LoyaltyPointsRestored));
+        if (ret.LoyaltyPointsRemoved > 0) extra.Add(R("Receipt.PointsTaken", ret.LoyaltyPointsRemoved));
 
         return new ReceiptDocument
         {
-            Title = "Return / Refund",
+            Title = R("Receipt.ReturnTitle"),
+            Language = lang,
             StoreName = s.StoreName,
             StoreAddress = s.Address,
             StorePhone = s.Phone,
             TaxNumber = s.TaxNumber,
             Number = ret.ReturnNumber,
-            Reference = $"Original receipt {sale.ReceiptNumber}",
+            Reference = R("Receipt.OriginalReceipt", sale.ReceiptNumber),
             Date = ret.CreatedAt,
             Cashier = cashier,
             Customer = sale.Customer?.FullName,
@@ -88,11 +115,14 @@ public static class ReceiptBuilder
             TaxRate = s.TaxRate,
             PricesIncludeTax = true, // refunds always include the tax that was charged
             Total = ret.TotalRefund,
-            TotalLabel = "REFUND",
+            TotalLabel = R("Receipt.Refund"),
             Payments = ret.Refunds
                 .GroupBy(r => r.Method)
                 .OrderBy(g => g.Key)
-                .Select(g => new ReceiptPayment($"Refunded to {EnumDisplayConverter.Humanize(g.Key.ToString())}", g.Sum(r => r.Amount)))
+                .Select(g => new ReceiptPayment(
+                    R("Receipt.RefundedTo", Loc.Get(lang, $"Enum.RefundMethod.{g.Key}")),
+                    g.Sum(r => r.Amount),
+                    g.Key == RefundMethod.CashLbp ? Lbp.Format(g.Sum(r => r.AmountLbp), lang) : null))
                 .ToList(),
             ExtraLines = extra,
             CurrencySymbol = s.CurrencySymbol,
@@ -109,57 +139,128 @@ public static class ReceiptBuilder
         var lines = new List<string>
         {
             s.StoreName.ToUpperInvariant(),
-            sum.ClosedAt is null ? "X REPORT (shift in progress)" : "Z REPORT (end of shift)",
+            Loc.T(sum.ClosedAt is null ? "Report.XTitle" : "Report.ZTitle"),
             rule,
-            Row("Shift #", sum.ShiftId.ToString()),
-            Row("Cashier", sum.Cashier),
-            Row("Opened", sum.OpenedAt.ToString("yyyy-MM-dd HH:mm")),
-            Row("Closed", sum.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-"),
+            Row(Loc.T("Report.Shift"), sum.ShiftId.ToString()),
+            Row(Loc.T("Common.Cashier"), sum.Cashier),
+            Row(Loc.T("Report.Opened"), sum.OpenedAt.ToString("yyyy-MM-dd HH:mm")),
+            Row(Loc.T("Report.Closed"), sum.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-"),
             rule,
-            Row("Transactions", sum.SalesCount.ToString()),
-            Row("Voided", sum.VoidedCount.ToString()),
-            Row("Items sold", sum.ItemsSold.ToString()),
-            Row("Gross sales", M(sum.GrossSales)),
-            Row("Discounts", M(-sum.Discounts)),
-            Row("Tax", M(sum.Tax)),
-            Row("Total sales", M(sum.TotalSales)),
+            Row(Loc.T("Reports.Transactions"), sum.SalesCount.ToString()),
+            Row(Loc.T("Report.Voided"), sum.VoidedCount.ToString()),
+            Row(Loc.T("Reports.ItemsSold"), sum.ItemsSold.ToString()),
+            Row(Loc.T("Reports.GrossSales"), M(sum.GrossSales)),
+            Row(Loc.T("Common.Discounts"), M(-sum.Discounts)),
+            Row(Loc.T("Common.Tax"), M(sum.Tax)),
+            Row(Loc.T("Reports.TotalSales"), M(sum.TotalSales)),
             rule,
-            "PAYMENTS",
+            Loc.T("Common.Payments"),
         };
         foreach (var method in Enum.GetValues<PaymentMethod>())
             if (sum.Payments.TryGetValue(method, out var amount))
-                lines.Add(Row("  " + EnumDisplayConverter.Humanize(method.ToString()), M(amount)));
+                lines.Add(Row("  " + Loc.EnumText(method), M(amount)));
 
         lines.Add(rule);
-        lines.Add($"RETURNS ({sum.ReturnsCount})");
+        lines.Add(Loc.T("Report.Returns", sum.ReturnsCount));
         foreach (var method in Enum.GetValues<RefundMethod>())
             if (sum.Refunds.TryGetValue(method, out var amount))
-                lines.Add(Row("  " + EnumDisplayConverter.Humanize(method.ToString()), M(-amount)));
+                lines.Add(Row("  " + Loc.EnumText(method), M(-amount)));
 
         lines.Add(rule);
-        lines.Add("CASH DRAWER");
-        lines.Add(Row("  Opening float", M(sum.OpeningFloat)));
-        lines.Add(Row("  Cash sales", M(sum.CashSales)));
-        lines.Add(Row("  Pay-ins", M(sum.PayIns)));
-        lines.Add(Row("  Pay-outs", M(-sum.PayOuts)));
-        lines.Add(Row("  Cash refunds", M(-sum.CashRefunds)));
-        lines.Add(Row("  Expected in drawer", M(sum.ExpectedCash)));
+        lines.Add(Loc.T("Report.CashDrawer"));
+        lines.Add(Row("  " + Loc.T("Shift.OpeningFloat"), M(sum.OpeningFloat)));
+        lines.Add(Row("  " + Loc.T("Shift.CashSales"), M(sum.CashSales)));
+        lines.Add(Row("  " + Loc.T("Shift.PayIns"), M(sum.PayIns)));
+        lines.Add(Row("  " + Loc.T("Shift.PayOuts"), M(-sum.PayOuts)));
+        lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), M(-sum.CashRefunds)));
+        lines.Add(Row("  " + Loc.T("Shift.Expected"), M(sum.ExpectedCash)));
         if (sum.CountedCash is { } counted)
         {
-            lines.Add(Row("  Counted", M(counted)));
-            lines.Add(Row("  Over / (short)", M(sum.Variance ?? 0)));
+            lines.Add(Row("  " + Loc.T("Report.Counted"), M(counted)));
+            lines.Add(Row("  " + Loc.T("Report.OverShort"), M(sum.Variance ?? 0)));
+        }
+
+        if (sum.ShowLbp)
+        {
+            string L(decimal v) => Lbp.Format(v);
+            lines.Add(rule);
+            lines.Add(Loc.T("Report.CashDrawerLbp"));
+            lines.Add(Row("  " + Loc.T("Shift.OpeningFloat"), L(sum.OpeningFloatLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.CashSales"), L(sum.CashSalesLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.PayIns"), L(sum.PayInsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.PayOuts"), L(-sum.PayOutsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), L(-sum.CashRefundsLbp)));
+            lines.Add(Row("  " + Loc.T("Shift.Expected"), L(sum.ExpectedCashLbp)));
+            if (sum.CountedCashLbp is { } countedLbp)
+            {
+                lines.Add(Row("  " + Loc.T("Report.Counted"), L(countedLbp)));
+                lines.Add(Row("  " + Loc.T("Report.OverShort"), L(sum.VarianceLbp ?? 0)));
+            }
         }
 
         if (sum.CashMovements.Count > 0)
         {
             lines.Add(rule);
-            lines.Add("CASH MOVEMENTS");
+            lines.Add(Loc.T("Report.CashMovements"));
             foreach (var m in sum.CashMovements)
-                lines.Add(Row($"  {m.CreatedAt:HH:mm} {m.Reason}", M(m.Type == CashMovementType.PayIn ? m.Amount : -m.Amount)));
+            {
+                var signed = m.Type == CashMovementType.PayIn ? m.Amount : -m.Amount;
+                lines.Add(Row($"  {m.CreatedAt:HH:mm} {m.Reason}", m.Currency == CashCurrency.Lbp ? Lbp.Format(signed) : M(signed)));
+            }
         }
 
         lines.Add(rule);
-        lines.Add($"Printed {DateTime.Now:yyyy-MM-dd HH:mm}");
+        lines.Add(Loc.T("Report.Printed", DateTime.Now));
+        return lines;
+    }
+
+    /// <summary>Slip that goes with the parcel: who, where, what, and how much the driver collects.</summary>
+    public static IReadOnlyList<string> DeliveryNote(OnlineOrder o, StoreSettings s)
+    {
+        const int w = 42;
+        string M(decimal v) => Money.Format(v, s.CurrencySymbol);
+        string Row(string l, string r) => l.Length + r.Length + 1 > w
+            ? l[..Math.Max(0, w - r.Length - 2)] + "… " + r
+            : l.PadRight(w - r.Length - 1) + " " + r;
+        var rule = new string('-', w);
+
+        var lines = new List<string>
+        {
+            s.StoreName.ToUpperInvariant(),
+            s.Phone ?? "",
+            rule,
+            Loc.T("Orders.Note.Title", o.OrderNumber),
+            Loc.T("Orders.Note.Date", o.CreatedAt),
+            Loc.T("Orders.Note.Channel", Loc.EnumText(o.Channel)) + (string.IsNullOrWhiteSpace(o.Handle) ? "" : $"  {o.Handle}"),
+            rule,
+            Loc.T("Orders.Note.To", o.CustomerName),
+        };
+        if (!string.IsNullOrWhiteSpace(o.Phone)) lines.Add(Loc.T("Orders.Note.Phone", o.Phone));
+        if (!string.IsNullOrWhiteSpace(o.Address))
+        {
+            lines.Add(Loc.T("Orders.Note.Address"));
+            foreach (var part in o.Address.Split('\n')) lines.Add("  " + part.Trim());
+        }
+        lines.Add(rule);
+        foreach (var l in o.Lines)
+        {
+            lines.Add(Row($"{l.Quantity} x {l.ProductName}", M(l.LineTotal)));
+            if (!string.IsNullOrWhiteSpace(l.VariantDescription)) lines.Add($"    {l.VariantDescription}  {l.Sku}");
+        }
+        lines.Add(rule);
+        if (o.DiscountTotal != 0) lines.Add(Row(Loc.T("Common.Discounts"), M(-o.DiscountTotal)));
+        if (o.DeliveryFee != 0) lines.Add(Row(Loc.T("Orders.Note.Delivery"), M(o.DeliveryFee)));
+        lines.Add(Row(Loc.T("Orders.Note.Collect"), M(o.Total)));
+        if (s.ActiveLbpRate > 0)
+            lines.Add(Row("", Lbp.Format(Lbp.ToPay(o.Total, s.ActiveLbpRate, s.LbpRounding))));
+        if (!string.IsNullOrWhiteSpace(o.Notes))
+        {
+            lines.Add(rule);
+            lines.Add(Loc.T("Report.Notes", o.Notes));
+        }
+        if (!string.IsNullOrWhiteSpace(o.Courier)) lines.Add(Loc.T("Orders.Note.Courier", o.Courier));
+        lines.Add(rule);
+        lines.Add(Loc.T("Orders.Note.Signature"));
         return lines;
     }
 
@@ -171,13 +272,13 @@ public static class ReceiptBuilder
             s.StoreName.ToUpperInvariant(),
             s.Address ?? "",
             "",
-            $"PURCHASE ORDER {po.OrderNumber}",
-            $"Supplier: {po.Supplier?.Name}",
-            $"Date:     {po.CreatedAt:yyyy-MM-dd}",
-            po.ExpectedDate is { } d ? $"Expected: {d:yyyy-MM-dd}" : "",
-            $"Status:   {EnumDisplayConverter.Humanize(po.Status.ToString())}",
+            Loc.T("Report.PurchaseOrder", po.OrderNumber),
+            Loc.T("Report.Supplier", po.Supplier?.Name),
+            Loc.T("Report.Date", po.CreatedAt),
+            po.ExpectedDate is { } d ? Loc.T("Report.Expected", d) : "",
+            Loc.T("Report.Status", Loc.EnumText(po.Status)),
             new string('-', 78),
-            $"{"SKU",-20} {"Item",-30} {"Qty",5} {"Cost",9} {"Total",10}",
+            Loc.T("Report.PoHeader"),
             new string('-', 78),
         };
         foreach (var l in po.Lines)
@@ -189,13 +290,13 @@ public static class ReceiptBuilder
             lines.Add($"{sku,-20} {name,-30} {l.QuantityOrdered,5} {M(l.UnitCost),9} {M(l.LineTotal),10}");
         }
         lines.Add(new string('-', 78));
-        lines.Add($"{"TOTAL",-57} {po.TotalUnits,5} {"",9} {M(po.Total),10}".TrimEnd());
-        if (!string.IsNullOrWhiteSpace(po.Notes)) { lines.Add(""); lines.Add("Notes: " + po.Notes); }
+        lines.Add($"{Loc.T("Report.Total"),-57} {po.TotalUnits,5} {"",9} {M(po.Total),10}".TrimEnd());
+        if (!string.IsNullOrWhiteSpace(po.Notes)) { lines.Add(""); lines.Add(Loc.T("Report.Notes", po.Notes)); }
         return lines;
     }
 
-    private static string PaymentLabel(PaymentMethod method, string? reference) =>
-        EnumDisplayConverter.Humanize(method.ToString()) + (string.IsNullOrWhiteSpace(reference) ? "" : $" ({reference})");
+    private static string PaymentLabel(string language, PaymentMethod method, string? reference) =>
+        Loc.Get(language, $"Enum.PaymentMethod.{method}") + (string.IsNullOrWhiteSpace(reference) ? "" : $" ({reference})");
 
     private static string Detail(string variant, string sku) =>
         string.IsNullOrWhiteSpace(variant) ? sku : $"{variant}  {sku}";

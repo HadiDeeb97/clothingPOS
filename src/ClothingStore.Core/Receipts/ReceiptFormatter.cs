@@ -1,4 +1,5 @@
 using System.Text;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Core.Receipts;
 
@@ -13,6 +14,7 @@ public static class ReceiptFormatter
         width = Math.Clamp(width, 24, 80);
         var lines = new List<string>();
         string M(decimal v) => Money.Format(v, doc.CurrencySymbol);
+        string R(string key) => Loc.Get(doc.Language, key);
         var rule = new string('-', width);
 
         lines.Add(Center(doc.StoreName.ToUpperInvariant(), width));
@@ -20,17 +22,17 @@ public static class ReceiptFormatter
             if (!string.IsNullOrWhiteSpace(part))
                 foreach (var l in part.Split('\n')) lines.Add(Center(l.Trim(), width));
         if (!string.IsNullOrWhiteSpace(doc.TaxNumber))
-            lines.Add(Center($"Tax No: {doc.TaxNumber}", width));
+            lines.Add(Center($"{R("Receipt.TaxNo")} {doc.TaxNumber}", width));
 
         lines.Add(rule);
         lines.Add(Center(doc.Title.ToUpperInvariant(), width));
-        if (doc.IsCopy) lines.Add(Center("*** COPY ***", width));
+        if (doc.IsCopy) lines.Add(Center(R("Receipt.Copy"), width));
         lines.Add(rule);
-        lines.Add(Pair("No:", doc.Number, width));
-        lines.Add(Pair("Date:", doc.Date.ToString("yyyy-MM-dd HH:mm"), width));
-        lines.Add(Pair("Cashier:", doc.Cashier, width));
-        if (!string.IsNullOrWhiteSpace(doc.Customer)) lines.Add(Pair("Customer:", doc.Customer, width));
-        if (!string.IsNullOrWhiteSpace(doc.Reference)) lines.Add(Pair("Ref:", doc.Reference, width));
+        lines.Add(Pair(R("Receipt.No"), doc.Number, width));
+        lines.Add(Pair(R("Receipt.Date"), doc.Date.ToString("yyyy-MM-dd HH:mm"), width));
+        lines.Add(Pair(R("Receipt.Cashier"), doc.Cashier, width));
+        if (!string.IsNullOrWhiteSpace(doc.Customer)) lines.Add(Pair(R("Receipt.Customer"), doc.Customer, width));
+        if (!string.IsNullOrWhiteSpace(doc.Reference)) lines.Add(Pair(R("Receipt.Ref"), doc.Reference, width));
         lines.Add(rule);
 
         foreach (var item in doc.Lines)
@@ -38,20 +40,23 @@ public static class ReceiptFormatter
             foreach (var l in Wrap(item.Description, width)) lines.Add(l);
             if (!string.IsNullOrWhiteSpace(item.Detail)) lines.Add(Truncate("  " + item.Detail, width));
             lines.Add(Pair($"  {item.Quantity} x {M(item.UnitPrice)}", M(item.Total), width));
-            if (item.Discount != 0) lines.Add(Pair("  Discount", M(-item.Discount), width));
+            if (item.Discount != 0) lines.Add(Pair("  " + R("Receipt.Discount"), M(-item.Discount), width));
         }
 
         lines.Add(rule);
-        lines.Add(Pair("Subtotal", M(doc.Subtotal), width));
-        if (doc.Discount != 0) lines.Add(Pair("Discount", M(-doc.Discount), width));
-        var taxLabel = doc.PricesIncludeTax ? $"Incl. tax {doc.TaxRate:0.##}%" : $"Tax {doc.TaxRate:0.##}%";
+        lines.Add(Pair(R("Receipt.Subtotal"), M(doc.Subtotal), width));
+        if (doc.Discount != 0) lines.Add(Pair(R("Receipt.Discount"), M(-doc.Discount), width));
+        var taxLabel = Loc.Format(doc.Language, doc.PricesIncludeTax ? "Receipt.TaxIncluded" : "Receipt.Tax", doc.TaxRate);
         lines.Add(Pair(taxLabel, M(doc.Tax), width));
+        if (doc.DeliveryFee != 0) lines.Add(Pair(R("Receipt.Delivery"), M(doc.DeliveryFee), width));
         lines.Add(new string('=', width));
-        lines.Add(Pair(doc.TotalLabel, M(doc.Total), width));
+        lines.Add(Pair(doc.TotalLabel ?? R("Receipt.Total"), M(doc.Total), width));
+        if (!string.IsNullOrWhiteSpace(doc.SecondaryTotal)) lines.Add(Pair("", doc.SecondaryTotal, width));
         lines.Add(new string('=', width));
 
-        foreach (var p in doc.Payments) lines.Add(Pair(p.Label, M(p.Amount), width));
-        if (doc.Change > 0) lines.Add(Pair("Change", M(doc.Change), width));
+        foreach (var p in doc.Payments) lines.Add(Pair(p.Label, p.AmountText ?? M(p.Amount), width));
+        if (doc.Change > 0) lines.Add(Pair(R("Receipt.Change"), M(doc.Change), width));
+        if (!string.IsNullOrWhiteSpace(doc.ChangeLbp)) lines.Add(Pair(doc.Change > 0 ? "" : R("Receipt.Change"), doc.ChangeLbp, width));
 
         if (doc.ExtraLines.Count > 0)
         {
@@ -62,7 +67,7 @@ public static class ReceiptFormatter
 
         var itemCount = doc.Lines.Sum(l => l.Quantity);
         lines.Add(rule);
-        lines.Add(Center($"Items: {itemCount}", width));
+        lines.Add(Center(Loc.Format(doc.Language, "Receipt.Items", itemCount), width));
 
         if (!string.IsNullOrWhiteSpace(doc.Footer))
         {
