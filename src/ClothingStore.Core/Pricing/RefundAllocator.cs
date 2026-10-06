@@ -44,6 +44,8 @@ public static class RefundAllocator
         PaymentMethod.LoyaltyPoints => RefundMethod.LoyaltyPoints,
         _ when destination == RefundDestination.StoreCredit => RefundMethod.StoreCredit,
         PaymentMethod.CashLbp => RefundMethod.CashLbp,
+        // Delivery money not received yet is simply owed less; the return service pays cash if it was received.
+        PaymentMethod.Delivery => RefundMethod.Delivery,
         _ when destination == RefundDestination.Cash => RefundMethod.Cash,
         PaymentMethod.Card => RefundMethod.Card,
         PaymentMethod.MobileWallet => RefundMethod.MobileWallet,

@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<BackupService>();
         services.AddSingleton<BrandingService>();
         services.AddSingleton<LicenseClockService>();
+        services.AddSingleton<DeliveryService>();
         services.AddSingleton<QueryWarmUp>();
         return services;
     }

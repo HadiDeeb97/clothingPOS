@@ -29,6 +29,7 @@ public static class ReceiptBuilder
             if (sale.Customer.StoreCredit > 0) extra.Add(R("Receipt.CreditBalance", Money.Format(sale.Customer.StoreCredit, s.CurrencySymbol)));
         }
         if (sale.Channel != SalesChannel.InStore) extra.Add(R("Receipt.Channel", Loc.Get(lang, $"Enum.SalesChannel.{sale.Channel}")));
+        if (!string.IsNullOrWhiteSpace(sale.Courier)) extra.Add(R("Receipt.Courier", sale.Courier));
         if (!string.IsNullOrWhiteSpace(sale.Notes)) extra.Add(R("Receipt.Note", sale.Notes));
 
         // Cash is printed as handed over (before change), in each currency.
@@ -171,6 +172,7 @@ public static class ReceiptBuilder
         lines.Add(Loc.T("Report.CashDrawer"));
         lines.Add(Row("  " + Loc.T("Shift.OpeningFloat"), M(sum.OpeningFloat)));
         lines.Add(Row("  " + Loc.T("Shift.CashSales"), M(sum.CashSales)));
+        if (sum.DeliveryCash != 0) lines.Add(Row("  " + Loc.T("Shift.DeliveryCash"), M(sum.DeliveryCash)));
         lines.Add(Row("  " + Loc.T("Shift.PayIns"), M(sum.PayIns)));
         lines.Add(Row("  " + Loc.T("Shift.PayOuts"), M(-sum.PayOuts)));
         lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), M(-sum.CashRefunds)));
@@ -188,6 +190,7 @@ public static class ReceiptBuilder
             lines.Add(Loc.T("Report.CashDrawerLbp"));
             lines.Add(Row("  " + Loc.T("Shift.OpeningFloat"), L(sum.OpeningFloatLbp)));
             lines.Add(Row("  " + Loc.T("Shift.CashSales"), L(sum.CashSalesLbp)));
+            if (sum.DeliveryCashLbp != 0) lines.Add(Row("  " + Loc.T("Shift.DeliveryCash"), L(sum.DeliveryCashLbp)));
             lines.Add(Row("  " + Loc.T("Shift.PayIns"), L(sum.PayInsLbp)));
             lines.Add(Row("  " + Loc.T("Shift.PayOuts"), L(-sum.PayOutsLbp)));
             lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), L(-sum.CashRefundsLbp)));

@@ -1,0 +1,117 @@
+<UserControl x:Class="ClothingStore.Desktop.Views.DeliveriesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
+             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
+    <DockPanel>
+        <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
+            <Button DockPanel.Dock="Right" Content="{l:T Common.Refresh}" Command="{Binding RefreshCommand}" Margin="0" />
+            <WrapPanel>
+                <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Tag="{l:T Deliveries.SearchHint}" Width="280" Margin="0,0,10,0" />
+                <Border Style="{StaticResource SegmentGroup}" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Filter" Content="{l:T Deliveries.FilterOwed}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Owed}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Filter" Content="{l:T Deliveries.FilterPaid}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Paid}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Filter" Content="{l:T History.SourceAll}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
+                    </StackPanel>
+                </Border>
+                <ComboBox ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}" Width="180" Margin="0,0,6,0" />
+                <Button Content="{l:T Deliveries.AllCompanies}" Style="{StaticResource LinkButton}" Command="{Binding ClearCourierCommand}" Margin="0" />
+            </WrapPanel>
+        </DockPanel>
+
+        <Grid infra:LayoutMemory.Key="Deliveries">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" MinWidth="460" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="280" />
+            </Grid.ColumnDefinitions>
+
+            <DockPanel>
+                <Border DockPanel.Dock="Bottom" Style="{StaticResource KpiCard}" Margin="0,12,0,0">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="{l:T Deliveries.ReceiveButton}" Style="{StaticResource SuccessButton}" Command="{Binding ReceivePaymentCommand}" Margin="0" />
+                        <TextBlock Text="{Binding SelectionText}" VerticalAlignment="Center" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    </DockPanel>
+                </Border>
+                <Border Style="{StaticResource TableCard}">
+                    <Grid>
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" SelectionMode="Extended"
+                                  infra:GridSelection.Items="{Binding Selection}" infra:LayoutMemory.Key="Deliveries.List">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding ReceiptNumber}" Width="140" />
+                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="105" />
+                                <DataGridTextColumn Header="{l:T History.Source}" Binding="{Binding Channel, Converter={StaticResource EnumDisplay}}" Width="90" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Company}" Binding="{Binding Courier}" Width="120" />
+                                <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Customer}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Notes}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Owed}" Binding="{Binding Owed, Converter={StaticResource Money}}" Width="90" ElementStyle="{StaticResource StrongRightCell}" />
+                                <DataGridTemplateColumn Header="{l:T Common.Status}" Width="150">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="Pill" Style="{StaticResource Chip}" Background="{StaticResource WarningLightBrush}">
+                                                <TextBlock x:Name="PillText" Text="{l:T Deliveries.Awaiting}" FontSize="11.5" FontWeight="SemiBold" Foreground="#92400E" />
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsPaid}" Value="True">
+                                                    <Setter TargetName="Pill" Property="Background" Value="{StaticResource SuccessLightBrush}" />
+                                                    <Setter TargetName="PillText" Property="Foreground" Value="#166534" />
+                                                    <Setter TargetName="PillText" Property="Text" Value="{Binding SettledAt, StringFormat={l:T Deliveries.PaidOn}}" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="{l:T Deliveries.Empty}" Style="{StaticResource HintText}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextAlignment="Center" MaxWidth="380" Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                    </Grid>
+                </Border>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Style="{StaticResource ColumnSplitter}" />
+
+            <!-- What each company owes -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="{l:T Deliveries.OwedCaption}" Style="{StaticResource Caption}" />
+                        <TextBlock Text="{Binding TotalOwed, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
+                        <TextBlock Text="{l:T Deliveries.OwedHint}" Style="{StaticResource HintText}" />
+                        <Separator Margin="0,12" />
+                    </StackPanel>
+                    <Grid>
+                        <TextBlock Text="{l:T Deliveries.NothingOwed}" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,20,0,0"
+                                   Visibility="{Binding HasBalances, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        <ItemsControl ItemsSource="{Binding Balances}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Stretch" Margin="0,0,0,4" Padding="10,8"
+                                            Command="{Binding DataContext.ShowCourierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Owed, Converter={StaticResource Money}}" FontWeight="Bold" />
+                                            <StackPanel>
+                                                <TextBlock x:Name="Name" Text="{Binding Courier}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Orders, StringFormat={l:T Deliveries.OrdersFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Button>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Courier}" Value="">
+                                            <Setter TargetName="Name" Property="Text" Value="{l:T Deliveries.NoCourier}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

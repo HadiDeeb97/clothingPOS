@@ -24,6 +24,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private readonly CustomerService _customers;
     private readonly SettingsService _settings;
     private readonly UserService _users;
+    private readonly DeliveryService _deliveries;
     private readonly CategoryService _categories;
     private readonly PrintService _print;
     private readonly INavigationService _navigation;
@@ -34,9 +35,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     public SalesViewModel(
         IDialogService dialogs, ProductService products, SalesService sales, CustomerService customers,
         SettingsService settings, UserService users, CategoryService categories, Session session, PrintService print,
-        INavigationService navigation)
+        INavigationService navigation, DeliveryService deliveries)
         : base(dialogs)
     {
+        _deliveries = deliveries;
         _products = products;
         _sales = sales;
         _customers = customers;
@@ -450,7 +452,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         var cart = new HeldCart(
             Items.Select(i => new HeldCartLine(i.VariantId, i.Quantity, i.DiscountType, i.DiscountValue)).ToList(),
-            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null);
+            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null, IsOnline ? Courier : null);
         await _sales.HoldAsync(label, Session.User.Id, cart);
         ResetSale();
         Dialogs.Toast(Loc.T("Register.Held", label));
@@ -489,6 +491,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         Channel = cart.Channel;
         DeliveryFee = cart.DeliveryFee;
         OrderNotes = cart.Notes;
+        Courier = cart.Courier;
         Recalculate();
         await RefreshHeldCountAsync();
 
@@ -517,6 +520,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [ObservableProperty]
     public partial string? OrderNotes { get; set; }
 
+    /// <summary>Delivery company or driver of the online order.</summary>
+    [ObservableProperty]
+    public partial string? Courier { get; set; }
+
     public bool IsOnline => Channel != SalesChannel.InStore;
 
     /// <summary>Items plus the delivery fee of an online order.</summary>
@@ -524,13 +531,16 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     /// <summary>Turns this sale into an online order, or edits its details.</summary>
     [RelayCommand]
-    private void OnlineOrder()
+    private async Task OnlineOrderAsync()
     {
-        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes);
+        IReadOnlyList<string> couriers = [];
+        try { couriers = await _deliveries.GetCouriersAsync(); } catch { /* just no suggestions */ }
+        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers);
         if (!Dialogs.ShowDialog(dialog)) return;
         Channel = dialog.Channel;
         DeliveryFee = dialog.DeliveryFee;
         OrderNotes = dialog.Notes;
+        Courier = dialog.Courier;
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -541,6 +551,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         Channel = SalesChannel.InStore;
         DeliveryFee = 0;
         OrderNotes = null;
+        Courier = null;
     }
 
     // ---- Checkout ---------------------------------------------------------------------------
@@ -564,7 +575,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         if (!EnsureDiscountApproved()) return;
 
-        var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current);
+        var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
         if (!Dialogs.ShowDialog(payment)) return;
 
         Sale? sale = null;
@@ -585,6 +596,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 Channel = Channel,
                 DeliveryFee = IsOnline ? DeliveryFee : 0,
                 Notes = IsOnline ? OrderNotes : null,
+                Courier = IsOnline ? Courier : null,
             });
         });
         if (!ok || sale is null)
@@ -622,6 +634,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         Channel = SalesChannel.InStore;
         DeliveryFee = 0;
         OrderNotes = null;
+        Courier = null;
         SearchText = "";
         HideResults();
         _approvedByUserId = null;

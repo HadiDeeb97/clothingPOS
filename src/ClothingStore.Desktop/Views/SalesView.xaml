@@ -322,6 +322,8 @@
                             <TextBlock FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
                                        Text="{Binding Channel, Converter={StaticResource EnumDisplay}, StringFormat={l:T Register.OnlineFrom}}" />
                             <TextBlock Text="{Binding DeliveryFee, Converter={StaticResource Money}, StringFormat={l:T Register.DeliveryFormat}}" Style="{StaticResource MutedText}" FontSize="12" />
+                            <TextBlock Text="{Binding Courier, StringFormat={l:T Register.CourierFormat}}" Style="{StaticResource MutedText}" FontSize="12"
+                                       Visibility="{Binding Courier, Converter={StaticResource HasValueToVis}}" />
                             <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis"
                                        Visibility="{Binding OrderNotes, Converter={StaticResource HasValueToVis}}" />
                         </StackPanel>

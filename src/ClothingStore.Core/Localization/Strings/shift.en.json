@@ -15,6 +15,7 @@
   "Shift.CountedLbp": "Counted pounds",
   "Shift.CountedUsd": "Counted dollars",
   "Shift.CurrentOpened": "Current shift, opened {0:ddd HH:mm}",
+  "Shift.DeliveryCash": "Paid by delivery companies",
   "Shift.DollarsSection": "DOLLARS",
   "Shift.EndOfDay": "End of day: count and close",
   "Shift.EnterAmount": "Enter an amount.",

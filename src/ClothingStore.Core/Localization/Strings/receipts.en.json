@@ -3,6 +3,7 @@
   "Receipt.Change": "Change",
   "Receipt.Channel": "Order via {0}",
   "Receipt.Copy": "*** COPY ***",
+  "Receipt.Courier": "Delivery: {0}",
   "Receipt.CreditBalance": "Store credit balance: {0}",
   "Receipt.Customer": "Customer:",
   "Receipt.Date": "Date:",

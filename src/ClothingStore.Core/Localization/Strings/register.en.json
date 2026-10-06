@@ -1,6 +1,7 @@
 {
   "OnlineSale.Apply": "Use for this sale",
   "OnlineSale.BadFee": "Enter the delivery fee as a number (or leave it empty).",
+  "OnlineSale.Courier": "Delivery company / driver",
   "OnlineSale.DeliveryFee": "Delivery fee",
   "OnlineSale.FeeHint": "Added to the total. Leave empty if there is none.",
   "OnlineSale.From": "Where did the order come from?",
@@ -18,6 +19,7 @@
   "Register.ClearConfirm": "Clear the current sale?",
   "Register.ClearSale": "Clear sale",
   "Register.CloseEsc": "Close (Esc)",
+  "Register.CourierFormat": "Delivered by {0}",
   "Register.CreditFormat": "Credit {0}",
   "Register.Delivery": "Delivery",
   "Register.DeliveryFormat": "Delivery {0}",

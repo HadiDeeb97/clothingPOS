@@ -31,6 +31,12 @@ public enum PaymentMethod
 
     /// <summary>Cash in Lebanese pounds. The payment amount is the dollar value applied to the sale.</summary>
     CashLbp = 5,
+
+    /// <summary>
+    /// Collected by the delivery company, which pays the store later (online orders only). Not cash in the drawer:
+    /// it is owed until recorded as received on the Deliveries page.
+    /// </summary>
+    Delivery = 6,
 }
 
 /// <summary>Where one part of a refund was paid out.</summary>
@@ -44,6 +50,9 @@ public enum RefundMethod
 
     /// <summary>Paid out in Lebanese pounds at the day's rate. The refund amount is in dollars.</summary>
     CashLbp = 5,
+
+    /// <summary>Taken off what the delivery company still owes for the sale (its money never reached the store).</summary>
+    Delivery = 6,
 }
 
 /// <summary>
@@ -148,3 +157,16 @@ public enum SalesChannel
     Other = 6,
 }
 
+
+/// <summary>How a delivery company's payment reached the store.</summary>
+public enum SettlementMethod
+{
+    /// <summary>Dollars, into the cash drawer.</summary>
+    Cash = 0,
+
+    /// <summary>Lebanese pounds, into the cash drawer.</summary>
+    CashLbp = 1,
+
+    /// <summary>Bank or wallet transfer (Whish, OMT...): not in the drawer.</summary>
+    Transfer = 2,
+}

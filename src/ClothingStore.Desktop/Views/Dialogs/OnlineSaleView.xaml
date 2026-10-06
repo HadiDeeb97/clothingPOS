@@ -46,6 +46,9 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
+        <TextBlock Text="{l:T OnlineSale.Courier}" Style="{StaticResource FieldLabel}" />
+        <ComboBox IsEditable="True" ItemsSource="{Binding Couriers}" Text="{Binding Courier, UpdateSourceTrigger=PropertyChanged}" />
+
         <TextBlock Text="{l:T OnlineSale.DeliveryFee}" Style="{StaticResource FieldLabel}" />
         <TextBox x:Name="FeeBox" Text="{Binding DeliveryFeeText, UpdateSourceTrigger=PropertyChanged}" Width="140" HorizontalAlignment="Left" Tag="$" />
         <TextBlock Text="{l:T OnlineSale.FeeHint}" Style="{StaticResource HintText}" />
