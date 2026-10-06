@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Localization;
 using ClothingStore.Core.Receipts;
 using ClothingStore.Core.Security;
 using ClothingStore.Data.Services;
@@ -15,7 +16,7 @@ public sealed partial class SalesHistoryViewModel(
     IDialogService dialogs, SalesService sales, SettingsService settings, Session session,
     PrintService print, INavigationService navigation) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Sales History";
+    public string Title => Loc.T("Nav.SalesHistory");
     public bool CanVoid => session.Can(Permission.VoidSales);
     public bool CanReturn => session.Can(Permission.ProcessReturns);
 
@@ -71,7 +72,7 @@ public sealed partial class SalesHistoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Sales search failed.", ex);
+            Dialogs.Error(Loc.T("History.SearchFailed"), ex);
         }
     }
 
@@ -95,7 +96,7 @@ public sealed partial class SalesHistoryViewModel(
     {
         if (SelectedSale is not { } sale) return;
         var doc = ReceiptBuilder.FromSale(sale, settings.Current, isCopy: true);
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, $"Receipt {sale.ReceiptNumber}",
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("History.ReceiptTitle", sale.ReceiptNumber),
             ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth)));
     }
 
@@ -105,20 +106,20 @@ public sealed partial class SalesHistoryViewModel(
         if (SelectedSale is not { } sale) return;
         if (!CanVoid)
         {
-            Dialogs.Warning("Only managers can void sales.");
+            Dialogs.Warning(Loc.T("History.OnlyManagersVoid"));
             return;
         }
         if (sale.Status == SaleStatus.Voided)
         {
-            Dialogs.Warning("This sale is already voided.");
+            Dialogs.Warning(Loc.T("History.AlreadyVoided"));
             return;
         }
-        var reason = Dialogs.Prompt("Void sale", $"Why is sale {sale.ReceiptNumber} being voided?\nStock will be returned and customer balances reversed.");
+        var reason = Dialogs.Prompt(Loc.T("History.VoidSale"), Loc.T("History.VoidPrompt", sale.ReceiptNumber));
         if (reason is null) return;
 
         if (await RunAsync(() => sales.VoidSaleAsync(sale.Id, session.User.Id, reason)))
         {
-            Dialogs.Info($"Sale {sale.ReceiptNumber} has been voided.");
+            Dialogs.Toast(Loc.T("History.Voided", sale.ReceiptNumber));
             await SearchAsync();
         }
     }
@@ -133,23 +134,25 @@ public sealed partial class SalesHistoryViewModel(
     [RelayCommand]
     private void Export()
     {
-        var path = Dialogs.SaveFile("Export sales", "CSV files (*.csv)|*.csv", $"sales_{From:yyyyMMdd}_{To:yyyyMMdd}.csv");
+        var path = Dialogs.SaveFile(Loc.T("History.ExportTitle"), Loc.T("Common.CsvFilter"), $"sales_{From:yyyyMMdd}_{To:yyyyMMdd}.csv");
         if (path is null) return;
         try
         {
             CsvExporter.Write(path,
-                ["Receipt", "Date", "Status", "Cashier", "Customer", "Items", "Subtotal", "Discount", "Tax", "Total", "Payments"],
+                [Loc.T("Common.Receipt"), Loc.T("Common.Date"), Loc.T("Common.Status"), Loc.T("Common.Cashier"), Loc.T("Common.Customer"),
+                    Loc.T("Common.Items"), Loc.T("Common.Subtotal"), Loc.T("Common.Discount"), Loc.T("Common.Tax"), Loc.T("Common.Total"),
+                    Loc.T("Common.Payments")],
                 Sales.Select(s => new object?[]
                 {
-                    s.ReceiptNumber, s.CreatedAt, s.Status, s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
+                    s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
                     s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total,
-                    string.Join(" + ", s.Payments.Select(p => $"{p.Method} {p.Amount:0.00}")),
+                    string.Join(" + ", s.Payments.Select(p => $"{Loc.EnumText(p.Method)} {p.Amount:0.00}")),
                 }));
-            Dialogs.Info($"Exported {Sales.Count} sales.");
+            Dialogs.Toast(Loc.T("Common.Exported", Sales.Count));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Export failed.", ex);
+            Dialogs.Error(Loc.T("Common.ExportFailed"), ex);
         }
     }
 }

@@ -2,6 +2,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Barcodes;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -124,7 +125,7 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
 
         await using var db = await factory.CreateDbContextAsync(ct);
         if (!await db.Categories.AnyAsync(c => c.Id == product.CategoryId, ct))
-            throw new BusinessRuleException("Please choose a valid category.");
+            throw new BusinessRuleException(Loc.T("Err.ChooseValidCategory"));
 
         Product entity;
         if (product.Id == 0)
@@ -135,7 +136,7 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         else
         {
             entity = await db.Products.Include(p => p.Variants).FirstOrDefaultAsync(p => p.Id == product.Id, ct)
-                     ?? throw new BusinessRuleException("Product not found.");
+                     ?? throw new BusinessRuleException(Loc.T("Err.ProductNotFound"));
         }
 
         entity.Name = product.Name.Trim();
@@ -175,7 +176,7 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
             var variant = isNew
                 ? new ProductVariant()
                 : entity.Variants.FirstOrDefault(v => v.Id == incoming.Id)
-                  ?? throw new BusinessRuleException("Variant does not belong to this product.");
+                  ?? throw new BusinessRuleException(Loc.T("Err.VariantNotOfProduct"));
 
             variant.Size = incoming.Size.Trim();
             variant.Color = incoming.Color.Trim();
@@ -188,20 +189,20 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
             if (sku is null)
                 sku = SkuGenerator.MakeUnique(SkuGenerator.Build(entity.StyleCode, variant.Size, variant.Color), takenSkus);
             else if (takenSkus.Contains(sku))
-                throw new BusinessRuleException($"SKU '{sku}' is already used by another item.");
+                throw new BusinessRuleException(Loc.T("Err.SkuUsed", sku));
             takenSkus.Add(sku);
             variant.Sku = sku;
 
             var barcode = QueryHelpers.Clean(incoming.Barcode) ?? Ean13.CreateInStore(nextBarcode++);
             if (!takenBarcodes.Add(barcode))
-                throw new BusinessRuleException($"Barcode '{barcode}' is already used by another item.");
+                throw new BusinessRuleException(Loc.T("Err.BarcodeUsed", barcode));
             variant.Barcode = barcode;
 
             if (isNew)
             {
                 entity.Variants.Add(variant);
                 variant.Product = entity;
-                if (incoming.StockQuantity < 0) throw new BusinessRuleException("Opening stock cannot be negative.");
+                if (incoming.StockQuantity < 0) throw new BusinessRuleException(Loc.T("Err.OpeningStockNegative"));
                 if (incoming.StockQuantity > 0)
                     StockLedger.Apply(db, variant, incoming.StockQuantity, StockMovementType.InitialStock, userId, notes: "Opening stock");
             }
@@ -213,7 +214,7 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("This product was changed by someone else. Please reload and try again.");
+            throw new BusinessRuleException(Loc.T("Err.ProductChanged"));
         }
 
         return (await GetAsync(entity.Id, ct))!;
@@ -243,23 +244,23 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
 
     private static void Validate(Product product)
     {
-        if (string.IsNullOrWhiteSpace(product.Name)) throw new BusinessRuleException("Product name is required.");
-        if (product.CategoryId == 0) throw new BusinessRuleException("Please choose a category.");
-        if (product.Price < 0 || product.Cost < 0) throw new BusinessRuleException("Price and cost cannot be negative.");
-        if (product.Variants.Count == 0) throw new BusinessRuleException("Add at least one size/colour variant.");
+        if (string.IsNullOrWhiteSpace(product.Name)) throw new BusinessRuleException(Loc.T("Err.ProductNameRequired"));
+        if (product.CategoryId == 0) throw new BusinessRuleException(Loc.T("Err.ChooseCategory"));
+        if (product.Price < 0 || product.Cost < 0) throw new BusinessRuleException(Loc.T("Err.PriceCostNegative"));
+        if (product.Variants.Count == 0) throw new BusinessRuleException(Loc.T("Err.NeedVariant"));
         if (product.Variants.Any(v => v.PriceOverride < 0 || v.CostOverride < 0))
-            throw new BusinessRuleException("Variant prices cannot be negative.");
+            throw new BusinessRuleException(Loc.T("Err.VariantPriceNegative"));
 
         var duplicate = product.Variants
             .GroupBy(v => (Size: v.Size.Trim().ToUpperInvariant(), Color: v.Color.Trim().ToUpperInvariant()))
             .FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null)
-            throw new BusinessRuleException($"Variant '{ProductVariant.DescribeVariant(duplicate.Key.Size, duplicate.Key.Color)}' is listed twice.");
+            throw new BusinessRuleException(Loc.T("Err.VariantTwice", ProductVariant.DescribeVariant(duplicate.Key.Size, duplicate.Key.Color)));
 
         var dupSku = product.Variants
             .Select(v => v.Sku?.Trim().ToUpperInvariant())
             .Where(s => !string.IsNullOrEmpty(s))
             .GroupBy(s => s).FirstOrDefault(g => g.Count() > 1);
-        if (dupSku is not null) throw new BusinessRuleException($"SKU '{dupSku.Key}' is listed twice.");
+        if (dupSku is not null) throw new BusinessRuleException(Loc.T("Err.SkuTwice", dupSku.Key));
     }
 }

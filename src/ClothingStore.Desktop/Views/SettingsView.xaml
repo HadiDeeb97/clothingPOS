@@ -1,28 +1,32 @@
 <UserControl x:Class="ClothingStore.Desktop.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="clr-namespace:ClothingStore.Desktop.Localization">
+    <UserControl.Resources>
+        <Style x:Key="SettingsCard" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Width" Value="440" />
+            <Setter Property="Margin" Value="0,0,16,16" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+    </UserControl.Resources>
     <DockPanel>
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
-            <Button Content="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" />
-            <Button Content="Discard changes" Command="{Binding ReloadCommand}" />
-        </StackPanel>
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="12" Padding="14,10" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="{l:T Settings.SaveButton}" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" MinWidth="130" />
+                <Button Content="{l:T Settings.Discard}" Command="{Binding ReloadCommand}" />
+            </StackPanel>
+        </Border>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <WrapPanel>
-                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                <!-- Store & receipt -->
+                <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>
-                        <TextBlock Text="Store &amp; receipt" Style="{StaticResource SectionTitle}" />
-                        <TextBlock Text="Store name" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{l:T Settings.StoreReceipt}" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="{l:T Settings.StoreName}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                         <TextBox Text="{Binding Settings.StoreName}" />
-                        <TextBlock Text="Address (shown on receipts)" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.Address}" AcceptsReturn="True" Height="56" TextWrapping="Wrap" VerticalContentAlignment="Top" />
-                        <TextBlock Text="Phone" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.Phone}" />
-                        <TextBlock Text="Email" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.Email}" />
-                        <TextBlock Text="Tax / VAT registration number" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.TaxNumber}" />
-                        <TextBlock Text="Receipt footer" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.ReceiptFooter}" AcceptsReturn="True" Height="56" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                        <TextBlock Text="{l:T Settings.Address}" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.Address}" Style="{StaticResource MultilineBox}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition />
@@ -30,20 +34,47 @@
                                 <ColumnDefinition />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="Receipt width (characters)" Style="{StaticResource FieldLabel}" />
-                                <TextBox Text="{Binding Settings.ReceiptWidth}" ToolTip="42 for 80mm thermal printers, 32 for 58mm" />
+                                <TextBlock Text="{l:T Common.Phone}" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.Phone}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Receipt number prefix" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="{l:T Common.Email}" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Settings.Email}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{l:T Settings.TaxNumber}" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.TaxNumber}" />
+                        <TextBlock Text="{l:T Settings.Footer}" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.ReceiptFooter}" Style="{StaticResource MultilineBox}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{l:T Settings.ReceiptWidth}" Style="{StaticResource FieldLabel}" TextTrimming="CharacterEllipsis" />
+                                <TextBox Text="{Binding Settings.ReceiptWidth}" ToolTip="{l:T Settings.ReceiptWidthTip}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{l:T Settings.ReceiptPrefix}" Style="{StaticResource FieldLabel}" TextTrimming="CharacterEllipsis" />
                                 <TextBox Text="{Binding Settings.ReceiptPrefix}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="{l:T Settings.ReceiptLanguage}" Style="{StaticResource FieldLabel}" TextTrimming="CharacterEllipsis" />
+                                <ComboBox ItemsSource="{Binding ReceiptLanguages}" SelectedValuePath="Code" DisplayMemberPath="Name"
+                                          SelectedValue="{Binding Settings.ReceiptLanguage}" />
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                <!-- Pricing, tax & loyalty -->
+                <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>
-                        <TextBlock Text="Pricing &amp; tax" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="{l:T Settings.PricingTax}" Style="{StaticResource SectionTitle}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition />
@@ -51,22 +82,22 @@
                                 <ColumnDefinition />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="Tax rate (%)" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="{l:T Settings.TaxRate}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                                 <TextBox Text="{Binding Settings.TaxRate}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Currency symbol" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="{l:T Settings.CurrencySymbol}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                                 <TextBox Text="{Binding Settings.CurrencySymbol}" />
                             </StackPanel>
                         </Grid>
-                        <CheckBox Content="Shelf prices include tax (VAT-style)" IsChecked="{Binding Settings.PricesIncludeTax}" Margin="0,12,0,0" />
-                        <CheckBox Content="Allow selling items with no stock on record" IsChecked="{Binding Settings.AllowNegativeStock}" />
-                        <TextBlock Text="Max cashier discount without approval (%)" Style="{StaticResource FieldLabel}" />
+                        <CheckBox Content="{l:T Settings.PricesIncludeTax}" IsChecked="{Binding Settings.PricesIncludeTax}" Margin="0,14,0,4" />
+                        <CheckBox Content="{l:T Settings.AllowNegative}" IsChecked="{Binding Settings.AllowNegativeStock}" />
+                        <TextBlock Text="{l:T Settings.MaxDiscount}" Style="{StaticResource FieldLabel}" />
                         <TextBox Text="{Binding Settings.MaxCashierDiscountPercent}" />
-                        <TextBlock Text="Return window (days, 0 = unlimited)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{l:T Settings.ReturnWindow}" Style="{StaticResource FieldLabel}" />
                         <TextBox Text="{Binding Settings.ReturnWindowDays}" />
 
-                        <TextBlock Text="Loyalty programme" Style="{StaticResource SectionTitle}" Margin="0,18,0,0" />
+                        <TextBlock Text="{l:T Settings.Loyalty}" Style="{StaticResource SectionTitle}" Margin="0,22,0,0" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition />
@@ -74,56 +105,60 @@
                                 <ColumnDefinition />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="Points per 1.00 spent" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="{l:T Settings.PointsPerUnit}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                                 <TextBox Text="{Binding Settings.LoyaltyPointsPerUnit}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Value of 1 point" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="{l:T Settings.PointValue}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                                 <TextBox Text="{Binding Settings.LoyaltyPointValue}" />
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="Points are earned on cash, card and wallet payments, and can be redeemed at checkout." Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0" />
+                        <TextBlock Text="{l:T Settings.LoyaltyHint}" Style="{StaticResource HintText}" />
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource Card}" Width="420" Margin="0,0,16,16" VerticalAlignment="Top">
+                <!-- Data & backups -->
+                <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>
-                        <TextBlock Text="Data" Style="{StaticResource SectionTitle}" />
-                        <TextBlock Text="Database" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{l:T Settings.Data}" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="{l:T Settings.Database}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                         <TextBox Text="{Binding DatabaseName, Mode=OneWay}" IsReadOnly="True" />
-                        <TextBlock Text="Backup folder on the SQL Server PC (empty = server default)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{l:T Settings.BackupFolder}" Style="{StaticResource FieldLabel}" />
                         <TextBox Text="{Binding Settings.BackupFolder}" />
-                        <CheckBox Content="Back up automatically (and after each shift closes)" IsChecked="{Binding Settings.AutoBackupEnabled}" Margin="0,12,0,0" />
-                        <DockPanel Margin="0,4,0,0" IsEnabled="{Binding Settings.AutoBackupEnabled}">
-                            <TextBlock Text="Every" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBox Text="{Binding Settings.AutoBackupIntervalHours}" Width="60" />
-                            <TextBlock Text="hours" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <CheckBox Content="{l:T Settings.AutoBackup}" IsChecked="{Binding Settings.AutoBackupEnabled}" Margin="0,14,0,4" />
+                        <DockPanel Margin="26,0,0,0" IsEnabled="{Binding Settings.AutoBackupEnabled}">
+                            <TextBlock Text="{l:T Settings.Every}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Text="{Binding Settings.AutoBackupIntervalHours}" Width="64" />
+                            <TextBlock Text="{l:T Settings.Hours}" VerticalAlignment="Center" Margin="8,0,0,0" />
                         </DockPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <Button Content="Back up now" Style="{StaticResource PrimaryButton}" Command="{Binding BackupCommand}" />
-                        </StackPanel>
-                        <TextBlock Text="SQL Server writes backups on its own PC, so the folder must be writable by the SQL Server service. Use a cloud-synced or network folder so a copy survives if that PC fails. Automatic backups keep one file per weekday (the last 7 days). Backups are safe to take while tills are selling."
-                                   Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />
-                        <TextBlock Text="Recent backups" Style="{StaticResource FieldLabel}" Margin="0,12,0,4" />
-                        <TextBlock Text="No backups yet." Style="{StaticResource MutedText}" FontSize="11"
+                        <Button Content="{l:T Settings.BackupNow}" Style="{StaticResource PrimaryButton}" Command="{Binding BackupCommand}" HorizontalAlignment="Left" Margin="0,14,0,0" />
+                        <TextBlock Text="{l:T Settings.BackupHint}" Style="{StaticResource HintText}" Margin="0,10,0,0" />
+                        <TextBlock Text="{l:T Settings.RecentBackups}" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
+                        <TextBlock Text="{l:T Settings.NoBackups}" Style="{StaticResource MutedText}" FontSize="12"
                                    Visibility="{Binding HasNoBackups, Converter={StaticResource BoolToVis}}" />
                         <ItemsControl ItemsSource="{Binding Backups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="0,0,0,6">
-                                        <TextBlock FontSize="12">
-                                            <Run Text="{Binding StartedAt, StringFormat={}{0:dd MMM yyyy HH:mm}, Mode=OneWay}" />
-                                            <Run Text="·" />
-                                            <Run Text="{Binding Kind, Converter={StaticResource EnumDisplay}, Mode=OneWay}" />
-                                            <Run Text="·" />
-                                            <Run x:Name="Status" Text="OK" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" />
-                                        </TextBlock>
-                                        <TextBlock x:Name="Detail" Text="{Binding FilePath}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" />
-                                    </StackPanel>
+                                    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,7" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <Border x:Name="Status" DockPanel.Dock="Right" Style="{StaticResource Chip}" Background="{StaticResource SuccessLightBrush}">
+                                                    <TextBlock x:Name="StatusText" Text="{l:T Settings.Ok}" FontSize="11" FontWeight="SemiBold" Foreground="#166534" />
+                                                </Border>
+                                                <TextBlock FontSize="12.5" VerticalAlignment="Center">
+                                                    <Run Text="{Binding StartedAt, StringFormat={}{0:dd MMM yyyy HH:mm}, Mode=OneWay}" FontWeight="SemiBold" />
+                                                    <Run Text="  " />
+                                                    <Run Text="{Binding Kind, Converter={StaticResource EnumDisplay}, Mode=OneWay}" Foreground="{StaticResource MutedTextBrush}" />
+                                                </TextBlock>
+                                            </DockPanel>
+                                            <TextBlock x:Name="Detail" Text="{Binding FilePath}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding Succeeded}" Value="False">
-                                            <Setter TargetName="Status" Property="Text" Value="FAILED" />
-                                            <Setter TargetName="Status" Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                            <Setter TargetName="Status" Property="Background" Value="{StaticResource DangerLightBrush}" />
+                                            <Setter TargetName="StatusText" Property="Text" Value="{l:T Settings.Failed}" />
+                                            <Setter TargetName="StatusText" Property="Foreground" Value="#991B1B" />
                                             <Setter TargetName="Detail" Property="Text" Value="{Binding Error}" />
                                         </DataTrigger>
                                     </DataTemplate.Triggers>

@@ -1,3 +1,4 @@
+using ClothingStore.Core.Localization;
 using ClothingStore.Data.Seeding;
 using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
@@ -11,7 +12,15 @@ public sealed partial class LoginViewModel(IDialogService dialogs, UserService u
 {
     public event EventHandler? SignedIn;
 
+    /// <summary>Raised when the screen should close and reopen in <see cref="RequestedLanguage"/>.</summary>
+    public event EventHandler? LanguageRequested;
+
     public string StoreName => settings.Current.StoreName;
+    public Branding Branding => Branding.Instance;
+    public bool IsArabic => Loc.IsRightToLeft;
+
+    /// <summary>Set when the user switched language on this screen.</summary>
+    public string? RequestedLanguage { get; private set; }
 
     /// <summary>First-run hint, shown only while the default admin password is still in place.</summary>
     [ObservableProperty]
@@ -22,8 +31,7 @@ public sealed partial class LoginViewModel(IDialogService dialogs, UserService u
         try
         {
             if (await users.IsFirstRunAsync())
-                Hint = $"First run: sign in as '{DatabaseInitializer.DefaultAdminUser}' / '{DatabaseInitializer.DefaultAdminPassword}' " +
-                       "(you will be asked to choose a new password). Demo data also adds manager/manager123 and cashier/cashier123.";
+                Hint = Loc.T("Login.FirstRunHint", DatabaseInitializer.DefaultAdminUser, DatabaseInitializer.DefaultAdminPassword);
         }
         catch
         {
@@ -40,13 +48,21 @@ public sealed partial class LoginViewModel(IDialogService dialogs, UserService u
     public partial string? ErrorMessage { get; set; }
 
     [RelayCommand]
+    private void SetLanguage(string language)
+    {
+        if (Loc.Normalize(language) == Loc.Language) return;
+        RequestedLanguage = Loc.Normalize(language);
+        LanguageRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
     private Task SignInAsync() => RunAsync(async () =>
     {
         ErrorMessage = null;
         var user = await users.AuthenticateAsync(Username, Password);
         if (user is null)
         {
-            ErrorMessage = "Invalid username or password.";
+            ErrorMessage = Loc.T("Login.Invalid");
             return;
         }
 

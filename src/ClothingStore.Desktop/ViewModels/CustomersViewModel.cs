@@ -7,13 +7,14 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
 public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerService customers, Session session)
     : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Customers";
+    public string Title => Loc.T("Nav.Customers");
     public bool CanAdjustCredit => session.Can(Permission.AdjustStoreCredit);
 
     [ObservableProperty]
@@ -51,7 +52,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load purchase history.", ex);
+            Dialogs.Error(Loc.T("Customers.HistoryFailed"), ex);
         }
     }
 
@@ -73,7 +74,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Customer search failed.", ex);
+            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
         }
     }
 
@@ -101,29 +102,35 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         if (SelectedCustomer is not { } customer) return;
         if (!CanAdjustCredit)
         {
-            Dialogs.Warning("Only managers can adjust store credit.");
+            Dialogs.Warning(Loc.T("Customers.OnlyManagersCredit"));
             return;
         }
-        var amount = Dialogs.PromptDecimal("Adjust store credit",
-            $"{customer.FullName} has {CurrencyFormat.Format(customer.StoreCredit)}.\nEnter an amount to add (use a negative number to deduct):");
+        var amount = Dialogs.PromptDecimal(Loc.T("Customers.AdjustCredit"),
+            Loc.T("Customers.AdjustCreditPrompt", customer.FullName, CurrencyFormat.Format(customer.StoreCredit)));
         if (amount is null or 0) return;
-        if (await RunAsync(() => customers.AdjustStoreCreditAsync(customer.Id, amount.Value))) await SearchAsync();
+        if (await RunAsync(() => customers.AdjustStoreCreditAsync(customer.Id, amount.Value)))
+        {
+            Dialogs.Toast(Loc.T("Customers.CreditAdjusted", customer.FullName));
+            await SearchAsync();
+        }
     }
 
     [RelayCommand]
     private void Export()
     {
-        var path = Dialogs.SaveFile("Export customers", "CSV files (*.csv)|*.csv", "customers.csv");
+        var path = Dialogs.SaveFile(Loc.T("Customers.ExportTitle"), Loc.T("Common.CsvFilter"), "customers.csv");
         if (path is null) return;
         try
         {
-            CsvExporter.Write(path, ["First name", "Last name", "Phone", "Email", "Points", "Store credit", "Since", "Active"],
+            CsvExporter.Write(path,
+                [Loc.T("Customers.FirstName"), Loc.T("Customers.LastName"), Loc.T("Common.Phone"), Loc.T("Common.Email"),
+                    Loc.T("Common.Points"), Loc.T("Customers.StoreCredit"), Loc.T("Customers.Since"), Loc.T("Common.Active")],
                 Customers.Select(c => new object?[] { c.FirstName, c.LastName, c.Phone, c.Email, c.LoyaltyPoints, c.StoreCredit, c.CreatedAt, c.IsActive }));
-            Dialogs.Info($"Exported {Customers.Count} customers.");
+            Dialogs.Toast(Loc.T("Common.Exported", Customers.Count));
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Export failed.", ex);
+            Dialogs.Error(Loc.T("Common.ExportFailed"), ex);
         }
     }
 }

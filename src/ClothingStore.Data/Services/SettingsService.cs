@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -22,17 +23,18 @@ public class SettingsService(IDbContextFactory<PosDbContext> factory)
 
     public async Task SaveAsync(StoreSettings settings, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(settings.StoreName)) throw new BusinessRuleException("Store name is required.");
-        if (settings.TaxRate is < 0 or > 100) throw new BusinessRuleException("Tax rate must be between 0 and 100.");
-        if (settings.MaxCashierDiscountPercent is < 0 or > 100) throw new BusinessRuleException("Discount limit must be between 0 and 100.");
-        if (settings.LoyaltyPointsPerUnit < 0 || settings.LoyaltyPointValue < 0) throw new BusinessRuleException("Loyalty values cannot be negative.");
-        if (settings.ReturnWindowDays < 0) throw new BusinessRuleException("Return window cannot be negative.");
+        if (string.IsNullOrWhiteSpace(settings.StoreName)) throw new BusinessRuleException(Loc.T("Err.StoreNameRequired"));
+        if (settings.TaxRate is < 0 or > 100) throw new BusinessRuleException(Loc.T("Err.TaxRateRange"));
+        if (settings.MaxCashierDiscountPercent is < 0 or > 100) throw new BusinessRuleException(Loc.T("Err.DiscountLimitRange"));
+        if (settings.LoyaltyPointsPerUnit < 0 || settings.LoyaltyPointValue < 0) throw new BusinessRuleException(Loc.T("Err.LoyaltyNegative"));
+        if (settings.ReturnWindowDays < 0) throw new BusinessRuleException(Loc.T("Err.ReturnWindowNegative"));
         if (string.IsNullOrWhiteSpace(settings.ReceiptPrefix) || settings.ReceiptPrefix.Length > 5)
-            throw new BusinessRuleException("Receipt prefix must be 1-5 characters.");
+            throw new BusinessRuleException(Loc.T("Err.ReceiptPrefixLength"));
         settings.ReceiptWidth = Math.Clamp(settings.ReceiptWidth, 24, 80);
         settings.BackupFolder = QueryHelpers.Clean(settings.BackupFolder);
+        settings.ReceiptLanguage = Loc.Normalize(settings.ReceiptLanguage);
         if (settings.AutoBackupIntervalHours is < 1 or > 168)
-            throw new BusinessRuleException("Automatic backups must run every 1 to 168 hours.");
+            throw new BusinessRuleException(Loc.T("Err.BackupInterval"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var existing = await db.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync(ct);

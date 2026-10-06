@@ -1,0 +1,20 @@
+{
+  "History.AlreadyVoided": "This sale is already voided.",
+  "History.ExportTitle": "Export sales",
+  "History.OnlyManagersVoid": "Only managers can void sales.",
+  "History.ReceiptTitle": "Receipt {0}",
+  "History.Reprint": "Reprint receipt",
+  "History.ReturnItems": "Return items",
+  "History.Returned": "Returned",
+  "History.SaleCount": "Sales",
+  "History.SalesTotal": "Total sales",
+  "History.SearchFailed": "Sales search failed.",
+  "History.SearchHint": "Receipt, customer, product or SKU",
+  "History.SelectSale": "Select a sale to see its details.",
+  "History.ShowVoided": "Show voided",
+  "History.Variant": "Variant",
+  "History.VoidPrompt": "Why is sale {0} being voided?\nStock will be returned and customer balances reversed.",
+  "History.VoidSale": "Void sale",
+  "History.Voided": "Sale {0} has been voided.",
+  "History.VoidedReason": "Voided: {0}"
+}

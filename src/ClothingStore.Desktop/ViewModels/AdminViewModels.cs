@@ -4,12 +4,13 @@ using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
 public sealed partial class UsersViewModel(IDialogService dialogs, UserService users, Session session) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Users";
+    public string Title => Loc.T("Nav.Users");
 
     [ObservableProperty]
     public partial List<User> Users { get; set; } = [];
@@ -31,7 +32,7 @@ public sealed partial class UsersViewModel(IDialogService dialogs, UserService u
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load users.", ex);
+            Dialogs.Error(Loc.T("Users.LoadFailed"), ex);
         }
     }
 
@@ -47,7 +48,7 @@ public sealed partial class UsersViewModel(IDialogService dialogs, UserService u
         if (SelectedUser is null) return;
         if (Dialogs.ShowDialog(new UserEditorViewModel(Dialogs, users, SelectedUser)))
         {
-            if (SelectedUser.Id == session.User.Id) Dialogs.Info("Changes to your own account apply the next time you sign in.");
+            Dialogs.Toast(SelectedUser.Id == session.User.Id ? Loc.T("Users.OwnAccountNextSignIn") : Loc.T("Common.Saved"));
             await RefreshAsync();
         }
     }
@@ -70,7 +71,7 @@ public sealed partial class UserEditorViewModel : DialogViewModelBase
         MustChangePassword = existing is null;
     }
 
-    public override string Title => Id == 0 ? "New user" : $"Edit user — {Username}";
+    public override string Title => Id == 0 ? Loc.T("Users.New") : Loc.T("Users.Edit", Username);
     public int Id { get; }
     public bool IsNew => Id == 0;
     public UserRole[] Roles { get; } = Enum.GetValues<UserRole>();
@@ -97,11 +98,17 @@ public sealed partial class UserEditorViewModel : DialogViewModelBase
     private void Cancel() => Close(false);
 }
 
+public sealed record LanguageOption(string Code, string Name);
+
 public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session)
     : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Settings";
+    public string Title => Loc.T("Nav.Settings");
     public string DatabaseName => App.DatabaseName;
+
+    /// <summary>Choices for the language printed on receipts.</summary>
+    public IReadOnlyList<LanguageOption> ReceiptLanguages { get; } =
+        Loc.Languages.Select(l => new LanguageOption(l, Loc.DisplayName(l))).ToList();
 
     [ObservableProperty]
     public partial StoreSettings Settings { get; set; } = new();
@@ -126,7 +133,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     {
         await settings.SaveAsync(Settings);
         Settings = await settings.GetAsync();
-        Dialogs.Info("Settings saved.");
+        Dialogs.Toast(Loc.T("Settings.Saved"));
     });
 
     [RelayCommand]
@@ -136,7 +143,6 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         var ok = await RunAsync(async () => record = await backup.BackupAsync(BackupKind.Manual, session.User.Id));
         Backups = await backup.GetRecentAsync(); // shows failures too
         if (ok)
-            Dialogs.Info($"Backup written and verified on the database server:\n{record!.FilePath}\n\n" +
-                         "To restore it, use Restore Database in SQL Server Management Studio.");
+            Dialogs.Info(Loc.T("Settings.BackupDone", record!.FilePath));
     }
 }

@@ -32,6 +32,9 @@ public class StoreSettings : Entity
 
     public string ReceiptPrefix { get; set; } = "R";
 
+    /// <summary>Language printed on customer receipts ("en" or "ar"), independent of each cashier's screen language.</summary>
+    public string ReceiptLanguage { get; set; } = "en";
+
     /// <summary>Allow selling an item the system thinks is out of stock (count was wrong).</summary>
     public bool AllowNegativeStock { get; set; }
 

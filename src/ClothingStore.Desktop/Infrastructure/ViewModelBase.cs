@@ -1,4 +1,5 @@
 using ClothingStore.Core;
+using ClothingStore.Core.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ClothingStore.Desktop.Infrastructure;
@@ -29,7 +30,7 @@ public abstract partial class ViewModelBase(IDialogService dialogs) : Observable
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Something went wrong", ex);
+            Dialogs.Error(Loc.T("Common.SomethingWentWrong"), ex);
         }
         finally
         {

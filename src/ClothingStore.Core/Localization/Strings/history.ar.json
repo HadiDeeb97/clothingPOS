@@ -1,0 +1,20 @@
+{
+  "History.AlreadyVoided": "هذه العملية ملغاة مسبقاً.",
+  "History.ExportTitle": "تصدير المبيعات",
+  "History.OnlyManagersVoid": "المدراء فقط يمكنهم إلغاء المبيعات.",
+  "History.ReceiptTitle": "الإيصال {0}",
+  "History.Reprint": "إعادة طباعة الإيصال",
+  "History.ReturnItems": "إرجاع قطع",
+  "History.Returned": "مرتجع",
+  "History.SaleCount": "عدد العمليات",
+  "History.SalesTotal": "إجمالي المبيعات",
+  "History.SearchFailed": "فشل البحث في المبيعات.",
+  "History.SearchHint": "رقم الإيصال أو الزبون أو المنتج أو الرمز",
+  "History.SelectSale": "اختر عملية لعرض تفاصيلها.",
+  "History.ShowVoided": "إظهار الملغاة",
+  "History.Variant": "الخيار",
+  "History.VoidPrompt": "لماذا يتم إلغاء العملية {0}؟\nستُعاد البضاعة إلى المخزون وتُعكس أرصدة الزبون.",
+  "History.VoidSale": "إلغاء البيع",
+  "History.Voided": "تم إلغاء العملية {0}.",
+  "History.VoidedReason": "ملغاة: {0}"
+}

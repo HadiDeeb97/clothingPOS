@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using ClothingStore.Desktop.Infrastructure;
+using ClothingStore.Desktop.ViewModels.Dialogs;
 
 namespace ClothingStore.Desktop.Views;
 
@@ -12,6 +13,8 @@ public partial class DialogWindow : Window
     public DialogWindow(IDialogViewModel viewModel)
     {
         InitializeComponent();
+        WindowAppearance.Apply(this);
+        if (viewModel is MessageDialogViewModel) ResizeMode = ResizeMode.NoResize;
         _viewModel = viewModel;
         DataContext = viewModel;
         viewModel.CloseRequested += OnCloseRequested;

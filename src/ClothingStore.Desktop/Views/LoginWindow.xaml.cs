@@ -1,4 +1,5 @@
 using System.Windows;
+using ClothingStore.Desktop.Infrastructure;
 using ClothingStore.Desktop.ViewModels;
 
 namespace ClothingStore.Desktop.Views;
@@ -10,9 +11,11 @@ public partial class LoginWindow : Window
     public LoginWindow(LoginViewModel viewModel)
     {
         InitializeComponent();
+        WindowAppearance.Apply(this);
         _viewModel = viewModel;
         DataContext = viewModel;
         viewModel.SignedIn += (_, _) => DialogResult = true;
+        viewModel.LanguageRequested += (_, _) => DialogResult = false;
         Loaded += async (_, _) =>
         {
             UsernameBox.Focus();

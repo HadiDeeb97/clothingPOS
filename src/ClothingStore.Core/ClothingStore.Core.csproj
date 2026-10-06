@@ -9,4 +9,10 @@
     <InternalsVisibleTo Include="ClothingStore.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Translations: {area}.{language}.json, see Localization/Loc.cs. WithCulture=false keeps MSBuild from
+         treating ".en"/".ar" as satellite-assembly cultures. -->
+    <EmbeddedResource Include="Localization\Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" WithCulture="false" />
+  </ItemGroup>
+
 </Project>

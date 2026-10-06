@@ -4,6 +4,7 @@ using ClothingStore.Core.Entities;
 using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Security;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -11,26 +12,26 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
 {
     public async Task<Sale> CompleteSaleAsync(CheckoutRequest request, CancellationToken ct = default)
     {
-        if (request.Lines.Count == 0) throw new BusinessRuleException("The cart is empty.");
-        if (request.Lines.Any(l => l.Quantity <= 0)) throw new BusinessRuleException("Quantities must be at least 1.");
+        if (request.Lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.CartEmpty"));
+        if (request.Lines.Any(l => l.Quantity <= 0)) throw new BusinessRuleException(Loc.T("Err.QtyAtLeastOne"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UserId && u.IsActive, ct)
-                   ?? throw new BusinessRuleException("Cashier account not found or inactive.");
+                   ?? throw new BusinessRuleException(Loc.T("Err.CashierInactive"));
 
         Shift? shift = null;
         if (request.ShiftId is { } shiftId)
         {
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
             if (shift is null || shift.Status != ShiftStatus.Open)
-                throw new BusinessRuleException("The cash drawer shift is closed. Open a shift before selling.");
+                throw new BusinessRuleException(Loc.T("Err.ShiftClosedSell"));
         }
 
         Customer? customer = null;
         if (request.CustomerId is { } customerId)
             customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == customerId, ct)
-                       ?? throw new BusinessRuleException("Customer not found.");
+                       ?? throw new BusinessRuleException(Loc.T("Err.CustomerNotFound"));
 
         // Load variants and price the cart with server-side prices.
         var variantIds = request.Lines.Select(l => l.VariantId).Distinct().ToList();
@@ -42,7 +43,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         foreach (var line in request.Lines)
         {
             if (!variants.TryGetValue(line.VariantId, out var v) || !v.IsActive || !v.Product!.IsActive)
-                throw new BusinessRuleException("One of the items is no longer available for sale.");
+                throw new BusinessRuleException(Loc.T("Err.ItemUnavailable"));
         }
 
         var totals = CartCalculator.Calculate(
@@ -113,23 +114,22 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             if (approver is not null && Permissions.Has(approver.Role, Permission.OverrideDiscountLimit)) return;
         }
 
-        throw new BusinessRuleException(
-            $"Discounts above {settings.MaxCashierDiscountPercent:0.##}% need manager approval.");
+        throw new BusinessRuleException(Loc.T("Err.DiscountNeedsApproval", settings.MaxCashierDiscountPercent));
     }
 
     internal static void ApplyPayments(Sale sale, IReadOnlyList<PaymentInput> payments, Customer? customer, StoreSettings settings)
     {
-        if (payments.Any(p => p.Amount < 0)) throw new BusinessRuleException("Payment amounts cannot be negative.");
+        if (payments.Any(p => p.Amount < 0)) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
 
         var nonCash = payments.Where(p => p.Method != PaymentMethod.Cash && p.Amount > 0).ToList();
         var nonCashTotal = nonCash.Sum(p => Money.Round(p.Amount));
         if (nonCashTotal > sale.Total)
-            throw new BusinessRuleException("Card, wallet and credit payments cannot exceed the total. Only cash can give change.");
+            throw new BusinessRuleException(Loc.T("Err.NonCashExceeds"));
 
         var cashTendered = Money.Round(payments.Where(p => p.Method == PaymentMethod.Cash).Sum(p => p.Amount));
         var cashDue = sale.Total - nonCashTotal;
         if (cashTendered < cashDue)
-            throw new BusinessRuleException($"Payment is short by {cashDue - cashTendered:N2}.");
+            throw new BusinessRuleException(Loc.T("Err.PaymentShort", cashDue - cashTendered));
 
         foreach (var p in nonCash)
         {
@@ -137,18 +137,18 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             switch (p.Method)
             {
                 case PaymentMethod.StoreCredit:
-                    if (customer is null) throw new BusinessRuleException("Select a customer to pay with store credit.");
+                    if (customer is null) throw new BusinessRuleException(Loc.T("Err.CreditNeedsCustomer"));
                     if (customer.StoreCredit < amount)
-                        throw new BusinessRuleException($"Customer only has {customer.StoreCredit:N2} store credit.");
+                        throw new BusinessRuleException(Loc.T("Err.CustomerCreditOnly", customer.StoreCredit));
                     customer.StoreCredit -= amount;
                     break;
 
                 case PaymentMethod.LoyaltyPoints:
-                    if (customer is null) throw new BusinessRuleException("Select a customer to redeem loyalty points.");
-                    if (settings.LoyaltyPointValue <= 0) throw new BusinessRuleException("Loyalty redemption is disabled.");
+                    if (customer is null) throw new BusinessRuleException(Loc.T("Err.PointsNeedCustomer"));
+                    if (settings.LoyaltyPointValue <= 0) throw new BusinessRuleException(Loc.T("Err.LoyaltyDisabled"));
                     var points = (int)Math.Ceiling(amount / settings.LoyaltyPointValue);
                     if (customer.LoyaltyPoints < points)
-                        throw new BusinessRuleException($"Customer only has {customer.LoyaltyPoints} points.");
+                        throw new BusinessRuleException(Loc.T("Err.CustomerPointsOnly", customer.LoyaltyPoints));
                     customer.LoyaltyPoints -= points;
                     sale.LoyaltyPointsRedeemed += points;
                     break;
@@ -225,12 +225,12 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Voids a sale that has no returns: restocks items and reverses credit/points.</summary>
     public async Task VoidSaleAsync(int saleId, int userId, string reason, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("A reason is required to void a sale.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException(Loc.T("Err.VoidReasonRequired"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !Permissions.Has(user.Role, Permission.VoidSales))
-            throw new BusinessRuleException("Only managers can void sales.");
+            throw new BusinessRuleException(Loc.T("Err.OnlyManagersVoid"));
 
         var sale = await db.Sales
             .Include(s => s.Lines).ThenInclude(l => l.ProductVariant)
@@ -238,13 +238,13 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             .Include(s => s.Customer)
             .Include(s => s.Shift)
             .FirstOrDefaultAsync(s => s.Id == saleId, ct)
-            ?? throw new BusinessRuleException("Sale not found.");
+            ?? throw new BusinessRuleException(Loc.T("Err.SaleNotFound"));
 
-        if (sale.Status == SaleStatus.Voided) throw new BusinessRuleException("This sale is already voided.");
+        if (sale.Status == SaleStatus.Voided) throw new BusinessRuleException(Loc.T("Err.AlreadyVoided"));
         if (sale.Lines.Any(l => l.ReturnedQuantity > 0))
-            throw new BusinessRuleException("Items from this sale were returned; it can no longer be voided.");
+            throw new BusinessRuleException(Loc.T("Err.ReturnedCantVoid"));
         if (sale.Shift is { Status: ShiftStatus.Closed })
-            throw new BusinessRuleException("The shift for this sale is closed. Process a return instead.");
+            throw new BusinessRuleException(Loc.T("Err.VoidShiftClosed"));
 
         foreach (var line in sale.Lines)
             StockLedger.Apply(db, line.ProductVariant!, line.Quantity, StockMovementType.Void, userId, sale.ReceiptNumber, "Sale voided");
@@ -267,7 +267,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
 
     public async Task<HeldSale> HoldAsync(string label, int userId, HeldCart cart, CancellationToken ct = default)
     {
-        if (cart.Lines.Count == 0) throw new BusinessRuleException("Nothing to hold — the cart is empty.");
+        if (cart.Lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.HoldEmpty"));
         await using var db = await factory.CreateDbContextAsync(ct);
         var held = new HeldSale
         {
@@ -292,8 +292,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     public async Task<HeldCart> ResumeAsync(int heldSaleId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var held = await db.HeldSales.FindAsync([heldSaleId], ct) ?? throw new BusinessRuleException("Held sale not found.");
-        var cart = JsonSerializer.Deserialize<HeldCart>(held.Payload) ?? throw new BusinessRuleException("Held sale is corrupt.");
+        var held = await db.HeldSales.FindAsync([heldSaleId], ct) ?? throw new BusinessRuleException(Loc.T("Err.HeldNotFound"));
+        var cart = JsonSerializer.Deserialize<HeldCart>(held.Payload) ?? throw new BusinessRuleException(Loc.T("Err.HeldCorrupt"));
         db.HeldSales.Remove(held);
         await db.SaveChangesAsync(ct);
         return cart;
@@ -321,11 +321,11 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("Stock or customer balance changed at another till. Please try again.");
+            throw new BusinessRuleException(Loc.T("Err.ConcurrentSale"));
         }
         catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
         {
-            throw new BusinessRuleException("Another till just used the same receipt number. Please try again.");
+            throw new BusinessRuleException(Loc.T("Err.ReceiptNumberTaken"));
         }
     }
 }

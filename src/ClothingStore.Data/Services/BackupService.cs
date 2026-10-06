@@ -4,6 +4,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -31,7 +32,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
     /// </summary>
     public async Task<BackupRecord> BackupAsync(BackupKind kind, int? userId, CancellationToken ct = default) =>
         await TryBackupAsync(kind, userId, ct)
-        ?? throw new BusinessRuleException("Another till is backing up right now. Try again in a minute.");
+        ?? throw new BusinessRuleException(Loc.T("Err.BackupBusy"));
 
     /// <summary>
     /// Runs the scheduled backup if automatic backups are on and the last successful backup is older than the
@@ -117,7 +118,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
                 ? record
                 : throw new BusinessRuleException(record.FilePath is null
                     ? record.Error!
-                    : $"The backup to {record.FilePath} failed: {record.Error}");
+                    : Loc.T("Err.BackupFailed", record.FilePath, record.Error));
         }
         finally
         {
@@ -159,7 +160,7 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
             .SqlQueryRaw<string?>("SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(4000)) AS [Value]")
             .ToListAsync(ct)).SingleOrDefault();
         return string.IsNullOrWhiteSpace(serverDefault)
-            ? throw new BusinessRuleException("SQL Server did not report a default backup folder. Set a backup folder in Settings.")
+            ? throw new BusinessRuleException(Loc.T("Err.NoDefaultBackupFolder"))
             : serverDefault;
     }
 

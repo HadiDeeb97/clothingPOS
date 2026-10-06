@@ -1,3 +1,5 @@
+using ClothingStore.Core.Localization;
+
 namespace ClothingStore.Core.Pricing;
 
 /// <summary>Part of a refund: money from one tender of the original sale and how it goes back.</summary>
@@ -25,7 +27,7 @@ public static class RefundAllocator
         // refunds each tender in the same ratio and the last return refunds exactly what remains.
         var tenders = remaining.Where(t => t.Value > 0).OrderBy(t => t.Key).ToList();
         if (refund > tenders.Sum(t => t.Value))
-            throw new BusinessRuleException("The refund is more than what is left to refund on this sale.");
+            throw new BusinessRuleException(Loc.T("Err.RefundTooMuch"));
 
         var amounts = CartCalculator.Allocate(refund, tenders.Select(t => t.Value).ToList());
         return tenders

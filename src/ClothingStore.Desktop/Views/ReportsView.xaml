@@ -1,142 +1,154 @@
 <UserControl x:Class="ClothingStore.Desktop.Views.ReportsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <UserControl.Resources>
-        <Style x:Key="Kpi" TargetType="Border" BasedOn="{StaticResource Card}">
-            <Setter Property="Margin" Value="0,0,10,10" />
-            <Setter Property="Padding" Value="14,10" />
-        </Style>
-    </UserControl.Resources>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
+             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
     <DockPanel>
-        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-            <DatePicker SelectedDate="{Binding From}" Width="130" Margin="0,0,6,0" />
-            <TextBlock Text="to" VerticalAlignment="Center" Margin="0,0,6,0" />
-            <DatePicker SelectedDate="{Binding To}" Width="130" Margin="0,0,10,0" />
-            <Button Content="Run report" Style="{StaticResource PrimaryButton}" Command="{Binding RunReportCommand}" />
-            <Button Content="Today" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="today" />
-            <Button Content="Yesterday" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="yesterday" />
-            <Button Content="This week" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="week" />
-            <Button Content="This month" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="month" />
-            <Button Content="Last month" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="lastmonth" />
-            <Button Content="Year to date" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="year" />
-            <Button Content="Print summary" Command="{Binding PrintSummaryCommand}" Margin="16,0,0,0" />
-        </WrapPanel>
+        <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
+            <Button DockPanel.Dock="Right" Content="{l:T Reports.PrintSummary}" Command="{Binding PrintSummaryCommand}" Margin="0" />
+            <WrapPanel>
+                <DatePicker SelectedDate="{Binding From}" Width="135" Margin="0,0,6,0" />
+                <TextBlock Text="{l:T Common.To}" VerticalAlignment="Center" Style="{StaticResource MutedText}" Margin="0,0,6,0" />
+                <DatePicker SelectedDate="{Binding To}" Width="135" Margin="0,0,10,0" />
+                <Button Content="{l:T Reports.Run}" Style="{StaticResource PrimaryButton}" Command="{Binding RunReportCommand}" />
+                <Button Content="{l:T Common.Today}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="today" Margin="0" />
+                <Button Content="{l:T Common.Yesterday}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="yesterday" Margin="0" />
+                <Button Content="{l:T Reports.ThisWeek}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="week" Margin="0" />
+                <Button Content="{l:T Common.ThisMonth}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="month" Margin="0" />
+                <Button Content="{l:T Reports.LastMonth}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="lastmonth" Margin="0" />
+                <Button Content="{l:T Reports.YearToDate}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="year" Margin="0" />
+            </WrapPanel>
+        </DockPanel>
 
         <UniformGrid DockPanel.Dock="Top" Columns="6">
-            <Border Style="{StaticResource Kpi}"><StackPanel>
-                <TextBlock Text="TOTAL SALES" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.TotalSales}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Report.TotalSales, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
-                <TextBlock Text="{Binding Report.Transactions, StringFormat='{}{0} transactions'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Report.Transactions, StringFormat={l:T Reports.TransactionsFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
-            <Border Style="{StaticResource Kpi}"><StackPanel>
-                <TextBlock Text="NET REVENUE (EX TAX)" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.NetRevenue}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Report.NetRevenue, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
-                <TextBlock Text="{Binding Report.Refunds, Converter={StaticResource Money}, StringFormat='after {0} refunds'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Report.Refunds, Converter={StaticResource Money}, StringFormat={l:T Reports.AfterRefunds}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
-            <Border Style="{StaticResource Kpi}"><StackPanel>
-                <TextBlock Text="GROSS PROFIT" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.GrossProfit}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Report.GrossProfit, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" Foreground="{StaticResource SuccessBrush}" />
-                <TextBlock Text="{Binding Report.MarginPercent, StringFormat='{}{0}% margin'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Report.MarginPercent, StringFormat={l:T Reports.MarginFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
-            <Border Style="{StaticResource Kpi}"><StackPanel>
-                <TextBlock Text="AVERAGE BASKET" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.AverageBasket}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Report.AverageBasket, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
-                <TextBlock Text="{Binding Report.ItemsSold, StringFormat='{}{0} items sold'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Report.ItemsSold, StringFormat={l:T Reports.ItemsSoldFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
-            <Border Style="{StaticResource Kpi}"><StackPanel>
-                <TextBlock Text="DISCOUNTS GIVEN" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.DiscountsGiven}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Report.Discounts, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
-                <TextBlock Text="{Binding Report.Tax, Converter={StaticResource Money}, StringFormat='tax {0}'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Report.Tax, Converter={StaticResource Money}, StringFormat={l:T Reports.TaxFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
-            <Border Style="{StaticResource Kpi}" Margin="0,0,0,10"><StackPanel>
-                <TextBlock Text="STOCK AT COST" Style="{StaticResource MutedText}" FontSize="11" />
+            <Border Style="{StaticResource KpiCard}" Margin="0,0,12,12"><StackPanel>
+                <TextBlock Text="{l:T Reports.StockAtCost}" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Valuation.CostValue, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" />
-                <TextBlock Text="{Binding Valuation.Units, StringFormat='{}{0} units on hand'}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock Text="{Binding Valuation.Units, StringFormat={l:T Reports.UnitsOnHandFormat}}" Style="{StaticResource MutedText}" FontSize="11.5" />
             </StackPanel></Border>
         </UniformGrid>
 
         <TabControl>
-            <TabItem Header="Top products">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="products" />
-                    <DataGrid ItemsSource="{Binding Report.TopProducts}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="PRODUCT" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="UNITS" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="NET SALES" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.TopProducts}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="products" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.TopProducts}" infra:LayoutMemory.Key="Reports.Products">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Units}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Reports.NetSales}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="Categories">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="categories" />
-                    <DataGrid ItemsSource="{Binding Report.ByCategory}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="CATEGORY" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="UNITS" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="NET SALES" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.Categories}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="categories" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByCategory}" infra:LayoutMemory.Key="Reports.Categories">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Units}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Reports.NetSales}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="Sizes">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="sizes" />
-                    <DataGrid ItemsSource="{Binding Report.BySize}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="SIZE" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="UNITS" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="NET SALES" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.Sizes}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="sizes" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.BySize}" infra:LayoutMemory.Key="Reports.Sizes">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Units}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Reports.NetSales}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="Payments">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="payments" />
-                    <DataGrid ItemsSource="{Binding Report.ByPaymentMethod}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="METHOD" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="COUNT" Binding="{Binding Count}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="AMOUNT" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.Payments}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="payments" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByPaymentMethod}" infra:LayoutMemory.Key="Reports.Payments">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Reports.Method}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Count}" Binding="{Binding Count}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Amount}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="Cashiers">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="cashiers" />
-                    <DataGrid ItemsSource="{Binding Report.ByCashier}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="CASHIER" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="SALES" Binding="{Binding Count}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="ITEMS" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="TOTAL" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.Cashiers}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="cashiers" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByCashier}" infra:LayoutMemory.Key="Reports.Cashiers">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Cashier}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Sales}" Binding="{Binding Count}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Items}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="By day">
-                <DockPanel Margin="8">
-                    <Button DockPanel.Dock="Top" Content="Export CSV" HorizontalAlignment="Right" Margin="0,0,0,8" Command="{Binding ExportCommand}" CommandParameter="daily" />
-                    <DataGrid ItemsSource="{Binding Report.ByDay}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="DATE" Binding="{Binding Date, StringFormat={}{0:ddd yyyy-MM-dd}}" Width="*" />
-                            <DataGridTextColumn Header="TRANSACTIONS" Binding="{Binding Transactions}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="TOTAL" Binding="{Binding Total, Converter={StaticResource Money}}" Width="120" ElementStyle="{StaticResource RightCell}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+            <TabItem Header="{l:T Reports.ByDay}">
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="daily" />
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByDay}" infra:LayoutMemory.Key="Reports.Daily">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding Date, StringFormat={}{0:ddd yyyy-MM-dd}}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Transactions}" Binding="{Binding Transactions}" Width="130" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Total, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </DockPanel>
             </TabItem>
-            <TabItem Header="Stock by category">
-                <DataGrid ItemsSource="{Binding Valuation.ByCategoryCost}" Margin="8">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="CATEGORY" Binding="{Binding Name}" Width="*" />
-                        <DataGridTextColumn Header="UNITS" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="VALUE AT COST" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="140" ElementStyle="{StaticResource RightCell}" />
-                    </DataGrid.Columns>
-                </DataGrid>
+            <TabItem Header="{l:T Reports.StockByCategory}">
+                <Border Style="{StaticResource TableCard}" Margin="0,12,0,0">
+                    <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Valuation.ByCategoryCost}" infra:LayoutMemory.Key="Reports.Stock">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="{l:T Reports.Units}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridTextColumn Header="{l:T Reports.ValueAtCost}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="150" ElementStyle="{StaticResource StrongRightCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
             </TabItem>
         </TabControl>
     </DockPanel>

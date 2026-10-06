@@ -1,26 +1,34 @@
 <UserControl x:Class="ClothingStore.Desktop.Views.UsersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
+             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
-            <Button Content="+ New user" Style="{StaticResource PrimaryButton}" Command="{Binding NewCommand}" />
-            <Button Content="Edit / reset password" Command="{Binding EditCommand}" />
-        </StackPanel>
-        <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Margin="0,12,0,0" Padding="14,10">
-            <TextBlock TextWrapping="Wrap" Style="{StaticResource MutedText}">
-                <Run FontWeight="SemiBold">Cashier</Run>: register, returns, customers, own cash drawer.
-                <Run FontWeight="SemiBold">Manager</Run>: + products, inventory, purchasing, reports, voids, discount and return-window overrides.
-                <Run FontWeight="SemiBold">Admin</Run>: + users and store settings.
-            </TextBlock>
+        <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="{l:T Users.EditButton}" Command="{Binding EditCommand}" />
+                <Button Content="{l:T Users.NewButton}" Style="{StaticResource PrimaryButton}" Command="{Binding NewCommand}" Margin="0" />
+            </StackPanel>
+            <TextBlock />
+        </DockPanel>
+        <Border DockPanel.Dock="Bottom" Style="{StaticResource InfoBanner}" Margin="0,14,0,0">
+            <StackPanel>
+                <TextBlock Text="{l:T Users.RoleCashier}" TextWrapping="Wrap" Margin="0,2" />
+                <TextBlock Text="{l:T Users.RoleManager}" TextWrapping="Wrap" Margin="0,2" />
+                <TextBlock Text="{l:T Users.RoleAdmin}" TextWrapping="Wrap" Margin="0,2" />
+            </StackPanel>
         </Border>
-        <DataGrid ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" MouseDoubleClick="OnDoubleClick">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="USERNAME" Binding="{Binding Username}" Width="*" />
-                <DataGridTextColumn Header="FULL NAME" Binding="{Binding FullName}" Width="*" />
-                <DataGridTextColumn Header="ROLE" Binding="{Binding Role}" Width="100" />
-                <DataGridCheckBoxColumn Header="ACTIVE" Binding="{Binding IsActive}" Width="70" />
-                <DataGridTextColumn Header="LAST SIGN-IN" Binding="{Binding LastLoginAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="150" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Style="{StaticResource TableCard}">
+            <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" MouseDoubleClick="OnDoubleClick"
+                      infra:LayoutMemory.Key="Users.List">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{l:T Common.Username}" Binding="{Binding Username}" Width="*" FontWeight="SemiBold" />
+                    <DataGridTextColumn Header="{l:T Common.FullName}" Binding="{Binding FullName}" Width="*" />
+                    <DataGridTextColumn Header="{l:T Common.Role}" Binding="{Binding Role, Converter={StaticResource EnumDisplay}}" Width="120" />
+                    <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive}" Width="70" />
+                    <DataGridTextColumn Header="{l:T Users.LastSignIn}" Binding="{Binding LastLoginAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="160" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
     </DockPanel>
 </UserControl>

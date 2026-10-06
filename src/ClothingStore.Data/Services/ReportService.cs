@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -102,11 +103,11 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
 
             ByPaymentMethod = completed.SelectMany(s => s.Payments)
                 .GroupBy(p => p.Method)
-                .Select(g => new NamedAmount(g.Key.ToString(), 0, g.Sum(p => p.Amount), g.Count()))
+                .Select(g => new NamedAmount(Loc.EnumText(g.Key), 0, g.Sum(p => p.Amount), g.Count()))
                 .OrderByDescending(x => x.Amount).ToList(),
 
             ByCategory = lines
-                .GroupBy(l => l.CategoryName ?? "Uncategorised")
+                .GroupBy(l => l.CategoryName ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
                 .OrderByDescending(x => x.Amount).ToList(),
 
@@ -150,7 +151,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             LowStockCount: variants.Count(v => v.IsLowStock && v.StockQuantity > 0),
             OutOfStockCount: variants.Count(v => v.StockQuantity <= 0),
             ByCategoryCost: inStock
-                .GroupBy(v => v.Product!.Category?.Name ?? "Uncategorised")
+                .GroupBy(v => v.Product!.Category?.Name ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(v => v.StockQuantity), g.Sum(v => v.StockQuantity * v.EffectiveCost)))
                 .OrderByDescending(x => x.Amount).ToList());
     }

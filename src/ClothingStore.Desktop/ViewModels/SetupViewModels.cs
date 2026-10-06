@@ -3,12 +3,13 @@ using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
 public sealed partial class SuppliersViewModel(IDialogService dialogs, SupplierService suppliers) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Suppliers";
+    public string Title => Loc.T("Nav.Suppliers");
 
     [ObservableProperty]
     public partial List<Supplier> Suppliers { get; set; } = [];
@@ -51,21 +52,22 @@ public sealed partial class SuppliersViewModel(IDialogService dialogs, SupplierS
     {
         var saved = await suppliers.SaveAsync(Editing);
         await LoadAsync(saved.Id);
+        Dialogs.Toast(Loc.T("Common.Saved"));
     });
 
     [RelayCommand]
     private Task DeleteAsync() => RunAsync(async () =>
     {
-        if (Editing.Id == 0 || !Dialogs.Confirm($"Delete supplier '{Editing.Name}'?")) return;
+        if (Editing.Id == 0 || !Dialogs.Confirm(Loc.T("Suppliers.DeleteConfirm", Editing.Name))) return;
         if (!await suppliers.DeleteAsync(Editing.Id))
-            Dialogs.Info("This supplier has purchase orders, so it was deactivated instead.");
+            Dialogs.Toast(Loc.T("Suppliers.Deactivated"), ToastKind.Info);
         await LoadAsync();
     });
 }
 
 public sealed partial class CategoriesViewModel(IDialogService dialogs, CategoryService categories) : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Categories";
+    public string Title => Loc.T("Nav.Categories");
 
     [ObservableProperty]
     public partial List<Category> Categories { get; set; } = [];
@@ -103,14 +105,15 @@ public sealed partial class CategoriesViewModel(IDialogService dialogs, Category
     {
         var saved = await categories.SaveAsync(Editing);
         await LoadAsync(saved.Id);
+        Dialogs.Toast(Loc.T("Common.Saved"));
     });
 
     [RelayCommand]
     private Task DeleteAsync() => RunAsync(async () =>
     {
-        if (Editing.Id == 0 || !Dialogs.Confirm($"Delete category '{Editing.Name}'?")) return;
+        if (Editing.Id == 0 || !Dialogs.Confirm(Loc.T("Categories.DeleteConfirm", Editing.Name))) return;
         if (!await categories.DeleteAsync(Editing.Id))
-            Dialogs.Info("Products still use this category, so it was deactivated instead.");
+            Dialogs.Toast(Loc.T("Categories.Deactivated"), ToastKind.Info);
         await LoadAsync();
     });
 }

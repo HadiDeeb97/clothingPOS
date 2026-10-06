@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Localization;
 using ClothingStore.Core.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,15 +49,15 @@ public class UserService(IDbContextFactory<PosDbContext> factory)
     {
         user.Username = user.Username.Trim();
         user.FullName = user.FullName.Trim();
-        if (user.Username.Length < 3) throw new BusinessRuleException("Username must be at least 3 characters.");
-        if (user.Username.Any(char.IsWhiteSpace)) throw new BusinessRuleException("Username cannot contain spaces.");
-        if (user.FullName.Length == 0) throw new BusinessRuleException("Full name is required.");
-        if (user.Id == 0 && string.IsNullOrEmpty(newPassword)) throw new BusinessRuleException("A password is required for new users.");
+        if (user.Username.Length < 3) throw new BusinessRuleException(Loc.T("Err.UsernameShort"));
+        if (user.Username.Any(char.IsWhiteSpace)) throw new BusinessRuleException(Loc.T("Err.UsernameSpaces"));
+        if (user.FullName.Length == 0) throw new BusinessRuleException(Loc.T("Err.FullNameRequired"));
+        if (user.Id == 0 && string.IsNullOrEmpty(newPassword)) throw new BusinessRuleException(Loc.T("Err.PasswordRequired"));
         if (!string.IsNullOrEmpty(newPassword)) ValidatePassword(newPassword);
 
         await using var db = await factory.CreateDbContextAsync(ct);
         if (await db.Users.AnyAsync(u => u.Username == user.Username && u.Id != user.Id, ct))
-            throw new BusinessRuleException($"Username '{user.Username}' is already taken.");
+            throw new BusinessRuleException(Loc.T("Err.UsernameTaken", user.Username));
 
         User entity;
         if (user.Id == 0)
@@ -67,10 +68,10 @@ public class UserService(IDbContextFactory<PosDbContext> factory)
         else
         {
             entity = await db.Users.FirstOrDefaultAsync(u => u.Id == user.Id, ct)
-                     ?? throw new BusinessRuleException("User not found.");
+                     ?? throw new BusinessRuleException(Loc.T("Err.UserNotFound"));
             var losingAdmin = entity.Role == UserRole.Admin && entity.IsActive && (user.Role != UserRole.Admin || !user.IsActive);
             if (losingAdmin && !await db.Users.AnyAsync(u => u.Id != user.Id && u.Role == UserRole.Admin && u.IsActive, ct))
-                throw new BusinessRuleException("There must be at least one active administrator.");
+                throw new BusinessRuleException(Loc.T("Err.NeedAdmin"));
         }
 
         entity.Username = user.Username;
@@ -91,20 +92,27 @@ public class UserService(IDbContextFactory<PosDbContext> factory)
     {
         ValidatePassword(newPassword);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct) ?? throw new BusinessRuleException("User not found.");
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct) ?? throw new BusinessRuleException(Loc.T("Err.UserNotFound"));
         if (!PasswordHasher.Verify(currentPassword, user.PasswordHash))
-            throw new BusinessRuleException("Current password is incorrect.");
+            throw new BusinessRuleException(Loc.T("Err.CurrentPasswordWrong"));
         if (currentPassword == newPassword)
-            throw new BusinessRuleException("The new password must be different from the current one.");
+            throw new BusinessRuleException(Loc.T("Err.PasswordSame"));
 
         user.PasswordHash = PasswordHasher.Hash(newPassword);
         user.MustChangePassword = false;
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task SetPreferredLanguageAsync(int userId, string language, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await db.Users.Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.PreferredLanguage, Loc.Normalize(language)), ct);
+    }
+
     private static void ValidatePassword(string password)
     {
         if (password.Length < MinPasswordLength)
-            throw new BusinessRuleException($"Password must be at least {MinPasswordLength} characters.");
+            throw new BusinessRuleException(Loc.T("Err.PasswordShort", MinPasswordLength));
     }
 }

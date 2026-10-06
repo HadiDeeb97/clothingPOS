@@ -7,6 +7,7 @@ using ClothingStore.Desktop.Converters;
 using ClothingStore.Desktop.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels.Dialogs;
 
@@ -27,7 +28,7 @@ public sealed partial class DiscountViewModel(IDialogService dialogs, string tit
     public decimal Value { get; private set; }
 
     public string Preview => TryParse(out var v)
-        ? $"Discount: {CurrencyFormat.Format(Core.Pricing.CartCalculator.ResolveDiscount(BaseAmount, DiscountType, v))} of {CurrencyFormat.Format(BaseAmount)}"
+        ? Loc.T("Discount.Preview", CurrencyFormat.Format(Core.Pricing.CartCalculator.ResolveDiscount(BaseAmount, DiscountType, v)), CurrencyFormat.Format(BaseAmount))
         : "";
 
     public decimal[] QuickPercents { get; } = [5, 10, 15, 20, 25, 50];
@@ -44,7 +45,7 @@ public sealed partial class DiscountViewModel(IDialogService dialogs, string tit
     {
         if (!TryParse(out var v) || v < 0 || (DiscountType == DiscountType.Percent && v > 100))
         {
-            Dialogs.Warning("Enter a percentage between 0 and 100, or a positive amount.");
+            Dialogs.Warning(Loc.T("Discount.Invalid"));
             return;
         }
         Value = v;
@@ -91,7 +92,7 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
         Refresh();
     }
 
-    public override string Title => "Payment";
+    public override string Title => Loc.T("Payment.Title");
     public decimal Total { get; }
     public Customer? Customer { get; }
     public ObservableCollection<TenderViewModel> Tenders { get; } = [];
@@ -105,7 +106,7 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     public decimal LoyaltyValueAvailable => Customer is null ? 0 : Money.Round(Math.Floor(Customer.LoyaltyPoints * _settings.LoyaltyPointValue * 100) / 100);
     public bool CanUseStoreCredit => StoreCreditAvailable > 0;
     public bool CanUseLoyalty => LoyaltyValueAvailable > 0 && _settings.LoyaltyPointValue > 0;
-    public string LoyaltyInfo => Customer is null ? "" : $"{Customer.LoyaltyPoints} pts = {CurrencyFormat.Format(LoyaltyValueAvailable)}";
+    public string LoyaltyInfo => Customer is null ? "" : Loc.T("Payment.LoyaltyInfo", Customer.LoyaltyPoints, CurrencyFormat.Format(LoyaltyValueAvailable));
 
     [ObservableProperty]
     public partial string AmountText { get; set; } = "";
@@ -123,28 +124,28 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     {
         if (!TryParseAmount(out var amount) || amount <= 0)
         {
-            Dialogs.Warning("Enter the amount to charge.");
+            Dialogs.Warning(Loc.T("Payment.EnterAmount"));
             return;
         }
 
         if (method != PaymentMethod.Cash && amount > Remaining)
         {
-            Dialogs.Warning($"{EnumDisplayConverter.Humanize(method.ToString())} can't exceed the remaining {CurrencyFormat.Format(Remaining)}. Only cash gives change.");
+            Dialogs.Warning(Loc.T("Payment.CantExceed", Loc.EnumText(method), CurrencyFormat.Format(Remaining)));
             return;
         }
         if (method == PaymentMethod.StoreCredit && amount > StoreCreditAvailable - Used(PaymentMethod.StoreCredit))
         {
-            Dialogs.Warning($"Customer has {CurrencyFormat.Format(StoreCreditAvailable)} store credit.");
+            Dialogs.Warning(Loc.T("Payment.CreditAvailable", CurrencyFormat.Format(StoreCreditAvailable)));
             return;
         }
         if (method == PaymentMethod.LoyaltyPoints && amount > LoyaltyValueAvailable - Used(PaymentMethod.LoyaltyPoints))
         {
-            Dialogs.Warning($"Points are worth {CurrencyFormat.Format(LoyaltyValueAvailable)}.");
+            Dialogs.Warning(Loc.T("Payment.PointsWorth", CurrencyFormat.Format(LoyaltyValueAvailable)));
             return;
         }
         if (Remaining == 0)
         {
-            Dialogs.Warning("The sale is already fully paid.");
+            Dialogs.Warning(Loc.T("Payment.AlreadyPaid"));
             return;
         }
 
@@ -181,7 +182,7 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     {
         if (!IsFullyPaid)
         {
-            Dialogs.Warning($"{CurrencyFormat.Format(Remaining)} still to pay.");
+            Dialogs.Warning(Loc.T("Payment.StillToPay", CurrencyFormat.Format(Remaining)));
             return;
         }
         Close(true);
@@ -204,7 +205,7 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
         var options = new List<QuickCash>();
         if (remaining > 0)
         {
-            options.Add(new QuickCash("Exact", remaining));
+            options.Add(new QuickCash(Loc.T("Payment.Exact"), remaining));
             foreach (var note in new[] { 5m, 10m, 20m, 50m, 100m, 200m })
             {
                 var rounded = Math.Ceiling(remaining / note) * note;

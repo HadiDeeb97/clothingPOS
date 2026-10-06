@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -44,10 +45,10 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
 
     public async Task<Shift> OpenShiftAsync(int userId, decimal openingFloat, CancellationToken ct = default)
     {
-        if (openingFloat < 0) throw new BusinessRuleException("Opening float cannot be negative.");
+        if (openingFloat < 0) throw new BusinessRuleException(Loc.T("Err.FloatNegative"));
         await using var db = await factory.CreateDbContextAsync(ct);
         if (await db.Shifts.AnyAsync(s => s.UserId == userId && s.Status == ShiftStatus.Open, ct))
-            throw new BusinessRuleException("You already have an open shift.");
+            throw new BusinessRuleException(Loc.T("Err.ShiftAlreadyOpen"));
 
         var shift = new Shift { UserId = userId, OpeningFloat = Money.Round(openingFloat), OpenedAt = DateTime.Now, Status = ShiftStatus.Open };
         db.Shifts.Add(shift);
@@ -58,12 +59,12 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
     public async Task<CashMovement> AddCashMovementAsync(int shiftId, CashMovementType type, decimal amount, string reason, int userId, CancellationToken ct = default)
     {
         amount = Money.Round(amount);
-        if (amount <= 0) throw new BusinessRuleException("Amount must be greater than zero.");
-        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("Please enter a reason.");
+        if (amount <= 0) throw new BusinessRuleException(Loc.T("Err.AmountPositive"));
+        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException(Loc.T("Err.EnterReason"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var shift = await db.Shifts.FindAsync([shiftId], ct) ?? throw new BusinessRuleException("Shift not found.");
-        if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException("The shift is closed.");
+        var shift = await db.Shifts.FindAsync([shiftId], ct) ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
+        if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
 
         var movement = new CashMovement { ShiftId = shiftId, Type = type, Amount = amount, Reason = reason.Trim(), UserId = userId, CreatedAt = DateTime.Now };
         db.CashMovements.Add(movement);
@@ -79,10 +80,10 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
 
     public async Task<ShiftSummary> CloseShiftAsync(int shiftId, decimal countedCash, string? notes, CancellationToken ct = default)
     {
-        if (countedCash < 0) throw new BusinessRuleException("Counted cash cannot be negative.");
+        if (countedCash < 0) throw new BusinessRuleException(Loc.T("Err.CountedCashNegative"));
         await using var db = await factory.CreateDbContextAsync(ct);
-        var shift = await db.Shifts.FindAsync([shiftId], ct) ?? throw new BusinessRuleException("Shift not found.");
-        if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException("The shift is already closed.");
+        var shift = await db.Shifts.FindAsync([shiftId], ct) ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
+        if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException(Loc.T("Err.ShiftAlreadyClosed"));
 
         var summary = await BuildSummaryAsync(db, shiftId, ct);
         shift.ExpectedCash = summary.ExpectedCash;
@@ -110,7 +111,7 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
             .Include(s => s.User)
             .Include(s => s.CashMovements)
             .FirstOrDefaultAsync(s => s.Id == shiftId, ct)
-            ?? throw new BusinessRuleException("Shift not found.");
+            ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
 
         var sales = await db.Sales.AsNoTracking()
             .Include(s => s.Lines)

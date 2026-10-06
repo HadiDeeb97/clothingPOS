@@ -1,4 +1,5 @@
 using System.Windows;
+using ClothingStore.Core.Localization;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using ClothingStore.Desktop.Views;
 using Microsoft.Win32;
@@ -7,10 +8,14 @@ namespace ClothingStore.Desktop.Infrastructure;
 
 public interface IDialogService
 {
-    void Info(string message, string title = "Information");
-    void Warning(string message, string title = "Please check");
+    void Info(string message, string? title = null);
+    void Warning(string message, string? title = null);
     void Error(string message, Exception? ex = null);
-    bool Confirm(string message, string title = "Please confirm");
+    bool Confirm(string message, string? title = null);
+
+    /// <summary>A short notice that disappears by itself (for confirmations that need no answer).</summary>
+    void Toast(string message, ToastKind kind = ToastKind.Success);
+
     bool ShowDialog(IDialogViewModel viewModel);
     string? Prompt(string title, string message, string? initialValue = null);
     decimal? PromptDecimal(string title, string message, decimal? initialValue = null);
@@ -24,23 +29,23 @@ public sealed class DialogService : IDialogService
         Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
         ?? Application.Current.MainWindow;
 
-    public void Info(string message, string title = "Information") => Show(message, title, MessageBoxImage.Information);
+    public void Info(string message, string? title = null) =>
+        ShowDialog(new MessageDialogViewModel(this, MessageKind.Info, title ?? Loc.T("Common.Information"), message));
 
-    public void Warning(string message, string title = "Please check") => Show(message, title, MessageBoxImage.Warning);
+    public void Warning(string message, string? title = null) =>
+        ShowDialog(new MessageDialogViewModel(this, MessageKind.Warning, title ?? Loc.T("Common.PleaseCheck"), message));
 
-    public void Error(string message, Exception? ex = null)
+    public void Error(string message, Exception? ex = null) =>
+        ShowDialog(new MessageDialogViewModel(this, MessageKind.Error, Loc.T("Common.Error"), message, ex?.GetBaseException().Message));
+
+    public bool Confirm(string message, string? title = null) =>
+        ShowDialog(new MessageDialogViewModel(this, MessageKind.Question, title ?? Loc.T("Common.PleaseConfirm"), message));
+
+    public void Toast(string message, ToastKind kind = ToastKind.Success)
     {
-        var text = ex is null ? message : $"{message}\n\n{ex.GetBaseException().Message}";
-        Show(text, "Error", MessageBoxImage.Error);
-    }
-
-    public bool Confirm(string message, string title = "Please confirm")
-    {
-        var owner = Owner;
-        var result = owner is null
-            ? MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
-            : MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
-        return result == MessageBoxResult.Yes;
+        // Toasts live in the main window; before it exists (sign-in), fall back to a dialog.
+        if (Application.Current.MainWindow is { IsVisible: true } and Views.MainWindow) ToastHost.Instance.Show(message, kind);
+        else Info(message);
     }
 
     public bool ShowDialog(IDialogViewModel viewModel)
@@ -74,12 +79,5 @@ public sealed class DialogService : IDialogService
     {
         var dialog = new SaveFileDialog { Title = title, Filter = filter, FileName = defaultFileName, AddExtension = true };
         return dialog.ShowDialog(Owner) == true ? dialog.FileName : null;
-    }
-
-    private static void Show(string message, string title, MessageBoxImage image)
-    {
-        var owner = Owner;
-        if (owner is null) MessageBox.Show(message, title, MessageBoxButton.OK, image);
-        else MessageBox.Show(owner, message, title, MessageBoxButton.OK, image);
     }
 }

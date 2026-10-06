@@ -12,6 +12,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
@@ -23,6 +24,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private readonly CustomerService _customers;
     private readonly SettingsService _settings;
     private readonly UserService _users;
+    private readonly CategoryService _categories;
     private readonly PrintService _print;
     private readonly INavigationService _navigation;
 
@@ -31,7 +33,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     public SalesViewModel(
         IDialogService dialogs, ProductService products, SalesService sales, CustomerService customers,
-        SettingsService settings, UserService users, Session session, PrintService print, INavigationService navigation)
+        SettingsService settings, UserService users, CategoryService categories, Session session, PrintService print,
+        INavigationService navigation)
         : base(dialogs)
     {
         _products = products;
@@ -39,6 +42,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         _customers = customers;
         _settings = settings;
         _users = users;
+        _categories = categories;
         _print = print;
         _navigation = navigation;
         Session = session;
@@ -51,7 +55,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         };
     }
 
-    public string Title => "Register";
+    public string Title => Loc.T("Nav.Register");
     public Session Session { get; }
 
     /// <summary>Asks the view to put the cursor back in the scan box.</summary>
@@ -103,20 +107,98 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     public bool HasItems => Items.Count > 0;
 
     public string TaxLabel => _settings.Current.PricesIncludeTax
-        ? $"Tax included ({_settings.Current.TaxRate:0.##}%)"
-        : $"Tax ({_settings.Current.TaxRate:0.##}%)";
+        ? Loc.T("Register.TaxIncluded", _settings.Current.TaxRate)
+        : Loc.T("Register.Tax", _settings.Current.TaxRate);
 
     public string CartDiscountDisplay => CartDiscountType switch
     {
-        DiscountType.Percent => $"Cart discount {CartDiscountValue:0.##}%",
-        DiscountType.Amount => $"Cart discount {CurrencyFormat.Format(CartDiscountValue)}",
+        DiscountType.Percent => Loc.T("Register.CartDiscountPercent", CartDiscountValue),
+        DiscountType.Amount => Loc.T("Register.CartDiscountAmount", CurrencyFormat.Format(CartDiscountValue)),
         _ => "",
     };
 
     public async Task OnNavigatedToAsync()
     {
         await RefreshHeldCountAsync();
+        await LoadCategoriesAsync();
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    // ---- Browse panel (pick items without scanning) -------------------------------------------
+
+    private const string BrowseVisibleKey = "register:browse";
+    private readonly LatestSearch _browse = new(TimeSpan.Zero);
+
+    /// <summary>Category chips: "All" first.</summary>
+    [ObservableProperty]
+    public partial List<Category> BrowseCategories { get; set; } = [];
+
+    [ObservableProperty]
+    public partial Category? BrowseCategory { get; set; }
+
+    [ObservableProperty]
+    public partial List<ProductRow> BrowseProducts { get; set; } = [];
+
+    [ObservableProperty]
+    public partial bool IsBrowseVisible { get; set; } =
+        !LocalPreferences.Current.Layout.TryGetValue(BrowseVisibleKey, out var shown) || shown != "hidden";
+
+    partial void OnIsBrowseVisibleChanged(bool value)
+    {
+        LocalPreferences.Current.Layout[BrowseVisibleKey] = value ? "shown" : "hidden";
+        LocalPreferences.Current.Save();
+    }
+
+    partial void OnBrowseCategoryChanged(Category? value) => _ = LoadBrowseProductsAsync();
+
+    [RelayCommand]
+    private void ToggleBrowse() => IsBrowseVisible = !IsBrowseVisible;
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            var selectedId = BrowseCategory?.Id ?? 0;
+            BrowseCategories = [ProductsViewModel.AllCategories, .. (await _categories.GetAllAsync()).Where(c => c.IsActive)];
+            BrowseCategory = BrowseCategories.FirstOrDefault(c => c.Id == selectedId) ?? BrowseCategories[0];
+            await LoadBrowseProductsAsync();
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+        }
+    }
+
+    private async Task LoadBrowseProductsAsync()
+    {
+        var categoryId = BrowseCategory is { Id: > 0 } c ? c.Id : (int?)null;
+        try
+        {
+            await _browse.RunNowAsync(
+                ct => _products.SearchAsync(null, categoryId, includeInactive: false, ct),
+                found => BrowseProducts = found.Where(p => p.Variants.Any(v => v.IsActive)).Select(p => new ProductRow(p)).ToList());
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+        }
+    }
+
+    /// <summary>A product tile was clicked: add it, or ask for size and colour first.</summary>
+    [RelayCommand]
+    private void PickProduct(ProductRow? row)
+    {
+        if (row is null) return;
+        var variants = row.Product.Variants.Where(v => v.IsActive).ToList();
+        foreach (var v in variants) v.Product = row.Product;
+        if (variants.Count == 1)
+        {
+            AddVariant(variants[0]);
+            return;
+        }
+        var picker = new VariantPickerViewModel(Dialogs, row.Product, variants, _settings.Current.AllowNegativeStock);
+        if (Dialogs.ShowDialog(picker) && picker.Chosen is { } chosen) AddVariant(chosen);
+        else FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
     // ---- Adding items -----------------------------------------------------------------------
@@ -144,7 +226,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Product search failed.", ex);
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -169,7 +251,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Product search failed.", ex);
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -177,7 +259,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     {
         SearchResults = results;
         SelectedResult = results.FirstOrDefault();
-        SearchMessage = results.Count == 0 ? $"No products match \"{text}\"." : null;
+        SearchMessage = results.Count == 0 ? Loc.T("Register.NoMatch", text) : null;
         IsSearchOpen = true;
     }
 
@@ -230,7 +312,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private bool CheckStock(int onHand, int wanted, string name)
     {
         if (wanted <= onHand || _settings.Current.AllowNegativeStock) return true;
-        Dialogs.Warning(onHand <= 0 ? $"{name} is out of stock." : $"Only {onHand} x {name} in stock.");
+        Dialogs.Warning(onHand <= 0 ? Loc.T("Register.OutOfStock", name) : Loc.T("Register.OnlyInStock", onHand, name));
         return false;
     }
 
@@ -268,7 +350,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void SetQuantity()
     {
         if (SelectedItem is not { } item) return;
-        var qty = Dialogs.PromptInt("Quantity", $"Quantity for {item.ProductName} ({item.VariantDescription})", item.Quantity);
+        var qty = Dialogs.PromptInt(Loc.T("Common.Qty"), Loc.T("Register.QuantityFor", item.ProductName, item.VariantDescription), item.Quantity);
         if (qty is null) return;
         if (qty <= 0)
         {
@@ -282,7 +364,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void LineDiscount()
     {
         if (SelectedItem is not { } item) return;
-        var dialog = new DiscountViewModel(Dialogs, $"Discount: {item.ProductName}", item.UnitPrice * item.Quantity, item.DiscountType, item.DiscountValue);
+        var dialog = new DiscountViewModel(Dialogs, Loc.T("Register.LineDiscountTitle", item.ProductName), item.UnitPrice * item.Quantity, item.DiscountType, item.DiscountValue);
         if (!Dialogs.ShowDialog(dialog)) return;
 
         var (oldType, oldValue) = (item.DiscountType, item.DiscountValue);
@@ -299,7 +381,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void CartDiscount()
     {
         if (!HasItems) return;
-        var dialog = new DiscountViewModel(Dialogs, "Cart discount", Totals.Subtotal - Totals.LineDiscounts, CartDiscountType, CartDiscountValue);
+        var dialog = new DiscountViewModel(Dialogs, Loc.T("Register.CartDiscount"), Totals.Subtotal - Totals.LineDiscounts, CartDiscountType, CartDiscountValue);
         if (!Dialogs.ShowDialog(dialog)) return;
 
         var (oldType, oldValue) = (CartDiscountType, CartDiscountValue);
@@ -330,7 +412,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         if (_approvedByUserId is not null && worst <= _approvedDiscountPercent) return true;
 
         var approval = new ManagerApprovalViewModel(Dialogs, _users,
-            $"A discount of {worst:0.##}% exceeds your limit of {limit:0.##}%.", Permission.OverrideDiscountLimit);
+            Loc.T("Register.DiscountOverLimit", worst, limit), Permission.OverrideDiscountLimit);
         if (!Dialogs.ShowDialog(approval) || approval.ApprovedBy is null) return false;
 
         _approvedByUserId = approval.ApprovedBy.Id;
@@ -357,8 +439,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private Task HoldAsync() => RunAsync(async () =>
     {
         if (!HasItems) return;
-        var label = Dialogs.Prompt("Hold sale", "Label for this sale (e.g. customer name or fitting room):",
-            Customer?.FullName ?? $"Sale {DateTime.Now:HH:mm}");
+        var label = Dialogs.Prompt(Loc.T("Register.Hold"), Loc.T("Register.HoldPrompt"),
+            Customer?.FullName ?? Loc.T("Register.HoldDefault", DateTime.Now));
         if (label is null) return;
 
         var cart = new HeldCart(
@@ -366,13 +448,14 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             CartDiscountType, CartDiscountValue, Customer?.Id);
         await _sales.HoldAsync(label, Session.User.Id, cart);
         ResetSale();
+        Dialogs.Toast(Loc.T("Register.Held", label));
         await RefreshHeldCountAsync();
     });
 
     [RelayCommand]
     private Task ResumeAsync() => RunAsync(async () =>
     {
-        if (HasItems && !Dialogs.Confirm("The current cart will be replaced. Continue?")) return;
+        if (HasItems && !Dialogs.Confirm(Loc.T("Register.ReplaceCart"))) return;
 
         var picker = new HeldSalesViewModel(Dialogs, _sales);
         if (!Dialogs.ShowDialog(picker) || picker.Chosen is null)
@@ -401,14 +484,14 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         Recalculate();
         await RefreshHeldCountAsync();
 
-        if (missing > 0) Dialogs.Warning($"{missing} item(s) are no longer available and were skipped.");
+        if (missing > 0) Dialogs.Warning(Loc.T("Register.MissingItems", missing));
     });
 
     [RelayCommand]
     private void ClearCart()
     {
         if (!HasItems && Customer is null) return;
-        if (Dialogs.Confirm("Clear the current sale?")) ResetSale();
+        if (Dialogs.Confirm(Loc.T("Register.ClearConfirm"))) ResetSale();
     }
 
     // ---- Checkout ---------------------------------------------------------------------------
@@ -420,7 +503,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         if (!Session.HasOpenShift)
         {
-            if (Dialogs.Confirm("You need an open cash drawer shift before taking payments.\n\nGo to the Cash Drawer screen now?"))
+            if (Dialogs.Confirm(Loc.T("Register.NeedShift")))
                 await _navigation.NavigateToAsync<ShiftViewModel>();
             return;
         }
@@ -449,8 +532,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         ResetSale();
         var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);
-        var title = sale.ChangeGiven > 0 ? $"Change due: {CurrencyFormat.Format(sale.ChangeGiven)}" : $"Sale {sale.ReceiptNumber} complete";
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, "New sale"));
+        var title = sale.ChangeGiven > 0
+            ? Loc.T("Register.ChangeDue", CurrencyFormat.Format(sale.ChangeGiven))
+            : Loc.T("Register.SaleComplete", sale.ReceiptNumber);
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale")));
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 

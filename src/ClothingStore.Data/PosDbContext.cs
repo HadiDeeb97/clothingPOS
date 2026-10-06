@@ -45,6 +45,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.Username).HasMaxLength(50).UseCollation(CaseInsensitive).IsRequired();
             e.HasIndex(x => x.Username).IsUnique();
             e.Property(x => x.FullName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.PreferredLanguage).HasMaxLength(10);
         });
 
         b.Entity<Category>(e =>
@@ -178,6 +179,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.MaxCashierDiscountPercent).HasPrecision(9, 4);
             e.Property(x => x.LoyaltyPointsPerUnit).HasPrecision(18, 4);
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
+            e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
         });
     }
 

@@ -15,6 +15,7 @@
             <conv:EqualsConverter x:Key="Equals" />
             <conv:EnumDisplayConverter x:Key="EnumDisplay" />
             <conv:SignToBrushConverter x:Key="SignBrush" />
+            <conv:InitialsConverter x:Key="Initials" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

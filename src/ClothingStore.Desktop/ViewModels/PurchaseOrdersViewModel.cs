@@ -7,6 +7,7 @@ using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Desktop.ViewModels;
 
@@ -17,12 +18,12 @@ public sealed partial class PurchaseOrdersViewModel(
     InventoryService inventory, SettingsService settings, Session session, PrintService print)
     : ViewModelBase(dialogs), IPageViewModel
 {
-    public string Title => "Purchase Orders";
+    public string Title => Loc.T("Nav.PurchaseOrders");
 
     public StatusFilter[] Filters { get; } =
     [
-        new("All orders", null),
-        .. Enum.GetValues<PurchaseOrderStatus>().Select(s => new StatusFilter(Converters.EnumDisplayConverter.Humanize(s.ToString()), s)),
+        new(Loc.T("Purchasing.AllOrders"), null),
+        .. Enum.GetValues<PurchaseOrderStatus>().Select(s => new StatusFilter(Loc.EnumText(s), s)),
     ];
 
     [ObservableProperty]
@@ -54,7 +55,7 @@ public sealed partial class PurchaseOrdersViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load the order.", ex);
+            Dialogs.Error(Loc.T("Purchasing.LoadOrderFailed"), ex);
         }
     }
 
@@ -70,7 +71,7 @@ public sealed partial class PurchaseOrdersViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Could not load purchase orders.", ex);
+            Dialogs.Error(Loc.T("Purchasing.LoadFailed"), ex);
         }
     }
 
@@ -89,7 +90,7 @@ public sealed partial class PurchaseOrdersViewModel(
         if (Detail is null) return;
         if (Detail.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.Ordered))
         {
-            Dialogs.Warning("Only draft or ordered purchase orders can be edited.");
+            Dialogs.Warning(Loc.T("Purchasing.OnlyOpenEditable"));
             return;
         }
         var editor = await PurchaseOrderEditorViewModel.CreateAsync(Dialogs, orders, suppliers, products, inventory, session, Detail);
@@ -109,7 +110,7 @@ public sealed partial class PurchaseOrdersViewModel(
         if (Detail is null) return;
         if (Detail.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Cancelled)
         {
-            Dialogs.Warning("This order is already closed.");
+            Dialogs.Warning(Loc.T("Purchasing.AlreadyClosed"));
             return;
         }
         if (Dialogs.ShowDialog(new ReceivePurchaseOrderViewModel(Dialogs, orders, session, Detail))) await RefreshAsync();
@@ -119,7 +120,7 @@ public sealed partial class PurchaseOrdersViewModel(
     private async Task CancelOrderAsync()
     {
         if (SelectedOrder is null) return;
-        if (!Dialogs.Confirm($"Close purchase order {SelectedOrder.OrderNumber}? Outstanding quantities will no longer be expected.")) return;
+        if (!Dialogs.Confirm(Loc.T("Purchasing.CloseConfirm", SelectedOrder.OrderNumber))) return;
         if (await RunAsync(() => orders.CancelAsync(SelectedOrder.Id))) await RefreshAsync();
     }
 
@@ -127,7 +128,7 @@ public sealed partial class PurchaseOrdersViewModel(
     private async Task DeleteAsync()
     {
         if (SelectedOrder is null) return;
-        if (!Dialogs.Confirm($"Delete draft {SelectedOrder.OrderNumber}?")) return;
+        if (!Dialogs.Confirm(Loc.T("Purchasing.DeleteDraftConfirm", SelectedOrder.OrderNumber))) return;
         if (await RunAsync(() => orders.DeleteDraftAsync(SelectedOrder.Id))) await RefreshAsync();
     }
 
@@ -135,7 +136,7 @@ public sealed partial class PurchaseOrdersViewModel(
     private void Print()
     {
         if (Detail is null) return;
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, $"Purchase order {Detail.OrderNumber}", ReceiptBuilder.PurchaseOrder(Detail, settings.Current)));
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Purchasing.OrderTitle", Detail.OrderNumber), ReceiptBuilder.PurchaseOrder(Detail, settings.Current)));
     }
 }
 
@@ -170,7 +171,7 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
         _inventory = inventory;
         _session = session;
         _id = order?.Id ?? 0;
-        OrderNumber = order?.OrderNumber ?? "(new)";
+        OrderNumber = order?.OrderNumber ?? Loc.T("Purchasing.NewNumber");
         ExpectedDate = order?.ExpectedDate ?? DateTime.Today.AddDays(14);
         Notes = order?.Notes;
         foreach (var line in order?.Lines ?? [])
@@ -188,7 +189,7 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
         return vm;
     }
 
-    public override string Title => _id == 0 ? "New purchase order" : $"Edit purchase order {OrderNumber}";
+    public override string Title => _id == 0 ? Loc.T("Purchasing.NewOrder") : Loc.T("Purchasing.EditOrder", OrderNumber);
     public string OrderNumber { get; }
     public List<Supplier> Suppliers { get; private init; } = [];
     public ObservableCollection<PoLineViewModel> Lines { get; } = [];
@@ -245,7 +246,7 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
         }
         catch (Exception ex)
         {
-            Dialogs.Error("Product search failed.", ex);
+            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -268,13 +269,13 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
     [RelayCommand]
     private Task AddLowStockAsync() => RunAsync(async () =>
     {
-        if (SelectedSupplier is null) throw new BusinessRuleException("Choose a supplier first.");
+        if (SelectedSupplier is null) throw new BusinessRuleException(Loc.T("Purchasing.ChooseSupplierFirst"));
         var low = (await _inventory.GetStockAsync(lowStockOnly: true))
             .Where(v => v.Product?.SupplierId == SelectedSupplier.Id)
             .ToList();
         if (low.Count == 0)
         {
-            Dialogs.Info($"No low-stock items are assigned to {SelectedSupplier.Name}.");
+            Dialogs.Toast(Loc.T("Purchasing.NoLowStock", SelectedSupplier.Name), ToastKind.Info);
             return;
         }
         foreach (var v in low.Where(v => Lines.All(l => l.Variant.Id != v.Id)))
@@ -295,7 +296,7 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
-        if (SelectedSupplier is null) throw new BusinessRuleException("Choose a supplier.");
+        if (SelectedSupplier is null) throw new BusinessRuleException(Loc.T("Purchasing.ChooseSupplier"));
         await _orders.SaveAsync(new PurchaseOrder
         {
             Id = _id,
@@ -322,7 +323,7 @@ public sealed partial class ReceiveLineViewModel(PurchaseOrderLine line) : Obser
 public sealed partial class ReceivePurchaseOrderViewModel(IDialogService dialogs, PurchaseOrderService orders, Session session, PurchaseOrder order)
     : DialogViewModelBase(dialogs)
 {
-    public override string Title => $"Receive {order.OrderNumber} from {order.Supplier?.Name}";
+    public override string Title => Loc.T("Purchasing.ReceiveTitle", order.OrderNumber, order.Supplier?.Name);
     public List<ReceiveLineViewModel> Lines { get; } = order.Lines.Select(l => new ReceiveLineViewModel(l)).ToList();
 
     [ObservableProperty]
@@ -344,9 +345,9 @@ public sealed partial class ReceivePurchaseOrderViewModel(IDialogService dialogs
     private Task SaveAsync() => RunAsync(async () =>
     {
         var quantities = Lines.Where(l => l.ReceiveNow != 0).ToDictionary(l => l.Line.Id, l => l.ReceiveNow);
-        if (quantities.Count == 0) throw new BusinessRuleException("Enter the quantities received.");
+        if (quantities.Count == 0) throw new BusinessRuleException(Loc.T("Purchasing.EnterQuantities"));
         var result = await orders.ReceiveAsync(order.Id, quantities, session.User.Id, UpdateCosts);
-        Dialogs.Info($"{quantities.Values.Sum()} units booked into stock. Order status: {Converters.EnumDisplayConverter.Humanize(result.Status.ToString())}.");
+        Dialogs.Toast(Loc.T("Purchasing.Booked", quantities.Values.Sum(), Loc.EnumText(result.Status)));
         Close(true);
     });
 

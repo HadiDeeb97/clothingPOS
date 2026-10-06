@@ -3,6 +3,7 @@ using ClothingStore.Core.Entities;
 using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Security;
 using Microsoft.EntityFrameworkCore;
+using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Data.Services;
 
@@ -30,7 +31,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UserId && u.IsActive, ct)
-                   ?? throw new BusinessRuleException("User not found.");
+                   ?? throw new BusinessRuleException(Loc.T("Err.UserNotFound"));
 
         var state = await LoadAsync(db, request.SaleId, ct);
         var sale = state.Sale;
@@ -38,13 +39,13 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         var age = DateTime.Now - sale.CreatedAt;
         if (settings.ReturnWindowDays > 0 && age.TotalDays > settings.ReturnWindowDays &&
             !await IsApprovedAsync(db, user, request.ApprovedByUserId, Permission.OverrideDiscountLimit, ct))
-            throw new BusinessRuleException($"This sale is older than the {settings.ReturnWindowDays}-day return window. Manager approval required.");
+            throw new BusinessRuleException(Loc.T("Err.ReturnWindow", settings.ReturnWindowDays));
 
         Shift? shift = null;
         if (request.ShiftId is { } shiftId)
         {
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
-            if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException("The shift is closed.");
+            if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
         }
 
         var priced = PriceLines(state, requested);
@@ -52,12 +53,12 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         var shares = RefundAllocator.Allocate(total, state.Remaining(), request.RefundTo);
 
         if (shares.Any(s => s.Method == RefundMethod.StoreCredit) && sale.Customer is null)
-            throw new BusinessRuleException("Store credit refunds need a customer on the original sale.");
+            throw new BusinessRuleException(Loc.T("Err.CreditRefundNeedsCustomer"));
         if (shares.Any(s => s.Method == RefundMethod.Cash) && shift is null)
-            throw new BusinessRuleException("Open a cash drawer shift to give cash refunds.");
+            throw new BusinessRuleException(Loc.T("Err.CashRefundNeedsShift"));
         if (shares.Any(s => s.IsCashOverride) &&
             !await IsApprovedAsync(db, user, request.ApprovedByUserId, Permission.OverrideRefundMethod, ct))
-            throw new BusinessRuleException("Refunding a card or wallet payment in cash needs manager approval.");
+            throw new BusinessRuleException(Loc.T("Err.CashOverrideNeedsApproval"));
 
         var now = DateTime.Now;
         var ret = new SaleReturn
@@ -109,7 +110,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessRuleException("The sale, item or customer was updated at another till. Please try again.");
+            throw new BusinessRuleException(Loc.T("Err.ConcurrentReturn"));
         }
         return ret;
     }
@@ -132,7 +133,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
     private static List<ReturnLineRequest> Selected(IReadOnlyList<ReturnLineRequest> lines)
     {
         var requested = lines.Where(l => l.Quantity > 0).ToList();
-        return requested.Count == 0 ? throw new BusinessRuleException("Choose at least one item to return.") : requested;
+        return requested.Count == 0 ? throw new BusinessRuleException(Loc.T("Err.ChooseReturnItem")) : requested;
     }
 
     private static async Task<SaleState> LoadAsync(PosDbContext db, int saleId, CancellationToken ct)
@@ -143,9 +144,9 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
             .Include(s => s.Customer)
             .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.Id == saleId, ct)
-            ?? throw new BusinessRuleException("Sale not found.");
+            ?? throw new BusinessRuleException(Loc.T("Err.SaleNotFound"));
 
-        if (sale.Status != SaleStatus.Completed) throw new BusinessRuleException("Voided sales cannot be returned.");
+        if (sale.Status != SaleStatus.Completed) throw new BusinessRuleException(Loc.T("Err.VoidedNoReturn"));
 
         var lineReturns = (await db.ReturnLines
                 .Where(rl => rl.SaleLine!.SaleId == sale.Id)
@@ -181,10 +182,10 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         foreach (var req in requested)
         {
             var line = state.Sale.Lines.FirstOrDefault(l => l.Id == req.SaleLineId)
-                       ?? throw new BusinessRuleException("Item does not belong to this sale.");
+                       ?? throw new BusinessRuleException(Loc.T("Err.ItemNotInSale"));
             var alreadyRequested = priced.Where(p => p.Line.Id == line.Id).Sum(p => p.Request.Quantity);
             if (req.Quantity + alreadyRequested > line.ReturnableQuantity)
-                throw new BusinessRuleException($"Only {line.ReturnableQuantity} x {line.ProductName} can still be returned.");
+                throw new BusinessRuleException(Loc.T("Err.OnlyReturnable", line.ReturnableQuantity, line.ProductName));
 
             decimal refund, tax;
             if (req.Quantity + alreadyRequested == line.ReturnableQuantity)
