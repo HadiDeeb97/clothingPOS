@@ -137,6 +137,13 @@
                                             <TextBlock Text="{l:T Shell.ChangePassword}" Margin="8,0,0,0" />
                                         </StackPanel>
                                     </Button>
+                                    <Button Style="{StaticResource MenuItemButton}" Command="{Binding ChangeLogoCommand}"
+                                            Visibility="{Binding CanChangeLogo, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xEB9F;" Style="{StaticResource Icon}" Width="22" />
+                                            <TextBlock Text="{l:T Logo.MenuItem}" Margin="8,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
                                     <Button Style="{StaticResource MenuItemButton}" Command="{Binding ResetLayoutCommand}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE9A6;" Style="{StaticResource Icon}" Width="22" />

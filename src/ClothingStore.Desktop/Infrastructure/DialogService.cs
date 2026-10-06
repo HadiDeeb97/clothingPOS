@@ -21,6 +21,7 @@ public interface IDialogService
     decimal? PromptDecimal(string title, string message, decimal? initialValue = null);
     int? PromptInt(string title, string message, int? initialValue = null);
     string? SaveFile(string title, string filter, string defaultFileName);
+    string? OpenFile(string title, string filter);
 }
 
 public sealed class DialogService : IDialogService
@@ -78,6 +79,12 @@ public sealed class DialogService : IDialogService
     public string? SaveFile(string title, string filter, string defaultFileName)
     {
         var dialog = new SaveFileDialog { Title = title, Filter = filter, FileName = defaultFileName, AddExtension = true };
+        return dialog.ShowDialog(Owner) == true ? dialog.FileName : null;
+    }
+
+    public string? OpenFile(string title, string filter)
+    {
+        var dialog = new OpenFileDialog { Title = title, Filter = filter, CheckFileExists = true };
         return dialog.ShowDialog(Owner) == true ? dialog.FileName : null;
     }
 }

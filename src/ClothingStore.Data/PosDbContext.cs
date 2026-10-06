@@ -26,6 +26,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<StoreSettings> Settings => Set<StoreSettings>();
     public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
     public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
+    public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -183,6 +184,12 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
             e.Ignore(x => x.ActiveLbpRate);
+        });
+
+        b.Entity<StoreLogo>(e =>
+        {
+            e.Property(x => x.Image).HasMaxLength(Services.StoreLogoLimits.MaxBytes).IsRequired();
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<ExchangeRateChange>(e =>

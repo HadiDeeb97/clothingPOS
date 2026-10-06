@@ -22,6 +22,9 @@ public enum Permission
 
     /// <summary>Change the LBP exchange rate.</summary>
     ChangeExchangeRate,
+
+    /// <summary>Change the store logo (the app icon).</summary>
+    ManageBranding,
 }
 
 public static class Permissions
@@ -47,6 +50,7 @@ public static class Permissions
         Permission.OverrideRefundMethod,
         Permission.ViewAllShifts,
         Permission.ChangeExchangeRate,
+        Permission.ManageBranding,
     ];
 
     public static bool Has(UserRole role, Permission permission) => role switch

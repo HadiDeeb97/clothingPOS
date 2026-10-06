@@ -36,14 +36,17 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     private readonly NavigationService _navigation;
     private readonly SettingsService _settings;
     private readonly UserService _users;
+    private readonly BrandingService _branding;
     private readonly DispatcherTimer _clock;
 
-    public MainViewModel(IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users)
+    public MainViewModel(
+        IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users, BrandingService branding)
         : base(dialogs)
     {
         _navigation = navigation;
         _settings = settings;
         _users = users;
+        _branding = branding;
         Session = session;
         IsSidebarCollapsed = LocalPreferences.Current.SidebarCollapsed;
 
@@ -98,6 +101,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public bool ShowRate => _settings.Current.ActiveLbpRate > 0;
     public string RateText => Loc.T("Rate.Short", _settings.Current.LbpRate.ToString("N0"));
     public bool CanChangeRate => Session.Can(Permission.ChangeExchangeRate);
+    public bool CanChangeLogo => Session.Can(Permission.ManageBranding);
 
     [ObservableProperty]
     public partial bool IsSidebarCollapsed { get; set; }
@@ -151,17 +155,25 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(Now));
 
-        // Every minute, pick up a rate changed on another till.
+        // Every minute, pick up a rate or logo changed on another till.
         if (++_ticks % 4 != 0) return;
         try
         {
             if (await _settings.RefreshCurrencyAsync())
                 Dialogs.Toast(Loc.T("Rate.ChangedElsewhere", _settings.Current.LbpRate.ToString("N0")));
+            await Branding.Instance.RefreshAsync(_branding, onlyIfChanged: true);
         }
         catch
         {
             // Offline for a moment: the next tick tries again, and checkout re-checks the rate anyway.
         }
+    }
+
+    [RelayCommand]
+    private void ChangeLogo()
+    {
+        IsUserMenuOpen = false;
+        Dialogs.ShowDialog(new StoreLogoViewModel(Dialogs, _branding, Session));
     }
 
     [RelayCommand]

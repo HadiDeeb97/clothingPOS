@@ -102,7 +102,7 @@ public sealed partial class UserEditorViewModel : DialogViewModelBase
 
 public sealed record LanguageOption(string Code, string Name);
 
-public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session)
+public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session, BrandingService branding)
     : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => Loc.T("Nav.Settings");
@@ -145,6 +145,11 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         Settings = (await settings.GetAsync()).Clone();
         Dialogs.Toast(Loc.T("Settings.Saved"));
     });
+
+    public Branding Branding => Branding.Instance;
+
+    [RelayCommand]
+    private void ChangeLogo() => Dialogs.ShowDialog(new StoreLogoViewModel(Dialogs, branding, session));
 
     [RelayCommand]
     private void ChangeRate()

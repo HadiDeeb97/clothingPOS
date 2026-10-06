@@ -72,6 +72,8 @@ public partial class App : Application
             var settings = Services.GetRequiredService<SettingsService>();
             CurrencyFormat.Symbol = (await settings.GetAsync()).CurrencySymbol;
             settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
+            try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
+            catch { /* no logo is fine */ }
             await _host.StartAsync(); // starts the automatic backup worker
 
             // Compile the screens' queries while the sign-in screen is up, so first visits are fast too.

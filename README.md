@@ -19,6 +19,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
+| **Store logo** | Managers and admins pick the store logo (user menu → Store logo, or Settings); it becomes the icon of every window and on the taskbar, and appears on the sign-in screen and sidebar, on all tills. The desktop shortcut keeps the program's own icon, because Windows reads that from the .exe file |
 | **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
 
 ## Solution layout

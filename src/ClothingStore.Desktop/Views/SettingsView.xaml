@@ -23,6 +23,15 @@
                 <Border Style="{StaticResource SettingsCard}">
                     <StackPanel>
                         <TextBlock Text="{l:T Settings.StoreReceipt}" Style="{StaticResource SectionTitle}" />
+                        <DockPanel Margin="0,0,0,10">
+                            <Border Width="52" Height="52" CornerRadius="10" Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                <Image Source="{Binding Branding.Icon}" Margin="5" RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border>
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{l:T Logo.Heading}" FontWeight="SemiBold" />
+                                <Button Content="{l:T Logo.Change}" Style="{StaticResource LinkButton}" Command="{Binding ChangeLogoCommand}" HorizontalAlignment="Left" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
                         <TextBlock Text="{l:T Settings.StoreName}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
                         <TextBox Text="{Binding Settings.StoreName}" />
                         <TextBlock Text="{l:T Settings.Address}" Style="{StaticResource FieldLabel}" />
