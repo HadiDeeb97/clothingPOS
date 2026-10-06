@@ -31,6 +31,8 @@
   "Err.CustomerNotFound": "الزبون غير موجود.",
   "Err.CustomerPointsOnly": "لدى الزبون {0} نقطة فقط.",
   "Err.DamagedNegative": "يجب أن يكون تعديل البضاعة التالفة بالسالب.",
+  "Err.DeliveryFeeInStore": "رسم التوصيل يخص الطلبات أونلاين فقط.",
+  "Err.DeliveryFeeNegative": "لا يمكن أن يكون رسم التوصيل سالباً.",
   "Err.DiscountLimitRange": "يجب أن يكون حد الحسم بين 0 و100.",
   "Err.DiscountNeedsApproval": "الحسومات التي تتجاوز {0:0.##}% تتطلب موافقة المدير.",
   "Err.EmailInvalid": "يبدو أن البريد الإلكتروني غير صالح.",

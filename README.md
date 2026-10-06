@@ -19,7 +19,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
-| **Online orders** | Orders from WhatsApp, Instagram, Facebook or the phone: customer, phone, address, items and delivery fee. Confirming holds the stock; then out for delivery (with the driver's name); completing records a normal sale when the money comes back (cash in USD/LBP, card or wallet), with the delivery fee on the receipt. Cancelling puts the stock back. A red badge counts new orders; delivery slip; one click opens WhatsApp with the order summary, or copies it for Instagram/Facebook; reports by channel |
+| **Online orders** | On the register, mark a sale as an online order (button or F11): where it came from (WhatsApp, Instagram, Facebook, phone, website, other), an optional delivery fee added to the total, and an address/notes line printed on the receipt. Sales history shows the source of every sale (in store or which channel) and filters by it; reports break sales down by channel |
 | **Store logo** | Managers and admins pick the store logo (user menu → Store logo, or Settings); it becomes the icon of every window and on the taskbar, and appears on the sign-in screen and sidebar, on all tills. The desktop shortcut keeps the program's own icon, because Windows reads that from the .exe file |
 | **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; admins manage every account (add, edit, reset password, deactivate, delete unused accounts), managers add and edit cashier accounts only; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (every app start, scheduled and at shift close) with a backup log |
 
@@ -159,17 +159,17 @@ customer will need a new key.
 
 ### Online orders (WhatsApp, Instagram, Facebook, phone)
 
-The app does not read your WhatsApp or Instagram messages by itself: connecting to Meta's business APIs needs a
-verified Meta Business account, approved message templates and an internet-facing server. Instead, whoever answers the
-chat types the order into **Online orders → New order** (scanning or searching the items), which takes under a minute:
+Orders that come in by message are rung up on the **Register** like any sale:
 
-1. **New**: the order is saved but stock is not held yet. Use **WhatsApp** to send the customer a summary to confirm
-   (opens WhatsApp or WhatsApp Web with the message ready), or **Copy message** to paste it into Instagram/Facebook.
-2. **Confirm**: the items leave stock so they can't be sold twice.
-3. **Out for delivery**: enter the driver or delivery company; print the **Delivery slip** for the parcel (it shows the
-   amount to collect in dollars and pounds).
-4. **Payment received – complete**: when the driver hands over the money, take it like a normal payment. This records a
-   sale (channel and delivery fee included) in the open shift. Cancelling an open order puts held stock back.
+1. Scan or pick the items and choose the customer (F4) as usual.
+2. Click **Online order** (or press **F11**), pick where the order came from, enter the delivery fee (if any; the last one
+   used on this PC is suggested) and the address or Instagram name. The register shows "Online order · WhatsApp" and adds
+   the delivery fee to the total. The **x** turns it back into an in-store sale.
+3. Pay (cash in USD/LBP, card or wallet). The receipt says "Order via WhatsApp" and prints the address/notes.
+
+**Sales history** has a **Source** column (In store / WhatsApp / Instagram ...) and a filter (All / In store / Online
+orders); the selected sale shows its source, delivery fee and notes. **Reports → Channels** totals sales per channel.
+An online order can be put on hold (F9) like any cart and keeps its details when resumed.
 
 ### Price labels
 

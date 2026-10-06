@@ -10,6 +10,7 @@
             </ResourceDictionary.MergedDictionaries>
             <conv:MoneyConverter x:Key="Money" />
             <conv:LbpConverter x:Key="Lbp" />
+            <conv:AllEqualConverter x:Key="AllEqual" />
             <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
             <conv:InverseBoolConverter x:Key="Not" />
             <conv:HasValueToVisibilityConverter x:Key="HasValueToVis" />

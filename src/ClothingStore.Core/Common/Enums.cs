@@ -80,10 +80,11 @@ public enum StockMovementType
     Void = 6,
     StockCount = 7,
 
-    /// <summary>Held for a confirmed online order.</summary>
+    // 8 and 9 were used by the old online-orders screen; kept so their history still reads correctly.
+    /// <summary>Held for an order on the old online-orders screen.</summary>
     OnlineOrder = 8,
 
-    /// <summary>Put back when an online order was cancelled.</summary>
+    /// <summary>Put back when an order on the old online-orders screen was cancelled or removed.</summary>
     OnlineOrderCancelled = 9,
 }
 
@@ -147,21 +148,3 @@ public enum SalesChannel
     Other = 6,
 }
 
-/// <summary>Life of an order taken by message or phone, from taking it to delivery.</summary>
-public enum OnlineOrderStatus
-{
-    /// <summary>Taken, not yet confirmed with the customer; stock not held.</summary>
-    New = 0,
-
-    /// <summary>Confirmed; the items are taken out of stock so they aren't sold twice.</summary>
-    Confirmed = 1,
-
-    /// <summary>Handed to the driver / courier.</summary>
-    OutForDelivery = 2,
-
-    /// <summary>Paid and delivered; a sale was recorded.</summary>
-    Completed = 3,
-
-    /// <summary>Cancelled; held stock was put back.</summary>
-    Cancelled = 4,
-}

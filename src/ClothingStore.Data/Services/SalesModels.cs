@@ -36,6 +36,12 @@ public sealed record CheckoutRequest
     public int? ApprovedByUserId { get; init; }
 
     public string? Notes { get; init; }
+
+    /// <summary>In store, or the channel of an online order (WhatsApp, Instagram...).</summary>
+    public SalesChannel Channel { get; init; } = SalesChannel.InStore;
+
+    /// <summary>Delivery charge for an online order, added to the total (not taxed). Must be 0 in store.</summary>
+    public decimal DeliveryFee { get; init; }
 }
 
 public sealed record HeldCartLine(int VariantId, int Quantity, DiscountType DiscountType, decimal DiscountValue);
@@ -44,7 +50,10 @@ public sealed record HeldCart(
     IReadOnlyList<HeldCartLine> Lines,
     DiscountType CartDiscountType,
     decimal CartDiscountValue,
-    int? CustomerId);
+    int? CustomerId,
+    SalesChannel Channel = SalesChannel.InStore,
+    decimal DeliveryFee = 0,
+    string? Notes = null);
 
 public sealed record ReturnLineRequest(int SaleLineId, int Quantity, bool Restock = true);
 

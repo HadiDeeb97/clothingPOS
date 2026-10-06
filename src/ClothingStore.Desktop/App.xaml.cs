@@ -171,7 +171,6 @@ public partial class App : Application
         // The register keeps its cart while you visit other screens.
         services.AddSingleton<SalesViewModel>();
         services.AddTransient<ReturnsViewModel>();
-        services.AddTransient<OnlineOrdersViewModel>();
         services.AddTransient<SalesHistoryViewModel>();
         services.AddTransient<CustomersViewModel>();
         services.AddTransient<ProductsViewModel>();

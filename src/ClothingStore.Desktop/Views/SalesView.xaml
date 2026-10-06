@@ -10,6 +10,7 @@
         <KeyBinding Key="F8" Command="{Binding CartDiscountCommand}" />
         <KeyBinding Key="F9" Command="{Binding HoldCommand}" />
         <KeyBinding Key="F10" Command="{Binding ResumeCommand}" />
+        <KeyBinding Key="F11" Command="{Binding OnlineOrderCommand}" />
         <KeyBinding Key="F12" Command="{Binding PayCommand}" />
     </UserControl.InputBindings>
 
@@ -288,6 +289,46 @@
                 </Grid>
             </Border>
 
+            <!-- In store / online order -->
+            <Border DockPanel.Dock="Top" Margin="0,0,0,12" CornerRadius="12" BorderThickness="1" Padding="14,10">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryLightBrush}" />
+                                <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <!-- In store: one button to switch -->
+                    <DockPanel Visibility="{Binding IsOnline, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                        <Button DockPanel.Dock="Right" Content="{l:T Register.MakeOnline}" Command="{Binding OnlineOrderCommand}" Margin="0" />
+                        <TextBlock Text="&#xE719;" Style="{StaticResource Icon}" FontSize="16" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,10,0" />
+                        <TextBlock Text="{l:T Register.InStoreSale}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <!-- Online order: channel, fee, notes -->
+                    <DockPanel Visibility="{Binding IsOnline, Converter={StaticResource BoolToVis}}">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Content="{l:T Common.Edit}" Style="{StaticResource LinkButton}" Command="{Binding OnlineOrderCommand}" Margin="0,0,10,0" />
+                            <Button Style="{StaticResource IconButton}" Content="&#xE711;" Width="28" Height="28" Command="{Binding InStoreCommand}"
+                                    ToolTip="{l:T Register.BackToInStore}" />
+                        </StackPanel>
+                        <TextBlock Text="&#xE7BF;" Style="{StaticResource Icon}" FontSize="16" Foreground="{StaticResource PrimaryDarkBrush}" Margin="0,2,10,0" VerticalAlignment="Top" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
+                                       Text="{Binding Channel, Converter={StaticResource EnumDisplay}, StringFormat={l:T Register.OnlineFrom}}" />
+                            <TextBlock Text="{Binding DeliveryFee, Converter={StaticResource Money}, StringFormat={l:T Register.DeliveryFormat}}" Style="{StaticResource MutedText}" FontSize="12" />
+                            <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding OrderNotes, Converter={StaticResource HasValueToVis}}" />
+                        </StackPanel>
+                    </DockPanel>
+                </Grid>
+            </Border>
+
             <!-- Actions + pay -->
             <StackPanel DockPanel.Dock="Bottom">
                 <UniformGrid Columns="3" Margin="0,0,-8,0">
@@ -320,7 +361,7 @@
                     <DockPanel LastChildFill="False" Width="300">
                         <TextBlock DockPanel.Dock="Left" Text="{l:T Register.Pay}" VerticalAlignment="Center" />
                         <TextBlock DockPanel.Dock="Left" Text="F12" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="10,4,0,0" />
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding Totals.Total, Converter={StaticResource Money}}" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding GrandTotal, Converter={StaticResource Money}}" VerticalAlignment="Center" />
                     </DockPanel>
                 </Button>
             </StackPanel>
@@ -346,9 +387,13 @@
                         <TextBlock Text="{Binding Totals.TaxTotal, Converter={StaticResource Money}}" DockPanel.Dock="Right" />
                         <TextBlock Text="{Binding TaxLabel}" Style="{StaticResource MutedText}" />
                     </DockPanel>
+                    <DockPanel Margin="0,4" Visibility="{Binding IsOnline, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding DeliveryFee, Converter={StaticResource Money}}" DockPanel.Dock="Right" />
+                        <TextBlock Text="{l:T Register.Delivery}" Style="{StaticResource MutedText}" />
+                    </DockPanel>
                     <Separator Margin="0,12" />
                     <DockPanel>
-                        <TextBlock Text="{Binding Totals.Total, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="32" FontWeight="Bold" />
+                        <TextBlock Text="{Binding GrandTotal, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="32" FontWeight="Bold" />
                         <TextBlock Text="{l:T Common.Total}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </DockPanel>
                     <DockPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">

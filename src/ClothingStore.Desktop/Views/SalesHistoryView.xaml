@@ -21,6 +21,16 @@
                 <Button Content="{l:T Common.Yesterday}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="yesterday" Margin="0" />
                 <Button Content="{l:T Common.Last7Days}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="week" Margin="0" />
                 <Button Content="{l:T Common.ThisMonth}" Style="{StaticResource LinkButton}" Command="{Binding QuickRangeCommand}" CommandParameter="month" Margin="0,0,10,0" />
+                <Border Style="{StaticResource SegmentGroup}" Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Source" Content="{l:T History.SourceAll}"
+                                     IsChecked="{Binding Source, Converter={StaticResource Equals}, ConverterParameter=All}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Source" Content="{l:T Enum.SalesChannel.InStore}"
+                                     IsChecked="{Binding Source, Converter={StaticResource Equals}, ConverterParameter=InStore}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Source" Content="{l:T History.SourceOnline}"
+                                     IsChecked="{Binding Source, Converter={StaticResource Equals}, ConverterParameter=Online}" />
+                    </StackPanel>
+                </Border>
                 <CheckBox Content="{l:T History.ShowVoided}" IsChecked="{Binding IncludeVoided}" />
             </WrapPanel>
         </DockPanel>
@@ -42,6 +52,7 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{l:T History.SaleCount}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0" />
                             <TextBlock Text="{Binding SaleCount}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding OnlineSummary}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="18,0,0,0" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -60,6 +71,22 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding ReceiptNumber}" Width="140" />
                             <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="110" />
+                            <DataGridTemplateColumn Header="{l:T History.Source}" Width="110" SortMemberPath="Channel">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="SourcePill" Style="{StaticResource Chip}" Background="{StaticResource PrimaryLightBrush}">
+                                            <TextBlock x:Name="SourceText" Text="{Binding Channel, Converter={StaticResource EnumDisplay}}" FontSize="11.5" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource PrimaryDarkBrush}" />
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Channel}" Value="InStore">
+                                                <Setter TargetName="SourcePill" Property="Background" Value="{StaticResource HoverBrush}" />
+                                                <Setter TargetName="SourceText" Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="{l:T Common.Cashier}" Binding="{Binding User.FullName}" Width="*" />
                             <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Customer.FullName}" Width="*" />
                             <DataGridTextColumn Header="{l:T Common.Items}" Binding="{Binding ItemCount}" Width="60" ElementStyle="{StaticResource RightCell}" />
@@ -97,6 +124,22 @@
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding SelectedSale.ReceiptNumber}" FontSize="17" FontWeight="SemiBold" />
                             </DockPanel>
+                            <!-- Where the purchase came from -->
+                            <Border Margin="0,8,0,0" HorizontalAlignment="Left">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource Chip}">
+                                        <Setter Property="Background" Value="{StaticResource PrimaryLightBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedSale.Channel}" Value="InStore">
+                                                <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock FontWeight="SemiBold" Text="{Binding SelectedSale.Channel, Converter={StaticResource EnumDisplay}, StringFormat={l:T History.SourceFormat}}" />
+                            </Border>
+                            <TextBlock Text="{Binding SelectedSale.Notes}" Style="{StaticResource HintText}" TextWrapping="Wrap"
+                                       Visibility="{Binding SelectedSale.Notes, Converter={StaticResource HasValueToVis}}" />
                             <Border Style="{StaticResource DangerBanner}" Margin="0,10,0,0"
                                     Visibility="{Binding SelectedSale.VoidReason, Converter={StaticResource HasValueToVis}}">
                                 <TextBlock Text="{Binding SelectedSale.VoidReason, StringFormat={l:T History.VoidedReason}}" Foreground="#991B1B" TextWrapping="Wrap" />
@@ -107,6 +150,7 @@
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.Subtotal, Converter={StaticResource Money}}" /><TextBlock Text="{l:T Common.Subtotal}" Style="{StaticResource MutedText}" /></DockPanel>
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.DiscountTotal, Converter={StaticResource Money}, StringFormat='-{0}'}" /><TextBlock Text="{l:T Common.Discounts}" Style="{StaticResource MutedText}" /></DockPanel>
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.TaxTotal, Converter={StaticResource Money}}" /><TextBlock Text="{l:T Common.Tax}" Style="{StaticResource MutedText}" /></DockPanel>
+                            <DockPanel Margin="0,2" Visibility="{Binding SelectedSale.DeliveryFee, Converter={StaticResource HasValueToVis}}"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.DeliveryFee, Converter={StaticResource Money}}" /><TextBlock Text="{l:T History.DeliveryFee}" Style="{StaticResource MutedText}" /></DockPanel>
                             <Separator />
                             <DockPanel Margin="0,0,0,10"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.Total, Converter={StaticResource Money}}" FontWeight="Bold" FontSize="18" /><TextBlock Text="{l:T Common.Total}" FontWeight="SemiBold" FontSize="15" /></DockPanel>
                             <TextBlock Text="{l:T Common.Payments}" Style="{StaticResource Caption}" />

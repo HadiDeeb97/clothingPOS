@@ -33,7 +33,6 @@ public sealed class TestDatabase : IAsyncDisposable
     public SupplierService Suppliers { get; }
     public ReportService Reports { get; }
     public BrandingService Branding { get; }
-    public OnlineOrderService Orders { get; }
 
     public User Admin { get; private set; } = null!;
     public User Cashier { get; private set; } = null!;
@@ -57,7 +56,6 @@ public sealed class TestDatabase : IAsyncDisposable
         Suppliers = new SupplierService(Factory);
         Reports = new ReportService(Factory);
         Branding = new BrandingService(Factory);
-        Orders = new OnlineOrderService(Factory);
     }
 
     public static async Task<TestDatabase> CreateAsync(Action<StoreSettings>? configure = null)
