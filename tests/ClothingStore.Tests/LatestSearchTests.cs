@@ -1,4 +1,6 @@
 using ClothingStore.Desktop.Infrastructure;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClothingStore.Tests;
 
@@ -66,5 +68,40 @@ public class LatestSearchTests
         Assert.True(firstToken.IsCancellationRequested);
         gate.SetResult("old");
         Assert.False(await first);
+    }
+
+    /// <summary>
+    /// SQL Server reports a query cancelled mid-flight as a SqlException ("Operation cancelled by user"), not an
+    /// OperationCanceledException. A search overtaken by typing must still end quietly instead of showing that error.
+    /// </summary>
+    [Fact]
+    public async Task A_sql_query_cancelled_by_a_newer_search_is_not_an_error()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var search = new LatestSearch(TimeSpan.Zero);
+        var started = new TaskCompletionSource();
+
+        var slow = search.RunNowAsync(async ct =>
+        {
+            await using var ctx = await db.Factory.CreateDbContextAsync(ct);
+            started.SetResult();
+            await ctx.Database.ExecuteSqlRawAsync("WAITFOR DELAY '00:00:05'", ct);
+            return "old";
+        }, _ => { });
+        await started.Task;
+        await Task.Delay(300); // the query is now running on the server
+
+        var newer = search.RunNowAsync(_ => Task.FromResult("new"), _ => { });
+
+        Assert.False(await slow);
+        Assert.True(await newer);
+    }
+
+    [Fact]
+    public async Task A_real_failure_of_the_current_search_is_still_reported()
+    {
+        var search = new LatestSearch(TimeSpan.Zero);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            search.RunNowAsync<string>(_ => throw new InvalidOperationException("database down"), _ => { }));
     }
 }
