@@ -8,7 +8,8 @@ using ClothingStore.Core.Barcodes;
 
 namespace ClothingStore.Desktop.Services;
 
-public sealed record LabelData(string Title, string Subtitle, string Price, string Code);
+/// <summary>Text for one price label; which parts are printed is up to <see cref="LabelOptions"/>.</summary>
+public sealed record LabelData(string Title, string Variant, string Sku, string Price, string? PriceLbp, string Code, string? StoreName = null);
 
 /// <summary>Prints receipts/reports (monospaced text, auto-fitted to the printer width) and barcode price tags.</summary>
 public sealed class PrintService
@@ -49,53 +50,68 @@ public sealed class PrintService
     }
 
     /// <summary>
-    /// Prints price tags. Sheet mode lays labels out 3-up on A4/Letter; label-printer mode prints one per page.
+    /// Prints price labels. Sheet mode lays them out in a grid (skipping <paramref name="skip"/> positions already used on
+    /// the first sheet); label-printer mode prints one label per page at the label size.
     /// </summary>
-    public bool PrintLabels(IReadOnlyList<LabelData> labels, bool onePerPage)
+    public bool PrintLabels(IReadOnlyList<LabelData> labels, LabelOptions options, int skip = 0)
     {
         if (labels.Count == 0) return false;
         var dialog = new PrintDialog();
+        if (!options.Sheet)
+        {
+            // Tell the driver the label size; most thermal label printers honour it.
+            try { dialog.PrintTicket.PageMediaSize = new System.Printing.PageMediaSize(options.WidthPx, options.HeightPx); }
+            catch { /* the driver's own page size is used */ }
+        }
         if (dialog.ShowDialog() != true) return false;
 
-        var pageWidth = dialog.PrintableAreaWidth;
-        var pageHeight = dialog.PrintableAreaHeight;
+        var document = BuildLabelDocument(labels, options, skip, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight);
+        dialog.PrintDocument(document.DocumentPaginator, "Price labels");
+        return true;
+    }
+
+    public static FixedDocument BuildLabelDocument(IReadOnlyList<LabelData> labels, LabelOptions o, int skip, double pageWidth, double pageHeight)
+    {
         var document = new FixedDocument();
         document.DocumentPaginator.PageSize = new Size(pageWidth, pageHeight);
 
-        if (onePerPage)
+        if (!o.Sheet)
         {
             foreach (var label in labels)
             {
                 var page = NewPage(pageWidth, pageHeight);
-                page.Children.Add(CreateLabel(label, pageWidth, pageHeight));
+                page.Children.Add(CreateLabel(label, o, Math.Min(o.WidthPx, pageWidth), Math.Min(o.HeightPx, pageHeight)));
                 AddPage(document, page);
             }
+            return document;
         }
-        else
+
+        var (columns, rows) = o.Grid(pageWidth, pageHeight);
+        var perPage = columns * rows;
+        skip = Math.Clamp(skip, 0, perPage - 1);
+        var left = LabelOptions.MmToPx(o.MarginLeftMm);
+        var top = LabelOptions.MmToPx(o.MarginTopMm);
+        var stepX = o.WidthPx + LabelOptions.MmToPx(o.GapXMm);
+        var stepY = o.HeightPx + LabelOptions.MmToPx(o.GapYMm);
+
+        var position = skip;
+        FixedPage? current = null;
+        foreach (var label in labels)
         {
-            const int columns = 3;
-            const double margin = 12;
-            var labelWidth = (pageWidth - margin * 2) / columns;
-            const double labelHeight = 125; // ~33mm
-            var rows = Math.Max(1, (int)((pageHeight - margin * 2) / labelHeight));
-            var perPage = rows * columns;
-
-            for (var start = 0; start < labels.Count; start += perPage)
+            if (current is null || position == perPage)
             {
-                var page = NewPage(pageWidth, pageHeight);
-                foreach (var (label, index) in labels.Skip(start).Take(perPage).Select((l, i) => (l, i)))
-                {
-                    var element = CreateLabel(label, labelWidth, labelHeight);
-                    FixedPage.SetLeft(element, margin + index % columns * labelWidth);
-                    FixedPage.SetTop(element, margin + index / columns * labelHeight);
-                    page.Children.Add(element);
-                }
-                AddPage(document, page);
+                if (current is not null) AddPage(document, current);
+                current = NewPage(pageWidth, pageHeight);
+                if (position == perPage) position = 0;
             }
+            var element = CreateLabel(label, o, o.WidthPx, o.HeightPx);
+            FixedPage.SetLeft(element, left + position % columns * stepX);
+            FixedPage.SetTop(element, top + position / columns * stepY);
+            current.Children.Add(element);
+            position++;
         }
-
-        dialog.PrintDocument(document.DocumentPaginator, "Price labels");
-        return true;
+        if (current is not null) AddPage(document, current);
+        return document;
     }
 
     private static FixedPage NewPage(double width, double height) => new() { Width = width, Height = height, Background = Brushes.White };
@@ -111,55 +127,98 @@ public sealed class PrintService
         document.Pages.Add(content);
     }
 
-    private static FrameworkElement CreateLabel(LabelData label, double width, double height)
+    /// <summary>One label at the given size in px. Also used for the live preview.</summary>
+    public static FrameworkElement CreateLabel(LabelData label, LabelOptions o, double width, double height)
     {
-        const double pad = 8;
-        var barcodeHeight = Math.Max(24, height * 0.32);
-        var stack = new StackPanel { Margin = new Thickness(pad) };
-        stack.Children.Add(new TextBlock
-        {
-            Text = label.Title, FontWeight = FontWeights.Bold, FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis,
-        });
-        stack.Children.Add(new TextBlock { Text = label.Subtitle, FontSize = 9, TextTrimming = TextTrimming.CharacterEllipsis });
-        stack.Children.Add(new TextBlock { Text = label.Price, FontWeight = FontWeights.Bold, FontSize = 15, Margin = new Thickness(0, 1, 0, 2) });
+        // Text grows with the label so small and large labels both look balanced.
+        var scale = Math.Clamp(height / 140.0, 0.55, 1.8) * Math.Clamp(o.TextScale, 0.5, 2.0);
+        var pad = Math.Clamp(height * 0.05, 3, 10);
 
-        var barcodeWidth = width - pad * 2;
-        stack.Children.Add(new Path
+        TextBlock Text(string text, double size, FontWeight weight, FontFamily? font = null) => new()
         {
-            Data = CreateBarcodeGeometry(label.Code, barcodeWidth, barcodeHeight),
-            Fill = Brushes.Black,
-            Width = barcodeWidth,
-            Height = barcodeHeight,
-            SnapsToDevicePixels = true,
-        });
-        stack.Children.Add(new TextBlock
+            Text = text,
+            FontSize = Math.Max(5, size * scale),
+            FontWeight = weight,
+            FontFamily = font ?? new FontFamily("Segoe UI"),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+
+        var panel = new DockPanel { Margin = new Thickness(pad), LastChildFill = true };
+        var top = new StackPanel();
+        DockPanel.SetDock(top, Dock.Top);
+        if (o.ShowStoreName && !string.IsNullOrWhiteSpace(label.StoreName)) top.Children.Add(Text(label.StoreName, 7.5, FontWeights.SemiBold));
+        if (o.ShowName) top.Children.Add(Text(label.Title, 10.5, FontWeights.Bold));
+        if (o.ShowVariant && !string.IsNullOrWhiteSpace(label.Variant)) top.Children.Add(Text(label.Variant, 9, FontWeights.Normal));
+        if (o.ShowSku) top.Children.Add(Text(label.Sku, 8, FontWeights.Normal, Mono));
+        if (o.ShowPrice) top.Children.Add(Text(label.Price, 17, FontWeights.Bold));
+        if (o.ShowLbpPrice && !string.IsNullOrWhiteSpace(label.PriceLbp)) top.Children.Add(Text(label.PriceLbp, 9.5, FontWeights.SemiBold));
+        panel.Children.Add(top);
+
+        if (o.ShowBarcode && TryBarcode(label.Code, out var widths))
         {
-            Text = label.Code, FontFamily = Mono, FontSize = 8, HorizontalAlignment = HorizontalAlignment.Center,
-        });
+            if (o.ShowBarcodeText)
+            {
+                var code = Text(label.Code, 7.5, FontWeights.Normal, Mono);
+                DockPanel.SetDock(code, Dock.Bottom);
+                panel.Children.Add(code);
+            }
+            // Bars fill whatever height is left; the quiet zone (10 modules each side) is kept as margin.
+            var modules = widths.Sum() + 20;
+            var barsWidth = width - pad * 2;
+            var quiet = barsWidth * 10 / modules;
+            panel.Children.Add(new Path
+            {
+                Data = BarsGeometry(widths, 100),
+                Fill = Brushes.Black,
+                Stretch = Stretch.Fill,
+                Margin = new Thickness(quiet, 2, quiet, 0),
+                MinHeight = 10,
+                SnapsToDevicePixels = true,
+            });
+        }
+        else
+        {
+            panel.Children.Add(new Border()); // fills the rest
+        }
 
         return new Border
         {
             Width = width,
             Height = height,
-            BorderBrush = Brushes.LightGray,
-            BorderThickness = new Thickness(0.5),
-            Child = stack,
+            Background = Brushes.White,
+            BorderBrush = o.ShowBorder ? Brushes.Gray : Brushes.Transparent,
+            BorderThickness = new Thickness(o.ShowBorder ? 0.6 : 0),
+            CornerRadius = new CornerRadius(o.ShowBorder ? 3 : 0),
+            ClipToBounds = true,
+            Child = panel,
         };
     }
 
-    /// <summary>Code 128 bars scaled to fit <paramref name="width"/> with a 10-module quiet zone each side.</summary>
-    public static Geometry CreateBarcodeGeometry(string code, double width, double height)
+    private static bool TryBarcode(string code, out IReadOnlyList<int> widths)
     {
-        var widths = Code128.EncodeWidths(code);
-        var modules = widths.Sum() + 20;
-        var module = width / modules;
+        try
+        {
+            widths = string.IsNullOrWhiteSpace(code) ? [] : Code128.EncodeWidths(code);
+            return widths.Count > 0;
+        }
+        catch (ArgumentException)
+        {
+            widths = []; // characters Code 128-B can't encode: print the label without bars
+            return false;
+        }
+    }
+
+    /// <summary>Bars only (no quiet zone), for a <see cref="Path"/> that stretches them to fit.</summary>
+    private static Geometry BarsGeometry(IReadOnlyList<int> widths, double height)
+    {
         var group = new GeometryGroup { FillRule = FillRule.Nonzero };
-        var x = 10 * module;
+        double x = 0;
         for (var i = 0; i < widths.Count; i++)
         {
-            var w = widths[i] * module;
-            if (i % 2 == 0) group.Children.Add(new RectangleGeometry(new Rect(x, 0, w, height)));
-            x += w;
+            if (i % 2 == 0) group.Children.Add(new RectangleGeometry(new Rect(x, 0, widths[i], height)));
+            x += widths[i];
         }
         group.Freeze();
         return group;

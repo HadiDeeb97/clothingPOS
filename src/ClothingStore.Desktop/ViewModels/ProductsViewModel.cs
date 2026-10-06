@@ -23,7 +23,7 @@ public sealed record ProductRow(Product Product)
 
 public sealed partial class ProductsViewModel(
     IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers,
-    Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
+    Session session, PrintService print, SettingsService settings) : ViewModelBase(dialogs), IPageViewModel
 {
     /// <summary>The "All categories" filter entry (one per language, so selecting it by reference keeps working).</summary>
     public static Category AllCategories =>
@@ -124,62 +124,18 @@ public sealed partial class ProductsViewModel(
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    /// <summary>Rows ticked in the list (Ctrl/Shift+click); labels are printed for all of them.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<object> Selection { get; } = [];
+
+    /// <summary>Labels for every size/colour of the selected products. With nothing selected, opens an empty list to scan into.</summary>
+    [RelayCommand]
     private void PrintLabels()
     {
-        if (SelectedProduct is null) return;
-        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, SelectedProduct.Product.Variants.Where(v => v.IsActive)
-            .Select(v => { v.Product = SelectedProduct.Product; return v; }).ToList()));
+        var rows = Selection.OfType<ProductRow>().ToList();
+        if (rows.Count == 0 && SelectedProduct is not null) rows.Add(SelectedProduct);
+        var variants = rows
+            .SelectMany(r => r.Product.Variants.Where(v => v.IsActive).Select(v => { v.Product = r.Product; return v; }))
+            .ToList();
+        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, products, settings, variants));
     }
-}
-
-public sealed partial class LabelRowViewModel(ProductVariant variant, int copies) : ObservableObject
-{
-    public ProductVariant Variant { get; } = variant;
-
-    [ObservableProperty]
-    public partial int Copies { get; set; } = copies;
-}
-
-/// <summary>Choose how many price tags to print for each variant.</summary>
-public sealed partial class LabelPrintViewModel(IDialogService dialogs, PrintService print, IReadOnlyList<ProductVariant> variants)
-    : DialogViewModelBase(dialogs)
-{
-    public override string Title => Loc.T("Labels.Title");
-    public List<LabelRowViewModel> Rows { get; } = variants.Select(v => new LabelRowViewModel(v, 1)).ToList();
-
-    [ObservableProperty]
-    public partial bool OnePerPage { get; set; }
-
-    [RelayCommand]
-    private void CopiesFromStock()
-    {
-        foreach (var row in Rows) row.Copies = Math.Max(0, row.Variant.StockQuantity);
-    }
-
-    [RelayCommand]
-    private void Print()
-    {
-        var labels = Rows.SelectMany(r => Enumerable.Repeat(new LabelData(
-            r.Variant.Product?.Name ?? "",
-            $"{r.Variant.Description}  {r.Variant.Sku}",
-            CurrencyFormat.Format(r.Variant.EffectivePrice),
-            r.Variant.Barcode ?? r.Variant.Sku), Math.Max(0, r.Copies))).ToList();
-        if (labels.Count == 0)
-        {
-            Dialogs.Warning(Loc.T("Labels.NeedCopies"));
-            return;
-        }
-        try
-        {
-            if (print.PrintLabels(labels, OnePerPage)) Close(true);
-        }
-        catch (Exception ex)
-        {
-            Dialogs.Error(Loc.T("Common.PrintFailed"), ex);
-        }
-    }
-
-    [RelayCommand]
-    private void Cancel() => Close(false);
 }

@@ -20,6 +20,9 @@ public sealed class LocalPreferences
     public bool SidebarCollapsed { get; set; }
     public Dictionary<string, string> Layout { get; set; } = [];
 
+    /// <summary>Label size and content last used on this PC (each PC has its own label printer).</summary>
+    public Services.LabelOptions? Labels { get; set; }
+
     public void Save()
     {
         try

@@ -29,6 +29,7 @@
 
             <Border Style="{StaticResource TableCard}">
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
+                          SelectionMode="Extended" infra:GridSelection.Items="{Binding Selection}"
                           MouseDoubleClick="OnDoubleClick" infra:LayoutMemory.Key="Products.List">
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">

@@ -13,7 +13,8 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
 | **Products** | Style + size × colour matrix with presets (XS–XXL, waist, shoe, kids…); auto SKU and in-store EAN-13 barcodes; per-variant price/cost overrides; brand, season, material, department |
-| **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger; Code 128 price labels (sheet or label printer) |
+| **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger |
+| **Price labels** | Select several products or stock rows (Ctrl/Shift+click) and print them in one go, or scan items into the list; copies per item, for all, or from stock; label size presets (A4 sheets such as 21/24/65 per page, label printers, hang tags) or a custom size and sheet position; choose what is printed (name, size/colour, price, LBP price, barcode, SKU, store name); live preview; settings remembered per PC |
 | **Purchasing** | Suppliers; purchase orders; "add supplier's low-stock items"; partial and full receiving into stock with cost updates |
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
@@ -119,6 +120,15 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
   drawer is never short because of rounding.
 * Refunds pay pounds back in pounds at **today's** rate (or the cashier picks dollars or pounds for the cash part).
 * The X/Z reports and the close-shift screen show what should be in the drawer in each currency.
+
+### Price labels
+
+* In **Products** or **Inventory**, select the rows you want (Ctrl+click, Shift+click, Ctrl+A) and click **Print labels**.
+  With nothing selected, Products opens an empty list you can scan items into; Inventory uses everything listed.
+* In the label window, scan or type more items, set copies (one each, a number for all, or the stock on hand), pick a
+  label size and what goes on it. The preview is drawn by the same code that prints.
+* For sheets, **Position on the sheet** adjusts the margins and gaps if labels come out shifted, and **Skip labels already
+  used** starts on a part-used sheet. Turn on **Outline** and print on plain paper to check alignment first.
 
 ### Backups
 

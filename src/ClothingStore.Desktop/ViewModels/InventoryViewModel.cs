@@ -12,7 +12,7 @@ namespace ClothingStore.Desktop.ViewModels;
 
 public sealed partial class InventoryViewModel(
     IDialogService dialogs, InventoryService inventory, CategoryService categories, ReportService reports,
-    Session session, PrintService print) : ViewModelBase(dialogs), IPageViewModel
+    Session session, PrintService print, ProductService products, SettingsService settings) : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => Loc.T("Nav.Inventory");
 
@@ -132,12 +132,17 @@ public sealed partial class InventoryViewModel(
         if (await RunAsync(() => inventory.UpdateReorderLevelAsync(item.Id, level.Value))) await LoadItemsAsync();
     }
 
+    /// <summary>Rows ticked in the stock list (Ctrl/Shift+click).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<object> Selection { get; } = [];
+
+    /// <summary>Labels for the selected rows (Ctrl+A selects everything listed); with nothing selected, for everything listed.</summary>
     [RelayCommand]
     private void PrintLabels()
     {
-        List<ProductVariant> targets = SelectedItem is null ? Items : [SelectedItem];
-        if (targets.Count == 0) return;
-        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, targets));
+        var selected = Selection.OfType<ProductVariant>().ToList();
+        List<ProductVariant> targets = selected.Count > 0 ? selected : Items;
+        if (targets.Count > 200 && !Dialogs.Confirm(Loc.T("Labels.ManyItemsConfirm", targets.Count))) return;
+        Dialogs.ShowDialog(new LabelPrintViewModel(Dialogs, print, products, settings, targets));
     }
 
     [RelayCommand]

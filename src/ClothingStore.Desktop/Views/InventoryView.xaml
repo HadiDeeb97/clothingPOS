@@ -61,7 +61,8 @@
                 <RowDefinition Height="2*" MinHeight="120" />
             </Grid.RowDefinitions>
             <Border Style="{StaticResource TableCard}">
-                <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" infra:LayoutMemory.Key="Inventory.Items">
+                <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                          SelectionMode="Extended" infra:GridSelection.Items="{Binding Selection}" infra:LayoutMemory.Key="Inventory.Items">
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                             <Style.Triggers>
