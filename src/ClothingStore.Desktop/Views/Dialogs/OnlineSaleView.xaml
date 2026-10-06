@@ -48,6 +48,7 @@
 
         <TextBlock Text="{l:T OnlineSale.Courier}" Style="{StaticResource FieldLabel}" />
         <ComboBox IsEditable="True" ItemsSource="{Binding Couriers}" Text="{Binding Courier, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Text="{Binding CourierInfo}" Style="{StaticResource HintText}" Visibility="{Binding CourierInfo, Converter={StaticResource HasValueToVis}}" />
 
         <TextBlock Text="{l:T OnlineSale.DeliveryReference}" Style="{StaticResource FieldLabel}" />
         <TextBox Text="{Binding DeliveryReference, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource MonoFont}" Tag="{l:T OnlineSale.DeliveryReferenceHint}" />

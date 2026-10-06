@@ -88,14 +88,25 @@ public sealed partial class DeliveriesViewModel(
         ? Loc.T("Deliveries.SelectHint")
         : Loc.T("Deliveries.Selected", _checked.Count, CurrencyFormat.Format(_checked.Values.Sum(r => r.Owed)));
 
-    public async Task OnNavigatedToAsync() => await RefreshAsync();
+    public async Task OnNavigatedToAsync() => await LoadAsync();
 
-    partial void OnFilterChanged(DeliveryFilter value) => _ = RefreshAsync();
-    partial void OnCourierChanged(string? value) => _ = RefreshAsync();
-    partial void OnSearchTextChanged(string value) => _ = RefreshAsync(immediately: false);
+    partial void OnFilterChanged(DeliveryFilter value) => _ = LoadAsync();
+    partial void OnCourierChanged(string? value) => _ = LoadAsync();
+    partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
 
+    // Parameterless on purpose: a command with a bool parameter is disabled when the button passes none.
     [RelayCommand]
-    private async Task RefreshAsync(bool immediately = true)
+    private Task RefreshAsync() => LoadAsync();
+
+    /// <summary>Delivery companies and drivers with their details.</summary>
+    [RelayCommand]
+    private async Task ManagePartnersAsync()
+    {
+        if (Dialogs.ShowDialog(new DeliveryPartnersViewModel(Dialogs, deliveries)))
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync(bool immediately = true)
     {
         bool? paid = Filter switch { DeliveryFilter.Owed => false, DeliveryFilter.Paid => true, _ => null };
         var courier = string.IsNullOrWhiteSpace(Courier) ? null : Courier;

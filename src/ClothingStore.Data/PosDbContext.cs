@@ -30,6 +30,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<AppState> AppState => Set<AppState>();
     public DbSet<DeliverySettlement> DeliverySettlements => Set<DeliverySettlement>();
     public DbSet<Region> Regions => Set<Region>();
+    public DbSet<DeliveryPartner> DeliveryPartners => Set<DeliveryPartner>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -216,6 +217,17 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
                 new Region { Id = 6, Name = "Baalbek-Hermel", NameAr = "بعلبك الهرمل", SortOrder = 6 },
                 new Region { Id = 7, Name = "South", NameAr = "الجنوب", SortOrder = 7 },
                 new Region { Id = 8, Name = "Nabatieh", NameAr = "النبطية", SortOrder = 8 });
+        });
+
+        b.Entity<DeliveryPartner>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(100).UseCollation(CaseInsensitive).IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.ContactName).HasMaxLength(150);
+            e.Property(x => x.Phone).HasMaxLength(40);
+            e.Property(x => x.Phone2).HasMaxLength(40);
+            e.Property(x => x.Address).HasMaxLength(300);
+            e.Property(x => x.Notes).HasMaxLength(1000);
         });
 
         b.Entity<DeliverySettlement>(e =>

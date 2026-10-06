@@ -33,5 +33,19 @@
   "Deliveries.SelectHint": "حدّد الطلبات التي دفعتها الشركة، أو امسح باركود فواتيرها.",
   "Deliveries.Selected": "{0} طلب محدد · {1} مستحق",
   "Deliveries.Short": "أقل من المستحق بـ {0} (مثلاً احتفظت الشركة برسمها). يُسجَّل الفرق.",
-  "Deliveries.UncheckAll": "إلغاء التحديد"
+  "Deliveries.UncheckAll": "إلغاء التحديد",
+  "Partners.Button": "الشركات والسائقون",
+  "Partners.Contact": "الشخص المسؤول",
+  "Partners.Deactivated": "لديه طلبات، لذلك تم تعطيله بدلاً من حذفه.",
+  "Partners.DefaultFee": "الرسم المعتاد",
+  "Partners.DefaultFeeLabel": "رسم التوصيل المعتاد ($)",
+  "Partners.DeleteConfirm": "حذف {0}؟",
+  "Partners.Details": "التفاصيل",
+  "Partners.Kind": "النوع",
+  "Partners.NameRequired": "الاسم *",
+  "Partners.New": "+ جديد",
+  "Partners.Notes": "ملاحظات (المناطق، أيام الدفع…)",
+  "Partners.Owes": "المستحق",
+  "Partners.Phone2": "هاتف آخر",
+  "Partners.Title": "شركات التوصيل والسائقون"
 }

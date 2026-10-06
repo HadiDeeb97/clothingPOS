@@ -6,6 +6,12 @@
     <DockPanel>
         <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
             <Button DockPanel.Dock="Right" Content="{l:T Common.Refresh}" Command="{Binding RefreshCommand}" Margin="0" />
+            <Button DockPanel.Dock="Right" Command="{Binding ManagePartnersCommand}" Margin="0,0,8,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE716;" Style="{StaticResource Icon}" Margin="0,0,8,0" />
+                    <TextBlock Text="{l:T Partners.Button}" />
+                </StackPanel>
+            </Button>
             <WrapPanel>
                 <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Tag="{l:T Deliveries.SearchHint}" Width="280" Margin="0,0,10,0" />

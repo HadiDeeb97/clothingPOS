@@ -174,7 +174,11 @@ An online order can be put on hold (F9) like any cart and keeps its details when
 
 **When the delivery company collects the money** (it doesn't hand you cash straight away):
 
-1. In the online order window, enter the **delivery company / driver** (companies used before are suggested).
+1. In the online order window, pick the **delivery company / driver**. Save them once under **Deliveries →
+   Companies & drivers** (company or driver, contact person, phones, address, usual delivery fee, notes): picking one
+   shows its phone and fills in its usual fee. Any other name can still be typed. Renaming a company there renames it on
+   its orders; one with orders is set inactive instead of deleted. Companies typed on older orders are added
+   automatically on upgrade.
 2. When paying, choose **Delivery company (pay later)**. The sale is recorded, but that amount is not cash in the
    drawer: it is **owed** by the company. A tracking number can go in the reference box.
 3. **Deliveries** (under Sell) lists those orders as *Awaiting payment* and shows what each company owes.

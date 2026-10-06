@@ -33,5 +33,19 @@
   "Deliveries.SelectHint": "Tick the orders the company paid for, or scan their invoice barcodes.",
   "Deliveries.Selected": "{0} order(s) ticked · {1} owed",
   "Deliveries.Short": "{0} less than owed (e.g. the company kept its fee). The difference is recorded.",
-  "Deliveries.UncheckAll": "Clear ticks"
+  "Deliveries.UncheckAll": "Clear ticks",
+  "Partners.Button": "Companies & drivers",
+  "Partners.Contact": "Contact person",
+  "Partners.Deactivated": "It has orders, so it was set inactive instead of deleted.",
+  "Partners.DefaultFee": "Usual fee",
+  "Partners.DefaultFeeLabel": "Usual delivery fee ($)",
+  "Partners.DeleteConfirm": "Delete {0}?",
+  "Partners.Details": "Details",
+  "Partners.Kind": "Type",
+  "Partners.NameRequired": "Name *",
+  "Partners.New": "+ New",
+  "Partners.Notes": "Notes (areas covered, payment days…)",
+  "Partners.Owes": "Owes",
+  "Partners.Phone2": "Second phone",
+  "Partners.Title": "Delivery companies and drivers"
 }

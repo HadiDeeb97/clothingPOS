@@ -170,3 +170,10 @@ public enum SettlementMethod
     /// <summary>Bank or wallet transfer (Whish, OMT...): not in the drawer.</summary>
     Transfer = 2,
 }
+
+/// <summary>Whether a delivery partner is a company or a single driver.</summary>
+public enum DeliveryPartnerKind
+{
+    Company = 0,
+    Driver = 1,
+}

@@ -563,8 +563,14 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         if (string.IsNullOrWhiteSpace(OrderNotes) && Customer?.FullAddress is { } address) OrderNotes = address;
 
         IReadOnlyList<string> couriers = [];
-        try { couriers = await _deliveries.GetCouriersAsync(); } catch { /* just no suggestions */ }
-        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference);
+        IReadOnlyList<DeliveryPartner> partners = [];
+        try
+        {
+            couriers = await _deliveries.GetCouriersAsync();
+            partners = await _deliveries.GetPartnersAsync();
+        }
+        catch { /* just no suggestions */ }
+        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference, partners);
         if (!Dialogs.ShowDialog(dialog)) return;
         Channel = dialog.Channel;
         DeliveryFee = dialog.DeliveryFee;

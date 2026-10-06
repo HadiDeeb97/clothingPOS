@@ -35,6 +35,9 @@ public sealed class LocalPreferences
     /// <summary>Delivery fee of the last online order taken here, offered for the next one.</summary>
     public decimal? LastDeliveryFee { get; set; }
 
+    /// <summary>Delivery company / driver of the last online order taken here, offered for the next one.</summary>
+    public string? LastCourier { get; set; }
+
     /// <summary>Day the license expiry warning was last shown here (shown once a day).</summary>
     public DateTime? LicenseWarnedOn { get; set; }
 

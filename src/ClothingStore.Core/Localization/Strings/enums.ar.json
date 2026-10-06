@@ -10,6 +10,8 @@
   "Enum.ChangeCurrency.Lbp": "بالليرة",
   "Enum.ChangeCurrency.Mixed": "دولار + ليرة",
   "Enum.ChangeCurrency.Usd": "بالدولار",
+  "Enum.DeliveryPartnerKind.Company": "شركة",
+  "Enum.DeliveryPartnerKind.Driver": "سائق",
   "Enum.DiscountType.Amount": "مبلغ",
   "Enum.DiscountType.None": "بدون",
   "Enum.DiscountType.Percent": "نسبة مئوية",

@@ -10,6 +10,8 @@
   "Enum.ChangeCurrency.Lbp": "LBP",
   "Enum.ChangeCurrency.Mixed": "Dollars + LBP",
   "Enum.ChangeCurrency.Usd": "USD",
+  "Enum.DeliveryPartnerKind.Company": "Company",
+  "Enum.DeliveryPartnerKind.Driver": "Driver",
   "Enum.DiscountType.Amount": "Amount",
   "Enum.DiscountType.None": "None",
   "Enum.DiscountType.Percent": "Percent",
