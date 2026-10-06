@@ -110,6 +110,25 @@
                     </Border>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="{l:T Reports.Channels}">
+                <DockPanel Margin="0,12,0,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Content="{l:T Common.ExportCsv}" Command="{Binding ExportCommand}" CommandParameter="channels" />
+                        <TextBlock Text="{Binding Report.DeliveryFees, Converter={StaticResource Money}, StringFormat={l:T Reports.DeliveryFees}}"
+                                   Style="{StaticResource MutedText}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Border Style="{StaticResource TableCard}">
+                        <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Report.ByChannel}" infra:LayoutMemory.Key="Reports.Channels">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{l:T Orders.Channel}" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="{l:T Reports.Sales}" Binding="{Binding Count}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Items}" Binding="{Binding Quantity}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Amount, Converter={StaticResource Money}}" Width="130" ElementStyle="{StaticResource StrongRightCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </DockPanel>
+            </TabItem>
             <TabItem Header="{l:T Reports.Cashiers}">
                 <DockPanel Margin="0,12,0,0">
                     <Button DockPanel.Dock="Top" Content="{l:T Common.ExportCsv}" HorizontalAlignment="Right" Margin="0,0,0,10" Command="{Binding ExportCommand}" CommandParameter="cashiers" />

@@ -30,6 +30,8 @@ public sealed record ReceiptDocument
     public decimal Tax { get; init; }
     public decimal TaxRate { get; init; }
     public bool PricesIncludeTax { get; init; }
+    /// <summary>Delivery charge for an online order (already in <see cref="Total"/>).</summary>
+    public decimal DeliveryFee { get; init; }
     public decimal Total { get; init; }
     /// <summary>Label of the total line; null = "TOTAL" in the receipt language.</summary>
     public string? TotalLabel { get; init; }

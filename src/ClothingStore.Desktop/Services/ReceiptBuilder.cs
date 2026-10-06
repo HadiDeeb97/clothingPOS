@@ -66,6 +66,7 @@ public static class ReceiptBuilder
             Tax = sale.TaxTotal,
             TaxRate = s.TaxRate,
             PricesIncludeTax = s.PricesIncludeTax,
+            DeliveryFee = sale.DeliveryFee,
             Total = sale.Total,
             SecondaryTotal = secondaryTotal,
             Payments = payments,
@@ -210,6 +211,56 @@ public static class ReceiptBuilder
 
         lines.Add(rule);
         lines.Add(Loc.T("Report.Printed", DateTime.Now));
+        return lines;
+    }
+
+    /// <summary>Slip that goes with the parcel: who, where, what, and how much the driver collects.</summary>
+    public static IReadOnlyList<string> DeliveryNote(OnlineOrder o, StoreSettings s)
+    {
+        const int w = 42;
+        string M(decimal v) => Money.Format(v, s.CurrencySymbol);
+        string Row(string l, string r) => l.Length + r.Length + 1 > w
+            ? l[..Math.Max(0, w - r.Length - 2)] + "… " + r
+            : l.PadRight(w - r.Length - 1) + " " + r;
+        var rule = new string('-', w);
+
+        var lines = new List<string>
+        {
+            s.StoreName.ToUpperInvariant(),
+            s.Phone ?? "",
+            rule,
+            Loc.T("Orders.Note.Title", o.OrderNumber),
+            Loc.T("Orders.Note.Date", o.CreatedAt),
+            Loc.T("Orders.Note.Channel", Loc.EnumText(o.Channel)) + (string.IsNullOrWhiteSpace(o.Handle) ? "" : $"  {o.Handle}"),
+            rule,
+            Loc.T("Orders.Note.To", o.CustomerName),
+        };
+        if (!string.IsNullOrWhiteSpace(o.Phone)) lines.Add(Loc.T("Orders.Note.Phone", o.Phone));
+        if (!string.IsNullOrWhiteSpace(o.Address))
+        {
+            lines.Add(Loc.T("Orders.Note.Address"));
+            foreach (var part in o.Address.Split('\n')) lines.Add("  " + part.Trim());
+        }
+        lines.Add(rule);
+        foreach (var l in o.Lines)
+        {
+            lines.Add(Row($"{l.Quantity} x {l.ProductName}", M(l.LineTotal)));
+            if (!string.IsNullOrWhiteSpace(l.VariantDescription)) lines.Add($"    {l.VariantDescription}  {l.Sku}");
+        }
+        lines.Add(rule);
+        if (o.DiscountTotal != 0) lines.Add(Row(Loc.T("Common.Discounts"), M(-o.DiscountTotal)));
+        if (o.DeliveryFee != 0) lines.Add(Row(Loc.T("Orders.Note.Delivery"), M(o.DeliveryFee)));
+        lines.Add(Row(Loc.T("Orders.Note.Collect"), M(o.Total)));
+        if (s.ActiveLbpRate > 0)
+            lines.Add(Row("", Lbp.Format(Lbp.ToPay(o.Total, s.ActiveLbpRate, s.LbpRounding))));
+        if (!string.IsNullOrWhiteSpace(o.Notes))
+        {
+            lines.Add(rule);
+            lines.Add(Loc.T("Report.Notes", o.Notes));
+        }
+        if (!string.IsNullOrWhiteSpace(o.Courier)) lines.Add(Loc.T("Orders.Note.Courier", o.Courier));
+        lines.Add(rule);
+        lines.Add(Loc.T("Orders.Note.Signature"));
         return lines;
     }
 

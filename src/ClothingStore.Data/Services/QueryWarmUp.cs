@@ -8,7 +8,7 @@ namespace ClothingStore.Data.Services;
 public class QueryWarmUp(
     ProductService products, InventoryService inventory, CustomerService customers, SalesService sales,
     ReturnService returns, ReportService reports, CategoryService categories, SupplierService suppliers,
-    ShiftService shifts, PurchaseOrderService purchaseOrders, BackupService backups)
+    ShiftService shifts, PurchaseOrderService purchaseOrders, BackupService backups, OnlineOrderService orders)
 {
     public async Task RunAsync(CancellationToken ct = default)
     {
@@ -39,6 +39,9 @@ public class QueryWarmUp(
             () => suppliers.GetAllAsync(ct: ct),
             () => purchaseOrders.GetAllAsync(ct: ct),
             () => backups.GetRecentAsync(ct: ct),
+            () => orders.GetCountsAsync(ct),
+            () => orders.SearchAsync(null, null, openOnly: true, ct: ct),
+            () => orders.SearchAsync(null, "~", ct: ct),
         ];
         foreach (var query in queries)
         {

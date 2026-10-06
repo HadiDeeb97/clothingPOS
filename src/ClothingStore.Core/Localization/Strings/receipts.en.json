@@ -5,6 +5,7 @@
   "Receipt.CreditBalance": "Store credit balance: {0}",
   "Receipt.Customer": "Customer:",
   "Receipt.Date": "Date:",
+  "Receipt.Delivery": "Delivery",
   "Receipt.Discount": "Discount",
   "Receipt.Items": "Items: {0}",
   "Receipt.No": "No:",

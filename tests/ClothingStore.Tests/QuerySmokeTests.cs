@@ -108,7 +108,7 @@ public class QuerySmokeTests
         await using var db = await TestDatabase.CreateAsync();
         await new DatabaseInitializer(db.Factory).InitializeAsync(seedDemoData: true);
         var warmUp = new QueryWarmUp(db.Products, db.Inventory, db.Customers, db.Sales, db.Returns, db.Reports,
-            db.Categories, db.Suppliers, db.Shifts, db.PurchaseOrders, new BackupService(db.Factory));
+            db.Categories, db.Suppliers, db.Shifts, db.PurchaseOrders, new BackupService(db.Factory), db.Orders);
 
         await warmUp.RunAsync(); // swallows errors by design, so also run one query directly to prove the DB is usable
         Assert.NotEmpty(await db.Products.SearchAsync(null, null));

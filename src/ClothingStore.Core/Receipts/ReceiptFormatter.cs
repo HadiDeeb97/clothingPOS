@@ -48,6 +48,7 @@ public static class ReceiptFormatter
         if (doc.Discount != 0) lines.Add(Pair(R("Receipt.Discount"), M(-doc.Discount), width));
         var taxLabel = Loc.Format(doc.Language, doc.PricesIncludeTax ? "Receipt.TaxIncluded" : "Receipt.Tax", doc.TaxRate);
         lines.Add(Pair(taxLabel, M(doc.Tax), width));
+        if (doc.DeliveryFee != 0) lines.Add(Pair(R("Receipt.Delivery"), M(doc.DeliveryFee), width));
         lines.Add(new string('=', width));
         lines.Add(Pair(doc.TotalLabel ?? R("Receipt.Total"), M(doc.Total), width));
         if (!string.IsNullOrWhiteSpace(doc.SecondaryTotal)) lines.Add(Pair("", doc.SecondaryTotal, width));

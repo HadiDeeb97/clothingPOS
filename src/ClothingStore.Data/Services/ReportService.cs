@@ -43,6 +43,12 @@ public sealed record SalesReport
     public IReadOnlyList<NamedAmount> TopProducts { get; init; } = [];
     public IReadOnlyList<NamedAmount> ByCashier { get; init; } = [];
     public IReadOnlyList<NamedAmount> BySize { get; init; } = [];
+
+    /// <summary>In store vs WhatsApp, Instagram... (Count = sales).</summary>
+    public IReadOnlyList<NamedAmount> ByChannel { get; init; } = [];
+
+    /// <summary>Delivery charges collected on online orders (part of <see cref="TotalSales"/>).</summary>
+    public decimal DeliveryFees { get; init; }
     public IReadOnlyList<DailySales> ByDay { get; init; } = [];
 }
 
@@ -66,7 +72,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             .Where(s => s.CreatedAt >= from && s.CreatedAt < to)
             .Select(s => new
             {
-                s.Id, s.Status, s.CreatedAt, s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total,
+                s.Id, s.Status, s.CreatedAt, s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total, s.Channel, s.DeliveryFee,
                 Cashier = s.User != null ? s.User.FullName : null,
             })
             .ToListAsync(ct);
@@ -145,6 +151,13 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             ByCashier = completed
                 .GroupBy(s => s.Cashier ?? "?")
                 .Select(g => new NamedAmount(g.Key, g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
+                .OrderByDescending(x => x.Amount).ToList(),
+
+            DeliveryFees = completed.Sum(s => s.DeliveryFee),
+
+            ByChannel = completed
+                .GroupBy(s => s.Channel)
+                .Select(g => new NamedAmount(Loc.EnumText(g.Key), g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
                 .OrderByDescending(x => x.Amount).ToList(),
 
             ByDay = completed

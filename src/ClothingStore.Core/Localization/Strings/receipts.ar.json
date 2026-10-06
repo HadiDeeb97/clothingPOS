@@ -5,6 +5,7 @@
   "Receipt.CreditBalance": "رصيد المتجر: {0}",
   "Receipt.Customer": "الزبون:",
   "Receipt.Date": "التاريخ:",
+  "Receipt.Delivery": "التوصيل",
   "Receipt.Discount": "الحسم",
   "Receipt.Items": "عدد القطع: {0}",
   "Receipt.No": "رقم:",

@@ -44,6 +44,12 @@ public class Sale : Entity
 
     public string? Notes { get; set; }
 
+    /// <summary>In store, or the channel of the online order it completed.</summary>
+    public SalesChannel Channel { get; set; }
+
+    /// <summary>Delivery charge included in <see cref="Total"/> (not in the lines, not taxed).</summary>
+    public decimal DeliveryFee { get; set; }
+
     public DateTime? VoidedAt { get; set; }
     public int? VoidedByUserId { get; set; }
     public string? VoidReason { get; set; }

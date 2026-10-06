@@ -27,6 +27,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
     public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
     public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
+    public DbSet<OnlineOrder> OnlineOrders => Set<OnlineOrder>();
+    public DbSet<OnlineOrderLine> OnlineOrderLines => Set<OnlineOrderLine>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -184,6 +186,33 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
             e.Ignore(x => x.ActiveLbpRate);
+        });
+
+        b.Entity<OnlineOrder>(e =>
+        {
+            e.Property(x => x.OrderNumber).HasMaxLength(32).IsRequired();
+            e.HasIndex(x => x.OrderNumber).IsUnique();
+            e.HasIndex(x => new { x.Status, x.CreatedAt });
+            e.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Phone).HasMaxLength(30);
+            e.Property(x => x.Handle).HasMaxLength(100);
+            e.Property(x => x.Address).HasMaxLength(500);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.Courier).HasMaxLength(100);
+            e.Property(x => x.CancelReason).HasMaxLength(300);
+            e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Sale).WithMany().HasForeignKey(x => x.SaleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne(l => l.OnlineOrder).HasForeignKey(l => l.OnlineOrderId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.ItemCount);
+            e.Ignore(x => x.IsOpen);
+        });
+
+        b.Entity<OnlineOrderLine>(e =>
+        {
+            e.Property(x => x.ProductName).HasMaxLength(200);
+            e.Property(x => x.Sku).HasMaxLength(64);
+            e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<StoreLogo>(e =>

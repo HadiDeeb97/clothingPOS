@@ -37,22 +37,27 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     private readonly SettingsService _settings;
     private readonly UserService _users;
     private readonly BrandingService _branding;
+    private readonly OnlineOrderService _orders;
     private readonly DispatcherTimer _clock;
+    private readonly NavItem? _ordersNav;
 
     public MainViewModel(
-        IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users, BrandingService branding)
+        IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users,
+        BrandingService branding, OnlineOrderService orders)
         : base(dialogs)
     {
         _navigation = navigation;
         _settings = settings;
         _users = users;
         _branding = branding;
+        _orders = orders;
         Session = session;
         IsSidebarCollapsed = LocalPreferences.Current.SidebarCollapsed;
 
         AddGroup("Nav.Group.Sell",
             Nav<SalesViewModel>("Nav.Register", "", Permission.Sell),
             Nav<ReturnsViewModel>("Nav.Returns", "", Permission.ProcessReturns),
+            _ordersNav = Nav<OnlineOrdersViewModel>("Nav.OnlineOrders", "\uE7BF", Permission.Sell),
             Nav<SalesHistoryViewModel>("Nav.SalesHistory", "", Permission.Sell),
             Nav<ShiftViewModel>("Nav.CashDrawer", "", Permission.Sell));
         AddGroup("Nav.Group.People",
@@ -73,6 +78,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _navigation.Navigated += OnNavigated;
         _navigation.PropertyChanged += OnNavigationPropertyChanged;
         _settings.SettingsChanged += OnSettingsChanged;
+        _orders.Changed += OnOrdersChanged;
+        _ = RefreshOrderBadgeAsync();
 
         _clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
         _clock.Tick += OnClockTick;
@@ -162,10 +169,28 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
             if (await _settings.RefreshCurrencyAsync())
                 Dialogs.Toast(Loc.T("Rate.ChangedElsewhere", _settings.Current.LbpRate.ToString("N0")));
             await Branding.Instance.RefreshAsync(_branding, onlyIfChanged: true);
+            await RefreshOrderBadgeAsync();
         }
         catch
         {
             // Offline for a moment: the next tick tries again, and checkout re-checks the rate anyway.
+        }
+    }
+
+    private void OnOrdersChanged(object? sender, EventArgs e) =>
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => _ = RefreshOrderBadgeAsync());
+
+    /// <summary>Red bubble on "Online orders": orders taken but not yet confirmed.</summary>
+    private async Task RefreshOrderBadgeAsync()
+    {
+        if (_ordersNav is null) return;
+        try
+        {
+            _ordersNav.Badge = (await _orders.GetCountsAsync()).New;
+        }
+        catch
+        {
+            // the next tick tries again
         }
     }
 
@@ -232,5 +257,6 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _navigation.Navigated -= OnNavigated;
         _navigation.PropertyChanged -= OnNavigationPropertyChanged;
         _settings.SettingsChanged -= OnSettingsChanged;
+        _orders.Changed -= OnOrdersChanged;
     }
 }

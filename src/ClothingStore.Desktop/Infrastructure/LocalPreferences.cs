@@ -23,6 +23,9 @@ public sealed class LocalPreferences
     /// <summary>Label size and content last used on this PC (each PC has its own label printer).</summary>
     public Services.LabelOptions? Labels { get; set; }
 
+    /// <summary>Delivery fee of the last online order taken here, offered for the next one.</summary>
+    public decimal? LastDeliveryFee { get; set; }
+
     public void Save()
     {
         try

@@ -71,6 +71,9 @@ public sealed partial class ReportsViewModel(
                 case "payments":
                     CsvExporter.Write(path, [Loc.T("Reports.Method"), Loc.T("Reports.Count"), Loc.T("Common.Amount")], Report.ByPaymentMethod.Select(x => new object?[] { x.Name, x.Count, x.Amount }));
                     break;
+                case "channels":
+                    CsvExporter.Write(path, [Loc.T("Orders.Channel"), Loc.T("Reports.Sales"), Loc.T("Common.Items"), Loc.T("Common.Total")], Report.ByChannel.Select(x => new object?[] { x.Name, x.Count, x.Quantity, x.Amount }));
+                    break;
                 case "cashiers":
                     CsvExporter.Write(path, [Loc.T("Common.Cashier"), Loc.T("Reports.Transactions"), Loc.T("Common.Items"), Loc.T("Common.Total")], Report.ByCashier.Select(x => new object?[] { x.Name, x.Count, x.Quantity, x.Amount }));
                     break;
@@ -119,6 +122,13 @@ public sealed partial class ReportsViewModel(
             Loc.T("Common.Payments"),
         };
         lines.AddRange(r.ByPaymentMethod.Select(p => Row("  " + p.Name, M(p.Amount))));
+        if (r.ByChannel.Any(c => c.Name != Loc.EnumText(Core.SalesChannel.InStore)))
+        {
+            lines.Add(new string('-', 42));
+            lines.Add(Loc.T("Reports.Channels"));
+            lines.AddRange(r.ByChannel.Select(c => Row($"  {c.Name} ({c.Count})", M(c.Amount))));
+            lines.Add(Row("  " + Loc.T("Orders.DeliveryFee"), M(r.DeliveryFees)));
+        }
         lines.Add(new string('-', 42));
         lines.Add(Loc.T("Reports.TopCategories"));
         lines.AddRange(r.ByCategory.Take(10).Select(c => Row($"  {c.Name} ({c.Quantity})", M(c.Amount))));

@@ -201,7 +201,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException(Loc.T("Err.RateChanged", settings.LbpRate.ToString("N0")));
     }
 
-    private static async Task<string> NextReceiptNumberAsync(PosDbContext db, string prefix, DateTime date, CancellationToken ct)
+    internal static async Task<string> NextReceiptNumberAsync(PosDbContext db, string prefix, DateTime date, CancellationToken ct)
     {
         var stem = QueryHelpers.DayStem(prefix, date);
         var last = await db.Sales
@@ -342,7 +342,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             .Include(s => s.User)
             .AsSplitQuery();
 
-    private static async Task SaveAsync(PosDbContext db, CancellationToken ct)
+    internal static async Task SaveAsync(PosDbContext db, CancellationToken ct)
     {
         try
         {

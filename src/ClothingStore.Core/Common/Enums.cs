@@ -79,6 +79,12 @@ public enum StockMovementType
     Damaged = 5,
     Void = 6,
     StockCount = 7,
+
+    /// <summary>Held for a confirmed online order.</summary>
+    OnlineOrder = 8,
+
+    /// <summary>Put back when an online order was cancelled.</summary>
+    OnlineOrderCancelled = 9,
 }
 
 public enum PurchaseOrderStatus
@@ -124,4 +130,35 @@ public enum ChangeCurrency
 
     /// <summary>Whole dollars in USD and the rest in LBP (there are no dollar coins).</summary>
     Mixed = 2,
+}
+
+/// <summary>Where a sale came from.</summary>
+public enum SalesChannel
+{
+    InStore = 0,
+    WhatsApp = 1,
+    Instagram = 2,
+    Facebook = 3,
+    Phone = 4,
+    Website = 5,
+    Other = 6,
+}
+
+/// <summary>Life of an order taken by message or phone, from taking it to delivery.</summary>
+public enum OnlineOrderStatus
+{
+    /// <summary>Taken, not yet confirmed with the customer; stock not held.</summary>
+    New = 0,
+
+    /// <summary>Confirmed; the items are taken out of stock so they aren't sold twice.</summary>
+    Confirmed = 1,
+
+    /// <summary>Handed to the driver / courier.</summary>
+    OutForDelivery = 2,
+
+    /// <summary>Paid and delivered; a sale was recorded.</summary>
+    Completed = 3,
+
+    /// <summary>Cancelled; held stock was put back.</summary>
+    Cancelled = 4,
 }

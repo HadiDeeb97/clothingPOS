@@ -19,6 +19,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
+| **Online orders** | Orders from WhatsApp, Instagram, Facebook or the phone: customer, phone, address, items and delivery fee. Confirming holds the stock; then out for delivery (with the driver's name); completing records a normal sale when the money comes back (cash in USD/LBP, card or wallet), with the delivery fee on the receipt. Cancelling puts the stock back. A red badge counts new orders; delivery slip; one click opens WhatsApp with the order summary, or copies it for Instagram/Facebook; reports by channel |
 | **Store logo** | Managers and admins pick the store logo (user menu → Store logo, or Settings); it becomes the icon of every window and on the taskbar, and appears on the sign-in screen and sidebar, on all tills. The desktop shortcut keeps the program's own icon, because Windows reads that from the .exe file |
 | **Admin** | Users with roles (Cashier / Manager / Admin), PBKDF2-hashed passwords, forced password change; store, tax (inclusive or exclusive), receipt and loyalty settings; automatic, verified SQL Server backups (scheduled and at shift close) with a backup log |
 
@@ -121,6 +122,20 @@ Copy the `publish` folder to the till PC. It does not need .NET installed.
   drawer is never short because of rounding.
 * Refunds pay pounds back in pounds at **today's** rate (or the cashier picks dollars or pounds for the cash part).
 * The X/Z reports and the close-shift screen show what should be in the drawer in each currency.
+
+### Online orders (WhatsApp, Instagram, Facebook, phone)
+
+The app does not read your WhatsApp or Instagram messages by itself: connecting to Meta's business APIs needs a
+verified Meta Business account, approved message templates and an internet-facing server. Instead, whoever answers the
+chat types the order into **Online orders → New order** (scanning or searching the items), which takes under a minute:
+
+1. **New**: the order is saved but stock is not held yet. Use **WhatsApp** to send the customer a summary to confirm
+   (opens WhatsApp or WhatsApp Web with the message ready), or **Copy message** to paste it into Instagram/Facebook.
+2. **Confirm**: the items leave stock so they can't be sold twice.
+3. **Out for delivery**: enter the driver or delivery company; print the **Delivery slip** for the parcel (it shows the
+   amount to collect in dollars and pounds).
+4. **Payment received – complete**: when the driver hands over the money, take it like a normal payment. This records a
+   sale (channel and delivery fee included) in the open shift. Cancelling an open order puts held stock back.
 
 ### Price labels
 
