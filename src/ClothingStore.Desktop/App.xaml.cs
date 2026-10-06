@@ -21,6 +21,7 @@ namespace ClothingStore.Desktop;
 public partial class App : Application
 {
     private IHost? _host;
+    private SplashWindow? _splash;
 
     public static IServiceProvider Services { get; private set; } = null!;
     /// <summary>Server and database name, for display (never includes credentials).</summary>
@@ -32,6 +33,8 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         Loc.SetLanguage(LocalPreferences.Current.Language);
+        _splash = new SplashWindow();
+        _splash.Show();
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -70,6 +73,10 @@ public partial class App : Application
             CurrencyFormat.Symbol = (await settings.GetAsync()).CurrencySymbol;
             settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
             await _host.StartAsync(); // starts the automatic backup worker
+
+            // Compile the screens' queries while the sign-in screen is up, so first visits are fast too.
+            var warmUp = Services.GetRequiredService<QueryWarmUp>();
+            _ = Task.Run(() => warmUp.RunAsync());
         }
         catch (Exception ex)
         {
@@ -77,11 +84,20 @@ public partial class App : Application
             return;
         }
 
+        CloseSplash();
         ShowLogin();
+    }
+
+    private void CloseSplash()
+    {
+        _splash?.Close();
+        _splash = null;
+        MainWindow = null; // the splash was the first window, so WPF made it the main window
     }
 
     private void StartupError(string message)
     {
+        CloseSplash();
         MessageBox.Show(message, Loc.T("Shell.AppName"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK,
             Loc.IsRightToLeft ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : MessageBoxOptions.None);
         Shutdown(1);

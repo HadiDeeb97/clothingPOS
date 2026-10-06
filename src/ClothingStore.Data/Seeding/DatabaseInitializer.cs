@@ -17,6 +17,7 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.Database.MigrateAsync(ct);
+        await TuneDatabaseAsync(db, ct);
 
         if (!await db.Settings.AnyAsync(ct)) db.Settings.Add(new StoreSettings());
 
@@ -35,5 +36,26 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
 
         if (seedDemoData && !await db.Products.AnyAsync(ct))
             await DemoDataSeeder.SeedAsync(db, ct);
+    }
+
+    /// <summary>
+    /// SQL Server Express creates databases with AUTO_CLOSE on: the database shuts down whenever no connection is
+    /// open and every screen opened after an idle moment waits seconds for it to start again (and its query plans
+    /// are thrown away). AUTO_SHRINK causes similar stalls. Both are switched off; without permission it is skipped.
+    /// </summary>
+    private static async Task TuneDatabaseAsync(PosDbContext db, CancellationToken ct)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                IF CAST(DATABASEPROPERTYEX(DB_NAME(), 'IsAutoClose') AS int) = 1 ALTER DATABASE CURRENT SET AUTO_CLOSE OFF;
+                IF CAST(DATABASEPROPERTYEX(DB_NAME(), 'IsAutoShrink') AS int) = 1 ALTER DATABASE CURRENT SET AUTO_SHRINK OFF;
+                """, ct);
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // The login may not own the database; the app still works, just slower after idle periods.
+        }
     }
 }

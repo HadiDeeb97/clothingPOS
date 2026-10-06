@@ -27,7 +27,7 @@ public sealed class DialogService : IDialogService
 {
     private static Window? Owner =>
         Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
-        ?? Application.Current.MainWindow;
+        ?? (Application.Current.MainWindow is { IsVisible: true } main ? main : null);
 
     public void Info(string message, string? title = null) =>
         ShowDialog(new MessageDialogViewModel(this, MessageKind.Info, title ?? Loc.T("Common.Information"), message));

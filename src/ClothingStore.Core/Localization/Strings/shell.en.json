@@ -35,6 +35,7 @@
   "Shell.ToggleSidebar": "Show or hide menu labels",
   "Startup.BadConnectionString": "The database connection string in appsettings.json is not valid:\n\n{0}",
   "Startup.CannotConnect": "Could not connect to the database:\n{0}\n\n{1}\n\nCheck that SQL Server is running and reachable from this PC, and that ConnectionStrings:Pos in appsettings.json is correct.",
+  "Startup.Connecting": "Connecting to the database…",
   "Startup.DatabaseOn": "{0} on {1}",
   "Startup.NoConnectionString": "No database is configured. Set ConnectionStrings:Pos in appsettings.json.",
   "Startup.UnexpectedError": "An unexpected error occurred."

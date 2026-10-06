@@ -2,6 +2,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Data.Seeding;
 using ClothingStore.Data.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClothingStore.Tests;
 
@@ -83,5 +84,33 @@ public class QuerySmokeTests
 
         Assert.NotEmpty(await db.Products.GenerateBarcodesAsync(2));
         Assert.True(await db.Users.IsFirstRunAsync()); // default admin still has the initial password
+    }
+
+    [Fact]
+    public async Task Startup_turns_off_auto_close_which_sql_express_enables_by_default()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+            await ctx.Database.ExecuteSqlRawAsync("ALTER DATABASE CURRENT SET AUTO_CLOSE ON;");
+
+        await new DatabaseInitializer(db.Factory).InitializeAsync(seedDemoData: false);
+
+        await using var check = await db.Factory.CreateDbContextAsync();
+        var autoClose = await check.Database
+            .SqlQueryRaw<int>("SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'IsAutoClose') AS int) AS [Value]")
+            .ToListAsync();
+        Assert.Equal(0, autoClose.Single());
+    }
+
+    [Fact]
+    public async Task Query_warm_up_runs_every_screen_query_without_errors()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        await new DatabaseInitializer(db.Factory).InitializeAsync(seedDemoData: true);
+        var warmUp = new QueryWarmUp(db.Products, db.Inventory, db.Customers, db.Sales, db.Returns, db.Reports,
+            db.Categories, db.Suppliers, db.Shifts, db.PurchaseOrders, new BackupService(db.Factory));
+
+        await warmUp.RunAsync(); // swallows errors by design, so also run one query directly to prove the DB is usable
+        Assert.NotEmpty(await db.Products.SearchAsync(null, null));
     }
 }

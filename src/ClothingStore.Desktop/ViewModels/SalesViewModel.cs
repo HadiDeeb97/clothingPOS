@@ -119,14 +119,19 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     public async Task OnNavigatedToAsync()
     {
-        await RefreshHeldCountAsync();
-        await LoadCategoriesAsync();
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
+        await RefreshHeldCountAsync();
+        // The register keeps its state between visits: show the product list at once and refresh it in the background.
+        if (BrowseCategories.Count == 0) await LoadCategoriesAsync();
+        else _ = LoadCategoriesAsync();
     }
 
     // ---- Browse panel (pick items without scanning) -------------------------------------------
 
     private const string BrowseVisibleKey = "register:browse";
+
+    /// <summary>Tiles are created for every product shown, so very large categories show the first ones only.</summary>
+    private const int MaxTiles = 150;
     private readonly LatestSearch _browse = new(TimeSpan.Zero);
 
     /// <summary>Category chips: "All" first.</summary>
@@ -176,7 +181,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         {
             await _browse.RunNowAsync(
                 ct => _products.SearchAsync(null, categoryId, includeInactive: false, ct),
-                found => BrowseProducts = found.Where(p => p.Variants.Any(v => v.IsActive)).Select(p => new ProductRow(p)).ToList());
+                found => BrowseProducts = found.Where(p => p.Variants.Any(v => v.IsActive)).Take(MaxTiles).Select(p => new ProductRow(p)).ToList());
         }
         catch (Exception ex)
         {
@@ -531,6 +536,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         if (!ok || sale is null) return;
 
         ResetSale();
+        _ = LoadBrowseProductsAsync(); // stock on the tiles changed
         var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);
         var title = sale.ChangeGiven > 0
             ? Loc.T("Register.ChangeDue", CurrencyFormat.Format(sale.ChangeGiven))

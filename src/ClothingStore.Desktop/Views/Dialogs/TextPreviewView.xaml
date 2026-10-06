@@ -14,7 +14,7 @@
         </StackPanel>
         <!-- The receipt is fixed-width text, so it always reads left to right. -->
         <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="22" MaxHeight="620"
-                Effect="{StaticResource CardShadow}" FlowDirection="LeftToRight">
+                FlowDirection="LeftToRight">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <TextBlock Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="13" />
             </ScrollViewer>

@@ -9,7 +9,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPosData(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContextFactory<PosDbContext>(o => o.UseSqlServer(connectionString));
+        // Pooled: services open a short-lived context per call, so reusing context instances saves set-up work.
+        services.AddPooledDbContextFactory<PosDbContext>(o => o.UseSqlServer(connectionString));
 
         // Services are stateless (each call opens its own short-lived DbContext) so singletons are safe.
         services.AddSingleton<DatabaseInitializer>();
@@ -26,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PurchaseOrderService>();
         services.AddSingleton<ReportService>();
         services.AddSingleton<BackupService>();
+        services.AddSingleton<QueryWarmUp>();
         return services;
     }
 }

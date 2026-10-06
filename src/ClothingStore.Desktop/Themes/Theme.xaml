@@ -106,7 +106,8 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Padding" Value="18" />
-        <Setter Property="Effect" Value="{StaticResource CardShadow}" />
+        <!-- No drop shadow here: WPF re-renders an effect on every scroll/resize of whatever is inside it, which made
+             tables in cards stutter. Shadows are kept for small floating things (popups, toasts). -->
     </Style>
     <!-- A card that holds a table edge to edge -->
     <Style x:Key="TableCard" TargetType="Border" BasedOn="{StaticResource Card}">
@@ -695,6 +696,10 @@
         <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
         <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
         <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <!-- Reuse row visuals while scrolling instead of creating new ones -->
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     </Style>
     <!-- Table inside a TableCard: the card draws the border -->

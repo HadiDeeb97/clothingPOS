@@ -35,6 +35,7 @@
   "Shell.ToggleSidebar": "إظهار أو إخفاء أسماء القائمة",
   "Startup.BadConnectionString": "نص الاتصال بقاعدة البيانات في appsettings.json غير صالح:\n\n{0}",
   "Startup.CannotConnect": "تعذّر الاتصال بقاعدة البيانات:\n{0}\n\n{1}\n\nتأكد من أن SQL Server يعمل ويمكن الوصول إليه من هذا الجهاز، وأن ConnectionStrings:Pos في appsettings.json صحيح.",
+  "Startup.Connecting": "جارٍ الاتصال بقاعدة البيانات…",
   "Startup.DatabaseOn": "{0} على {1}",
   "Startup.NoConnectionString": "لم يتم إعداد قاعدة البيانات. اضبط ConnectionStrings:Pos في الملف appsettings.json.",
   "Startup.UnexpectedError": "حدث خطأ غير متوقع."
