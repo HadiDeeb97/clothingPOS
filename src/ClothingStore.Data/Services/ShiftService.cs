@@ -44,6 +44,10 @@ public sealed record ShiftSummary
     public decimal? CountedCashLbp { get; init; }
     public decimal? VarianceLbp => CountedCashLbp - ExpectedCashLbp;
 
+    /// <summary>Money from delivery companies put into this drawer (dollars, and pounds).</summary>
+    public decimal DeliveryCash { get; init; }
+    public decimal DeliveryCashLbp { get; init; }
+
     /// <summary>Whether pounds went through this drawer (or LBP is switched on), so LBP lines are worth showing.</summary>
     public bool ShowLbp { get; init; }
 }
@@ -171,10 +175,17 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
         var payInsLbp = Movements(CashMovementType.PayIn, CashCurrency.Lbp);
         var payOutsLbp = Movements(CashMovementType.PayOut, CashCurrency.Lbp);
 
-        var expected = shift.OpeningFloat + cashSales + payIns - payOuts - refunds.GetValueOrDefault(RefundMethod.Cash);
-        var expectedLbp = shift.OpeningFloatLbp + cashSalesLbp + payInsLbp - payOutsLbp - refundsLbp;
+        var settlements = await db.DeliverySettlements.AsNoTracking()
+            .Where(d => d.ShiftId == shiftId)
+            .Select(d => new { d.Method, d.Received, d.ReceivedLbp })
+            .ToListAsync(ct);
+        var deliveryCash = settlements.Where(d => d.Method == SettlementMethod.Cash).Sum(d => d.Received);
+        var deliveryCashLbp = settlements.Where(d => d.Method == SettlementMethod.CashLbp).Sum(d => d.ReceivedLbp);
+
+        var expected = shift.OpeningFloat + cashSales + deliveryCash + payIns - payOuts - refunds.GetValueOrDefault(RefundMethod.Cash);
+        var expectedLbp = shift.OpeningFloatLbp + cashSalesLbp + deliveryCashLbp + payInsLbp - payOutsLbp - refundsLbp;
         var lbpEnabled = await db.Settings.AsNoTracking().Select(s => s.LbpEnabled).FirstOrDefaultAsync(ct);
-        var showLbp = lbpEnabled || shift.OpeningFloatLbp != 0 || cashSalesLbp != 0 || refundsLbp != 0
+        var showLbp = lbpEnabled || shift.OpeningFloatLbp != 0 || cashSalesLbp != 0 || refundsLbp != 0 || deliveryCashLbp != 0
                       || payInsLbp != 0 || payOutsLbp != 0 || shift.CountedCashLbp is not null;
 
         return new ShiftSummary
@@ -201,6 +212,8 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
             CountedCash = shift.CountedCash,
             CashMovements = shift.CashMovements.OrderBy(m => m.CreatedAt).ToList(),
             CashSales = cashSales,
+            DeliveryCash = deliveryCash,
+            DeliveryCashLbp = deliveryCashLbp,
             OpeningFloatLbp = shift.OpeningFloatLbp,
             CashSalesLbp = cashSalesLbp,
             CashRefundsLbp = refundsLbp,

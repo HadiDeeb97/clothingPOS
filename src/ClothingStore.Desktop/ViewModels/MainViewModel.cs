@@ -56,6 +56,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
             Nav<SalesViewModel>("Nav.Register", "", Permission.Sell),
             Nav<ReturnsViewModel>("Nav.Returns", "", Permission.ProcessReturns),
             Nav<SalesHistoryViewModel>("Nav.SalesHistory", "", Permission.Sell),
+            Nav<DeliveriesViewModel>("Nav.Deliveries", "\uE7BF", Permission.Sell),
             Nav<ShiftViewModel>("Nav.CashDrawer", "", Permission.Sell));
         AddGroup("Nav.Group.People",
             Nav<CustomersViewModel>("Nav.Customers", "", Permission.ManageCustomers));

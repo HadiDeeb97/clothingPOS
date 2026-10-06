@@ -10,8 +10,12 @@ namespace ClothingStore.Desktop.ViewModels.Dialogs;
 /// <summary>Marks the sale on the register as an online order: where it came from, delivery fee, address/notes.</summary>
 public sealed partial class OnlineSaleViewModel : DialogViewModelBase
 {
-    public OnlineSaleViewModel(IDialogService dialogs, SalesChannel channel, decimal deliveryFee, string? notes) : base(dialogs)
+    public OnlineSaleViewModel(
+        IDialogService dialogs, SalesChannel channel, decimal deliveryFee, string? notes, string? courier, IReadOnlyList<string> couriers)
+        : base(dialogs)
     {
+        Couriers = couriers;
+        Courier = courier ?? (channel == SalesChannel.InStore ? couriers.FirstOrDefault() : null);
         Channel = channel == SalesChannel.InStore ? SalesChannel.WhatsApp : channel;
         var fee = channel == SalesChannel.InStore ? LocalPreferences.Current.LastDeliveryFee ?? 0 : deliveryFee;
         DeliveryFeeText = fee == 0 ? "" : fee.ToString("0.##", CultureInfo.InvariantCulture);
@@ -31,6 +35,12 @@ public sealed partial class OnlineSaleViewModel : DialogViewModelBase
     [ObservableProperty]
     public partial string? Notes { get; set; }
 
+    /// <summary>Delivery company or driver; companies used before are offered.</summary>
+    [ObservableProperty]
+    public partial string? Courier { get; set; }
+
+    public IReadOnlyList<string> Couriers { get; }
+
     public decimal DeliveryFee { get; private set; }
 
     [RelayCommand]
@@ -49,6 +59,7 @@ public sealed partial class OnlineSaleViewModel : DialogViewModelBase
         }
         DeliveryFee = Money.Round(fee);
         Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim();
+        Courier = string.IsNullOrWhiteSpace(Courier) ? null : Courier.Trim();
         LocalPreferences.Current.LastDeliveryFee = DeliveryFee;
         LocalPreferences.Current.Save();
         Close(true);

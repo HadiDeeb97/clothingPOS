@@ -3,6 +3,7 @@
   "Receipt.Change": "الباقي",
   "Receipt.Channel": "طلب عبر {0}",
   "Receipt.Copy": "*** نسخة ***",
+  "Receipt.Courier": "التوصيل: {0}",
   "Receipt.CreditBalance": "رصيد المتجر: {0}",
   "Receipt.Customer": "الزبون:",
   "Receipt.Date": "التاريخ:",

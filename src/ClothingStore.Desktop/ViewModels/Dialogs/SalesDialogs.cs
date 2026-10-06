@@ -88,8 +88,9 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     private readonly StoreSettings _settings;
     private CashSettlement _cash = new();
 
-    public PaymentViewModel(IDialogService dialogs, decimal total, Customer? customer, StoreSettings settings) : base(dialogs)
+    public PaymentViewModel(IDialogService dialogs, decimal total, Customer? customer, StoreSettings settings, bool allowDelivery = false) : base(dialogs)
     {
+        AllowDelivery = allowDelivery;
         Total = total;
         Customer = customer;
         _settings = settings;
@@ -102,6 +103,9 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
 
     public override string Title => Loc.T("Payment.Title");
     public decimal Total { get; }
+
+    /// <summary>Online orders can be paid through the delivery company, which pays the store later.</summary>
+    public bool AllowDelivery { get; }
     public Customer? Customer { get; }
 
     /// <summary>LBP per dollar shown to the customer; sent with the sale so a rate change in between is caught.</summary>
@@ -232,7 +236,8 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
             return;
         }
 
-        Tenders.Add(new TenderViewModel(method, Money.Round(amount), method is PaymentMethod.Card or PaymentMethod.MobileWallet ? Reference : null));
+        if (method == PaymentMethod.Delivery && !AllowDelivery) return;
+        Tenders.Add(new TenderViewModel(method, Money.Round(amount), method is PaymentMethod.Card or PaymentMethod.MobileWallet or PaymentMethod.Delivery ? Reference : null));
         Reference = null;
     }
 

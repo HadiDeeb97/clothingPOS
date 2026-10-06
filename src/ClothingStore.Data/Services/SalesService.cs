@@ -17,6 +17,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (request.DeliveryFee < 0) throw new BusinessRuleException(Loc.T("Err.DeliveryFeeNegative"));
         if (request.DeliveryFee > 0 && request.Channel == SalesChannel.InStore)
             throw new BusinessRuleException(Loc.T("Err.DeliveryFeeInStore"));
+        if (request.Channel == SalesChannel.InStore && request.Payments.Any(p => p.Method == PaymentMethod.Delivery && p.Amount > 0))
+            throw new BusinessRuleException(Loc.T("Err.DeliveryPaymentInStore"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
@@ -68,6 +70,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             Total = totals.Total + Money.Round(request.DeliveryFee),
             DeliveryFee = Money.Round(request.DeliveryFee),
             Channel = request.Channel,
+            Courier = request.Channel == SalesChannel.InStore ? null : QueryHelpers.Clean(request.Courier),
             CartDiscountType = request.CartDiscountType,
             CartDiscountValue = request.CartDiscountType == DiscountType.None ? 0 : request.CartDiscountValue,
             Notes = QueryHelpers.Clean(request.Notes),
@@ -196,7 +199,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
 
     /// <summary>Money that earns (and, when refunded, takes back) loyalty points.</summary>
     internal static bool EarnsPoints(PaymentMethod method) =>
-        method is PaymentMethod.Cash or PaymentMethod.CashLbp or PaymentMethod.Card or PaymentMethod.MobileWallet;
+        method is PaymentMethod.Cash or PaymentMethod.CashLbp or PaymentMethod.Card or PaymentMethod.MobileWallet or PaymentMethod.Delivery;
 
     /// <summary>Refuses pounds when LBP is off, or when the rate changed after the till showed it to the customer.</summary>
     internal static void EnsureRate(StoreSettings settings, decimal shownRate)

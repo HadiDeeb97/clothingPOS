@@ -42,6 +42,9 @@ public sealed record CheckoutRequest
 
     /// <summary>Delivery charge for an online order, added to the total (not taxed). Must be 0 in store.</summary>
     public decimal DeliveryFee { get; init; }
+
+    /// <summary>Delivery company or driver of an online order.</summary>
+    public string? Courier { get; init; }
 }
 
 public sealed record HeldCartLine(int VariantId, int Quantity, DiscountType DiscountType, decimal DiscountValue);
@@ -53,7 +56,8 @@ public sealed record HeldCart(
     int? CustomerId,
     SalesChannel Channel = SalesChannel.InStore,
     decimal DeliveryFee = 0,
-    string? Notes = null);
+    string? Notes = null,
+    string? Courier = null);
 
 public sealed record ReturnLineRequest(int SaleLineId, int Quantity, bool Restock = true);
 
@@ -81,6 +85,9 @@ public sealed record RefundPlan(decimal Total, IReadOnlyList<RefundShare> Shares
 {
     /// <summary>Dollars paid out of the drawer.</summary>
     public decimal CashOut => Shares.Where(s => s.Method == RefundMethod.Cash).Sum(s => s.Amount);
+
+    /// <summary>Taken off what the delivery company owes (its money never reached the store).</summary>
+    public decimal OffDelivery => Shares.Where(s => s.Method == RefundMethod.Delivery).Sum(s => s.Amount);
 
     /// <summary>Pounds paid out of the drawer.</summary>
     public decimal CashOutLbp => Shares.Where(s => s.Method == RefundMethod.CashLbp).Sum(s => Lbp.ToGive(s.Amount, Rate, Rounding));

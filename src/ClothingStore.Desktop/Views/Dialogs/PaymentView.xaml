@@ -83,6 +83,13 @@
                 <Button Grid.Column="2" Content="{l:T Enum.PaymentMethod.MobileWallet}" Style="{StaticResource PrimaryButton}" MinWidth="110" Margin="8,0,0,0"
                         Command="{Binding AddTenderCommand}" CommandParameter="{x:Static core:PaymentMethod.MobileWallet}" />
             </Grid>
+            <Button Margin="0,8,0,0" MinHeight="44" Command="{Binding AddTenderCommand}" CommandParameter="{x:Static core:PaymentMethod.Delivery}"
+                    Visibility="{Binding AllowDelivery, Converter={StaticResource BoolToVis}}" Style="{StaticResource PrimaryButton}">
+                <StackPanel>
+                    <TextBlock Text="{l:T Enum.PaymentMethod.Delivery}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Text="{l:T Payment.DeliveryHint}" FontSize="11.5" Opacity="0.85" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Button>
             <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T Payment.ReferenceHint}" Margin="0,8,0,0" />
 
             <StackPanel Visibility="{Binding Customer, Converter={StaticResource HasValueToVis}}" Margin="0,14,0,0">

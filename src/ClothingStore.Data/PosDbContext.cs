@@ -28,6 +28,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
     public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
     public DbSet<AppState> AppState => Set<AppState>();
+    public DbSet<DeliverySettlement> DeliverySettlements => Set<DeliverySettlement>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -109,6 +110,9 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Lines).WithOne(l => l.Sale).HasForeignKey(l => l.SaleId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Payments).WithOne(p => p.Sale).HasForeignKey(p => p.SaleId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Courier).HasMaxLength(100);
+            e.HasIndex(x => x.Courier);
+            e.HasOne(x => x.DeliverySettlement).WithMany(d => d.Sales).HasForeignKey(x => x.DeliverySettlementId).OnDelete(DeleteBehavior.Restrict);
             e.Ignore(x => x.ItemCount);
         });
 
@@ -185,6 +189,15 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
             e.Ignore(x => x.ActiveLbpRate);
+        });
+
+        b.Entity<DeliverySettlement>(e =>
+        {
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Courier).HasMaxLength(100);
+            e.Property(x => x.Reference).HasMaxLength(300);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.Ignore(x => x.Difference);
         });
 
         b.Entity<AppState>(e =>

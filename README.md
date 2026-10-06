@@ -171,6 +171,20 @@ Orders that come in by message are rung up on the **Register** like any sale:
 orders); the selected sale shows its source, delivery fee and notes. **Reports → Channels** totals sales per channel.
 An online order can be put on hold (F9) like any cart and keeps its details when resumed.
 
+**When the delivery company collects the money** (it doesn't hand you cash straight away):
+
+1. In the online order window, enter the **delivery company / driver** (companies used before are suggested).
+2. When paying, choose **Delivery company (pay later)**. The sale is recorded, but that amount is not cash in the
+   drawer: it is **owed** by the company. A tracking number can go in the reference box.
+3. **Deliveries** (under Sell) lists those orders as *Awaiting payment* and shows what each company owes.
+4. When the company pays, select the orders it paid for (Ctrl/Shift+click) and click **Payment received…**: choose cash
+   (USD or LBP, into the open drawer, so it appears in the shift count and Z report) or a bank/wallet transfer, and
+   enter what actually arrived. If the company kept its fee or paid short, the difference is recorded.
+5. Returning an item from an order not paid yet just lowers what the company owes; after it was paid, the refund is cash.
+
+The card/wallet reference or auth code typed at payment is saved with the payment: it prints on the receipt and shows
+next to the payment in Sales history.
+
 ### Price labels
 
 * In **Products** or **Inventory**, select the rows you want (Ctrl+click, Shift+click, Ctrl+A) and click **Print labels**.

@@ -1,6 +1,7 @@
 {
   "OnlineSale.Apply": "تطبيق على هذا البيع",
   "OnlineSale.BadFee": "أدخل رسم التوصيل كرقم (أو اتركه فارغاً).",
+  "OnlineSale.Courier": "شركة التوصيل / السائق",
   "OnlineSale.DeliveryFee": "رسم التوصيل",
   "OnlineSale.FeeHint": "يُضاف إلى المجموع. اتركه فارغاً إن لم يوجد.",
   "OnlineSale.From": "من أين جاء الطلب؟",
@@ -18,6 +19,7 @@
   "Register.ClearConfirm": "مسح العملية الحالية؟",
   "Register.ClearSale": "مسح العملية",
   "Register.CloseEsc": "إغلاق (Esc)",
+  "Register.CourierFormat": "التوصيل عبر {0}",
   "Register.CreditFormat": "الرصيد {0}",
   "Register.Delivery": "التوصيل",
   "Register.DeliveryFormat": "التوصيل {0}",

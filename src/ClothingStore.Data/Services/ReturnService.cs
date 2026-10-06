@@ -27,12 +27,18 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         return new RefundPlan(total, shares, settings.ActiveLbpRate, settings.LbpRounding);
     }
 
-    /// <summary>Allocates the refund, then pays the cash parts in the chosen currency (dollars when LBP is off).</summary>
+    /// <summary>
+    /// Allocates the refund; delivery-company money already received is paid back in cash (otherwise it is just owed
+    /// less); then the cash parts are paid in the chosen currency (dollars when LBP is off).
+    /// </summary>
     private static IReadOnlyList<RefundShare> Shares(
-        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings) =>
-        RefundAllocator.InCurrency(
-            RefundAllocator.Allocate(total, state.Remaining(), refundTo),
-            settings.ActiveLbpRate > 0 ? cashCurrency : CashCurrency.Usd);
+        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings)
+    {
+        var shares = RefundAllocator.Allocate(total, state.Remaining(), refundTo);
+        if (state.Sale.DeliverySettlementId is not null)
+            shares = shares.Select(s => s.Method == RefundMethod.Delivery ? s with { Method = RefundMethod.Cash } : s).ToList();
+        return RefundAllocator.InCurrency(shares, settings.ActiveLbpRate > 0 ? cashCurrency : CashCurrency.Usd);
+    }
 
     public async Task<SaleReturn> ProcessReturnAsync(ReturnRequest request, CancellationToken ct = default)
     {

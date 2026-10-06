@@ -50,6 +50,16 @@ public class Sale : Entity
     /// <summary>Delivery charge included in <see cref="Total"/> (not in the lines, not taxed).</summary>
     public decimal DeliveryFee { get; set; }
 
+    /// <summary>Delivery company or driver of an online order.</summary>
+    public string? Courier { get; set; }
+
+    /// <summary>
+    /// When part of the sale was paid with <see cref="PaymentMethod.Delivery"/>: the payment from the delivery company
+    /// that covered it. Null while the money is still owed.
+    /// </summary>
+    public int? DeliverySettlementId { get; set; }
+    public DeliverySettlement? DeliverySettlement { get; set; }
+
     public DateTime? VoidedAt { get; set; }
     public int? VoidedByUserId { get; set; }
     public string? VoidReason { get; set; }
