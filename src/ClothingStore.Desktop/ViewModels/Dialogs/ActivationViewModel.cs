@@ -27,6 +27,8 @@ public sealed partial class ActivationViewModel(IDialogService dialogs, LicenseM
         LicenseState.Expired => Loc.T("License.Reason.Expired", license.Status.License!.ExpiresOn.ToString("d", CultureInfo.CurrentCulture)),
         LicenseState.ExpiringSoon => Loc.T("License.ExpiresIn", license.Status.DaysLeft,
             license.Status.License!.ExpiresOn.ToString("d", CultureInfo.CurrentCulture), Contact),
+        LicenseState.Valid when LicenseIssuer.IsLifetime(license.Status.License!.ExpiresOn) =>
+            Loc.T("License.Reason.ValidLifetime", license.Status.License.Licensee),
         LicenseState.Valid => Loc.T("License.Reason.Valid", license.Status.License!.Licensee,
             license.Status.License.ExpiresOn.ToString("d", CultureInfo.CurrentCulture)),
         _ => Loc.T("License.NotConfigured"),

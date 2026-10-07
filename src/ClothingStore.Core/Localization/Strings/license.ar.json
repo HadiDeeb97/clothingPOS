@@ -20,6 +20,7 @@
   "License.Reason.Invalid": "مفتاح الترخيص غير صالح. تأكد من نسخه بالكامل.",
   "License.Reason.Missing": "لا يوجد ترخيص لهذا الجهاز بعد. أدخل مفتاح الترخيص من المورّد.",
   "License.Reason.Valid": "مرخّص لـ {0} حتى {1}.",
+  "License.Reason.ValidLifetime": "مرخّص لـ {0}، بدون تاريخ انتهاء.",
   "License.Reason.WrongMachine": "هذا الترخيص لجهاز آخر. أرسل معرّف هذا الجهاز إلى المورّد للحصول على ترخيص له.",
   "License.Title": "الترخيص"
 }

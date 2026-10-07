@@ -68,16 +68,23 @@ int Issue()
 
     using var key = ECDsa.Create();
     key.ImportFromPem(File.ReadAllText(keyPath));
-    var license = new LicenseData
+    var machineIds = LicenseIssuer.ParseMachineIds(string.Join('\n', machines), out var invalid);
+    if (invalid.Count > 0)
     {
-        LicenseId = Guid.NewGuid().ToString("N")[..12].ToUpperInvariant(),
-        Licensee = licensee,
-        Machines = machines.Select(m => m.Trim().ToUpperInvariant()).ToList(),
-        IssuedOn = today,
-        ExpiresOn = expires,
-        Notes = Option("--notes"),
-    };
-    var text = LicenseCodec.Sign(license, key);
+        Console.Error.WriteLine($"Not a PC ID (16 letters/digits): {string.Join(", ", invalid)}");
+        return 2;
+    }
+    var (license, text) = LicenseIssuer.Issue(key, licensee, machineIds, today, expires, Option("--notes"));
+
+    // Same customer list as the License Maker app, so both tools show every license issued.
+    var bookPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(keyPath))!, "customers.json");
+    var book = LicenseBook.Load(bookPath);
+    book.Add(new IssuedLicense
+    {
+        LicenseId = license.LicenseId, Licensee = license.Licensee, Machines = license.Machines, IssuedOn = license.IssuedOn,
+        ExpiresOn = license.ExpiresOn, Notes = license.Notes, Key = text,
+    });
+    book.Save(bookPath);
 
     if (Option("--out") is { } outPath)
     {
