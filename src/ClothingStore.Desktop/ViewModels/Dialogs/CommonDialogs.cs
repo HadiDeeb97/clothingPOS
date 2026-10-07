@@ -126,10 +126,16 @@ public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintSe
     partial void OnCopiesChanged(int value)
     {
         if (value is < 1 or > 99) Copies = Math.Clamp(value, 1, 99);
+        OnPropertyChanged(nameof(PrintButtonText));
     }
 
+    /// <summary>"Print" or "Print 3 copies", so the count is visible on the button too.</summary>
+    public string PrintButtonText => Copies <= 1 ? Loc.T("Common.Print") : Loc.T("Print.PrintCopies", Copies);
+
     /// <summary>"Printer: …" when receipts go straight to a default printer, else null.</summary>
-    public string? PrinterText { get; } = LocalPreferences.Current.ReceiptPrinter is { Length: > 0 } p ? Loc.T("Print.PrinterIs", p) : null;
+    public string? PrinterText { get; } = LocalPreferences.Current.ReceiptPrinter is { Length: > 0 } p
+        ? Loc.T("Print.PrinterIs", p)
+        : Loc.T("Print.NoDefaultPrinter");
 
     [RelayCommand]
     private void MoreCopies() => Copies++;

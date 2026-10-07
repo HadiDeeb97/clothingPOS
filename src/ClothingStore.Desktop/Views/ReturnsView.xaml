@@ -39,7 +39,7 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="{l:T Common.Customer}" Style="{StaticResource Caption}" />
-                                <TextBlock Text="{Binding Sale.Customer.FullName, TargetNullValue={l:T Returns.WalkIn}, FallbackValue={l:T Returns.WalkIn}}" FontSize="15" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Sale.Customer.FullName, TargetNullValue={l:T Returns.WalkIn}, FallbackValue={l:T Returns.WalkIn}}" FontSize="15" TextWrapping="Wrap" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="{l:T Returns.TotalPaid}" Style="{StaticResource Caption}" />
@@ -54,11 +54,11 @@
                     <Border Style="{StaticResource TableCard}">
                         <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Lines}" IsReadOnly="False" RowHeight="50" infra:LayoutMemory.Key="Returns.Lines">
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Header="{l:T Common.Item}" Width="*" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="{l:T Common.Item}" Width="*" MinWidth="140" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Line.ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Line.ProductName}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding Line.VariantDescription}" Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,8,0" />
                                                     <TextBlock Text="{Binding Line.Sku}" Style="{StaticResource MutedText}" FontSize="12" />
@@ -67,24 +67,24 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="{l:T Returns.Sold}" Binding="{Binding Line.Quantity}" Width="65" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T History.Returned}" Binding="{Binding Line.ReturnedQuantity}" Width="80" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Returns.PaidEach}" Binding="{Binding UnitRefund, Converter={StaticResource Money}}" Width="95" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTemplateColumn Header="{l:T Returns.ReturnQty}" Width="105">
+                                <DataGridTextColumn Header="{l:T Returns.Sold}" Binding="{Binding Line.Quantity}" Width="Auto" MinWidth="65" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T History.Returned}" Binding="{Binding Line.ReturnedQuantity}" Width="Auto" MinWidth="80" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Returns.PaidEach}" Binding="{Binding UnitRefund, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTemplateColumn Header="{l:T Returns.ReturnQty}" Width="Auto" MinWidth="105">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding ReturnQuantity, UpdateSourceTrigger=PropertyChanged}" Width="64" Padding="4,2" MinHeight="30" HorizontalContentAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="{l:T Returns.Restock}" Width="95">
+                                <DataGridTemplateColumn Header="{l:T Returns.Restock}" Width="Auto" MinWidth="95">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding Restock, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="{l:T Returns.Refund}" Binding="{Binding EstimatedRefund, Converter={StaticResource Money}}" Width="95" IsReadOnly="True" ElementStyle="{StaticResource StrongRightCell}" />
+                                <DataGridTextColumn Header="{l:T Returns.Refund}" Binding="{Binding EstimatedRefund, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" IsReadOnly="True" ElementStyle="{StaticResource StrongRightCell}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -93,40 +93,42 @@
                 <GridSplitter Grid.Column="1" Style="{StaticResource ColumnSplitter}" />
 
                 <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <Button Content="{l:T Returns.ReturnAll}" Command="{Binding ReturnAllCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,6" />
-                        <TextBlock Text="{l:T Common.Reason}" Style="{StaticResource FieldLabel}" />
-                        <ComboBox IsEditable="True" ItemsSource="{Binding ReasonPresets}" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{l:T Returns.RefundTo}" Style="{StaticResource FieldLabel}" />
-                        <TextBlock Text="{Binding PaidWith}" Style="{StaticResource HintText}" Margin="0,0,0,6" />
-                        <RadioButton Content="{l:T Returns.ToOriginal}" GroupName="Refund"
-                                     IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=OriginalPayment}" />
-                        <RadioButton Content="{l:T Returns.ToCredit}" GroupName="Refund" IsEnabled="{Binding CanRefundToCredit}"
-                                     IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=StoreCredit}" />
-                        <RadioButton Content="{l:T Returns.ToCash}" GroupName="Refund" IsEnabled="{Binding CanRefundInCash}"
-                                     IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
-                        <TextBlock Text="{l:T Returns.StoreFundsHint}" Style="{StaticResource HintText}" />
-                        <StackPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{l:T Returns.CashIn}" Style="{StaticResource FieldLabel}" />
-                            <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
-                                <StackPanel Orientation="Horizontal">
-                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Returns.CashAsPaid}"
-                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=AsPaid}" />
-                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Usd}"
-                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Usd}" />
-                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Lbp}"
-                                                 IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Lbp}" />
-                                </StackPanel>
-                            </Border>
-                            <TextBlock Text="{l:T Returns.CashInHint}" Style="{StaticResource HintText}" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Button Content="{l:T Returns.ReturnAll}" Command="{Binding ReturnAllCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,6" />
+                            <TextBlock Text="{l:T Common.Reason}" Style="{StaticResource FieldLabel}" />
+                            <ComboBox IsEditable="True" ItemsSource="{Binding ReasonPresets}" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="{l:T Returns.RefundTo}" Style="{StaticResource FieldLabel}" />
+                            <TextBlock Text="{Binding PaidWith}" Style="{StaticResource HintText}" Margin="0,0,0,6" />
+                            <RadioButton Content="{l:T Returns.ToOriginal}" GroupName="Refund"
+                                         IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=OriginalPayment}" />
+                            <RadioButton Content="{l:T Returns.ToCredit}" GroupName="Refund" IsEnabled="{Binding CanRefundToCredit}"
+                                         IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=StoreCredit}" />
+                            <RadioButton Content="{l:T Returns.ToCash}" GroupName="Refund" IsEnabled="{Binding CanRefundInCash}"
+                                         IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
+                            <TextBlock Text="{l:T Returns.StoreFundsHint}" Style="{StaticResource HintText}" />
+                            <StackPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{l:T Returns.CashIn}" Style="{StaticResource FieldLabel}" />
+                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Returns.CashAsPaid}"
+                                                     IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=AsPaid}" />
+                                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Usd}"
+                                                     IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Usd}" />
+                                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="RefundCash" Content="{l:T Enum.CashCurrency.Lbp}"
+                                                     IsChecked="{Binding RefundCashIn, Converter={StaticResource Equals}, ConverterParameter=Lbp}" />
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Text="{l:T Returns.CashInHint}" Style="{StaticResource HintText}" />
+                            </StackPanel>
+                            <Separator Margin="0,14" />
+                            <DockPanel>
+                                <TextBlock Text="{Binding EstimatedRefund, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="28" FontWeight="Bold" />
+                                <TextBlock Text="{l:T Returns.Refund}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Button Content="{l:T Returns.Process}" Style="{StaticResource BigPayButton}" Margin="0,16,0,0" Command="{Binding ProcessCommand}" />
                         </StackPanel>
-                        <Separator Margin="0,14" />
-                        <DockPanel>
-                            <TextBlock Text="{Binding EstimatedRefund, Converter={StaticResource Money}}" DockPanel.Dock="Right" FontSize="28" FontWeight="Bold" />
-                            <TextBlock Text="{l:T Returns.Refund}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </DockPanel>
-                        <Button Content="{l:T Returns.Process}" Style="{StaticResource BigPayButton}" Margin="0,16,0,0" Command="{Binding ProcessCommand}" />
-                    </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
 

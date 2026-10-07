@@ -24,10 +24,10 @@
             <Border Style="{StaticResource TableCard}" MaxHeight="220">
                 <DataGrid ItemsSource="{Binding History}" IsReadOnly="True" HeadersVisibility="Column" MinHeight="80">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Rate.When}" Binding="{Binding ChangedAt, StringFormat=g}" Width="140" />
-                        <DataGridTextColumn Header="{l:T Rate.From}" Binding="{Binding OldRate, StringFormat=N0}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="{l:T Rate.To}" Binding="{Binding NewRate, StringFormat=N0}" Width="90" ElementStyle="{StaticResource StrongRightCell}" />
-                        <DataGridTextColumn Header="{l:T Rate.By}" Binding="{Binding User.FullName}" Width="*" />
+                        <DataGridTextColumn Header="{l:T Rate.When}" Binding="{Binding ChangedAt, StringFormat=g}" Width="Auto" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Rate.From}" Binding="{Binding OldRate, StringFormat=N0}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Rate.To}" Binding="{Binding NewRate, StringFormat=N0}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource StrongRightCell}" />
+                        <DataGridTextColumn Header="{l:T Rate.By}" Binding="{Binding User.FullName}" Width="*" MinWidth="140" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

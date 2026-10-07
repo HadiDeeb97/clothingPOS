@@ -108,7 +108,7 @@
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding TotalStock, StringFormat={l:T Register.InStockFormat}}" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Bottom" />
                                                 <TextBlock Text="{Binding Product.Price, Converter={StaticResource Money}}" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource PrimaryDarkBrush}" />
                                             </DockPanel>
-                                            <TextBlock Text="{Binding Product.Name}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="38" />
+                                            <TextBlock Text="{Binding Product.Name}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="38" ToolTip="{Binding Product.Name}" />
                                         </DockPanel>
                                     </Button>
                                 </DataTemplate>
@@ -159,18 +159,18 @@
                     <Button Content="{l:T Register.RemoveButton}" Command="{Binding RemoveItemCommand}" CommandParameter="{x:Null}" />
                 </StackPanel>
             </DockPanel>
-            <TextBlock DockPanel.Dock="Bottom" Text="{l:T Register.Shortcuts}" Style="{StaticResource MutedText}" FontSize="11" Margin="2,10,0,0" TextTrimming="CharacterEllipsis" />
+            <TextBlock DockPanel.Dock="Bottom" Text="{l:T Register.Shortcuts}" Style="{StaticResource MutedText}" FontSize="11" Margin="2,10,0,0" TextWrapping="Wrap" />
 
             <Grid>
                 <Border Style="{StaticResource TableCard}">
                     <DataGrid x:Name="CartGrid" Style="{StaticResource CardGrid}" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" RowHeight="58"
                               PreviewKeyDown="OnCartKeyDown" CanUserSortColumns="False" infra:LayoutMemory.Key="Register.Cart">
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="{l:T Common.Item}" Width="*">
+                            <DataGridTemplateColumn Header="{l:T Common.Item}" Width="*" MinWidth="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" />
                                             <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                                                 <Border Style="{StaticResource Chip}" Padding="7,1" Margin="0,0,6,0"
                                                         Visibility="{Binding VariantDescription, Converter={StaticResource HasValueToVis}}">
@@ -182,8 +182,8 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="{l:T Common.Price}" Width="95" Binding="{Binding UnitPrice, Converter={StaticResource Money}}" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTemplateColumn Header="{l:T Common.Qty}" Width="130">
+                            <DataGridTextColumn Header="{l:T Common.Price}" Width="Auto" MinWidth="95" Binding="{Binding UnitPrice, Converter={StaticResource Money}}" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridTemplateColumn Header="{l:T Common.Qty}" Width="Auto" MinWidth="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Background="{StaticResource HoverBrush}" CornerRadius="10" HorizontalAlignment="Center" Padding="2">
@@ -198,9 +198,9 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="{l:T Common.Discount}" Width="140" Binding="{Binding DiscountDisplay}" ElementStyle="{StaticResource RightCell}" Foreground="{StaticResource SuccessBrush}" />
-                            <DataGridTextColumn Header="{l:T Common.Total}" Width="105" Binding="{Binding Total, Converter={StaticResource Money}}" ElementStyle="{StaticResource StrongRightCell}" />
-                            <DataGridTemplateColumn Width="48">
+                            <DataGridTextColumn Header="{l:T Common.Discount}" Width="Auto" MinWidth="140" Binding="{Binding DiscountDisplay}" ElementStyle="{StaticResource RightCell}" Foreground="{StaticResource SuccessBrush}" />
+                            <DataGridTextColumn Header="{l:T Common.Total}" Width="Auto" MinWidth="105" Binding="{Binding Total, Converter={StaticResource Money}}" ElementStyle="{StaticResource StrongRightCell}" />
+                            <DataGridTemplateColumn Width="Auto" MinWidth="48">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Style="{StaticResource IconButton}" Content="&#xE74D;" Width="32" Height="32" Foreground="{StaticResource DangerBrush}"
@@ -234,12 +234,12 @@
                         <DataGrid x:Name="ResultsGrid" Style="{StaticResource CardGrid}" ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
                                   BorderThickness="0,1,0,0" MouseDoubleClick="OnResultDoubleClick" PreviewKeyDown="OnResultsKeyDown" infra:LayoutMemory.Key="Register.Results">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="*" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="70" />
-                                <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="110" />
-                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="140" />
-                                <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding StockQuantity}" Width="70" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding EffectivePrice, Converter={StaticResource Money}}" Width="95" ElementStyle="{StaticResource StrongRightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="*" MinWidth="140" FontWeight="SemiBold" />
+                                <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="Auto" MinWidth="70" />
+                                <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="Auto" MinWidth="110" />
+                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="Auto" MinWidth="140" />
+                                <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding StockQuantity}" Width="Auto" MinWidth="70" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding EffectivePrice, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource StrongRightCell}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>
@@ -262,7 +262,7 @@
                         <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" Width="30" Height="30" VerticalAlignment="Top"
                                 Command="{Binding ClearCustomerCommand}" ToolTip="{l:T Common.Remove}" />
                         <StackPanel>
-                            <TextBlock Text="{Binding Customer.FullName}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Customer.FullName}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Customer.Phone}" Style="{StaticResource MutedText}" />
                             <WrapPanel Margin="0,6,0,0">
                                 <Border Style="{StaticResource Chip}" Background="{StaticResource PrimaryLightBrush}" Margin="0,0,6,0">
@@ -326,7 +326,7 @@
                                        Visibility="{Binding Courier, Converter={StaticResource HasValueToVis}}" />
                             <TextBlock Text="{Binding DeliveryReference, StringFormat={l:T Register.DeliveryRefFormat}}" Style="{StaticResource MutedText}" FontSize="12"
                                        Visibility="{Binding DeliveryReference, Converter={StaticResource HasValueToVis}}" />
-                            <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis"
+                            <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap"
                                        Visibility="{Binding OrderNotes, Converter={StaticResource HasValueToVis}}" />
                         </StackPanel>
                     </DockPanel>
@@ -361,8 +361,9 @@
                         </Grid>
                     </Button>
                 </UniformGrid>
-                <Button Style="{StaticResource BigPayButton}" Command="{Binding PayCommand}" IsEnabled="{Binding HasItems}" Margin="0,4,0,0">
-                    <DockPanel LastChildFill="False" Width="300">
+                <Button Style="{StaticResource BigPayButton}" Command="{Binding PayCommand}" IsEnabled="{Binding HasItems}" Margin="0,4,0,0"
+                        HorizontalContentAlignment="Stretch">
+                    <DockPanel LastChildFill="False">
                         <TextBlock DockPanel.Dock="Left" Text="{l:T Register.Pay}" VerticalAlignment="Center" />
                         <TextBlock DockPanel.Dock="Left" Text="F12" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="10,4,0,0" />
                         <TextBlock DockPanel.Dock="Right" Text="{Binding GrandTotal, Converter={StaticResource Money}}" VerticalAlignment="Center" />

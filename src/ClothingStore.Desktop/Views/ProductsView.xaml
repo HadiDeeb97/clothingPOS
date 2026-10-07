@@ -41,14 +41,14 @@
                         </Style>
                     </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="2*" FontWeight="SemiBold" />
-                        <DataGridTextColumn Header="{l:T Common.Brand}" Binding="{Binding Product.Brand}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Product.Category.Name}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Products.For}" Binding="{Binding Product.Gender, Converter={StaticResource EnumDisplay}}" Width="80" />
-                        <DataGridTextColumn Header="{l:T Products.Sizes}" Binding="{Binding Sizes}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Products.Colours}" Binding="{Binding Colors}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding Product.Price, Converter={StaticResource Money}}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTemplateColumn Header="{l:T Common.Stock}" Width="80">
+                        <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="2*" MinWidth="140" FontWeight="SemiBold" />
+                        <DataGridTextColumn Header="{l:T Common.Brand}" Binding="{Binding Product.Brand}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Product.Category.Name}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Products.For}" Binding="{Binding Product.Gender, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="80" />
+                        <DataGridTextColumn Header="{l:T Products.Sizes}" Binding="{Binding Sizes}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Products.Colours}" Binding="{Binding Colors}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding Product.Price, Converter={StaticResource Money}}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTemplateColumn Header="{l:T Common.Stock}" Width="Auto" MinWidth="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TotalStock}" HorizontalAlignment="Right">
@@ -78,14 +78,14 @@
                                Text="{Binding SelectedProduct.Product.Name, StringFormat={l:T Products.VariantsOf}, FallbackValue=''}" />
                     <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding SelectedProduct.Product.Variants}" infra:LayoutMemory.Key="Products.Variants">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="80" />
-                            <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="*" />
-                            <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="*" />
-                            <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode}" Width="*" />
-                            <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding PriceOverride, Converter={StaticResource Money}, TargetNullValue={l:T Products.DefaultPrice}}" Width="100" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding StockQuantity}" Width="70" ElementStyle="{StaticResource StrongRightCell}" />
-                            <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive}" Width="70" />
+                            <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="Auto" MinWidth="80" />
+                            <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="*" MinWidth="140" />
+                            <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="*" MinWidth="140" />
+                            <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode}" Width="*" MinWidth="140" />
+                            <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding PriceOverride, Converter={StaticResource Money}, TargetNullValue={l:T Products.DefaultPrice}}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding StockQuantity}" Width="Auto" MinWidth="70" ElementStyle="{StaticResource StrongRightCell}" />
+                            <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive}" Width="Auto" MinWidth="70" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

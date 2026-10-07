@@ -16,12 +16,12 @@
             <Border Style="{StaticResource TableCard}">
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Common.Name}" Binding="{Binding Partner.Name}" Width="*" FontWeight="SemiBold" />
-                        <DataGridTextColumn Header="{l:T Partners.Kind}" Binding="{Binding Partner.Kind, Converter={StaticResource EnumDisplay}}" Width="80" />
-                        <DataGridTextColumn Header="{l:T Common.Phone}" Binding="{Binding Partner.Phone}" Width="110" />
-                        <DataGridTextColumn Header="{l:T Partners.DefaultFee}" Binding="{Binding Partner.DefaultFee, Converter={StaticResource Money}}" Width="80" />
-                        <DataGridTextColumn Header="{l:T Partners.Owes}" Binding="{Binding Owed, Converter={StaticResource Money}}" Width="90" />
-                        <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding Partner.IsActive}" Width="60" />
+                        <DataGridTextColumn Header="{l:T Common.Name}" Binding="{Binding Partner.Name}" Width="*" MinWidth="140" FontWeight="SemiBold" />
+                        <DataGridTextColumn Header="{l:T Partners.Kind}" Binding="{Binding Partner.Kind, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="80" />
+                        <DataGridTextColumn Header="{l:T Common.Phone}" Binding="{Binding Partner.Phone}" Width="Auto" MinWidth="110" />
+                        <DataGridTextColumn Header="{l:T Partners.DefaultFee}" Binding="{Binding Partner.DefaultFee, Converter={StaticResource Money}}" Width="Auto" MinWidth="80" />
+                        <DataGridTextColumn Header="{l:T Partners.Owes}" Binding="{Binding Owed, Converter={StaticResource Money}}" Width="Auto" MinWidth="90" />
+                        <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding Partner.IsActive}" Width="Auto" MinWidth="60" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

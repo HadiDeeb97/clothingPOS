@@ -14,8 +14,8 @@
         <Grid>
             <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="{l:T Held.Label}" Binding="{Binding Label}" Width="*" />
-                    <DataGridTextColumn Header="{l:T Held.HeldAt}" Binding="{Binding CreatedAt, StringFormat={}{0:ddd HH:mm}}" Width="130" />
+                    <DataGridTextColumn Header="{l:T Held.Label}" Binding="{Binding Label}" Width="*" MinWidth="140" />
+                    <DataGridTextColumn Header="{l:T Held.HeldAt}" Binding="{Binding CreatedAt, StringFormat={}{0:ddd HH:mm}}" Width="Auto" MinWidth="130" />
                 </DataGrid.Columns>
             </DataGrid>
             <TextBlock Text="{l:T Held.None}" Style="{StaticResource MutedText}" HorizontalAlignment="Center" VerticalAlignment="Center"

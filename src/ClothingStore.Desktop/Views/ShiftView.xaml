@@ -149,7 +149,7 @@
                                             </TextBlock>
                                             <TextBlock Text="{Binding CreatedAt, StringFormat={}{0:HH:mm}}" Style="{StaticResource MutedText}" Margin="0,0,10,0" />
                                             <TextBlock Text="{Binding Type, Converter={StaticResource EnumDisplay}}" FontWeight="SemiBold" Margin="0,0,10,0" />
-                                            <TextBlock Text="{Binding Reason}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -192,13 +192,13 @@
                 </DockPanel>
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory}" infra:LayoutMemory.Key="Shift.History">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Shift.Number}" Binding="{Binding Id}" Width="55" />
-                        <DataGridTextColumn Header="{l:T Common.Cashier}" Binding="{Binding User.FullName}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Shift.OpenedCol}" Binding="{Binding OpenedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="110" />
-                        <DataGridTextColumn Header="{l:T Shift.ClosedCol}" Binding="{Binding ClosedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="110" />
-                        <DataGridTextColumn Header="{l:T Shift.ExpectedCol}" Binding="{Binding ExpectedCash, Converter={StaticResource Money}}" Width="95" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="{l:T Shift.CountedCol}" Binding="{Binding CountedCash, Converter={StaticResource Money}}" Width="95" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTemplateColumn Header="{l:T Shift.VarianceCol}" Width="95">
+                        <DataGridTextColumn Header="{l:T Shift.Number}" Binding="{Binding Id}" Width="Auto" MinWidth="55" />
+                        <DataGridTextColumn Header="{l:T Common.Cashier}" Binding="{Binding User.FullName}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Shift.OpenedCol}" Binding="{Binding OpenedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="Auto" MinWidth="110" />
+                        <DataGridTextColumn Header="{l:T Shift.ClosedCol}" Binding="{Binding ClosedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="Auto" MinWidth="110" />
+                        <DataGridTextColumn Header="{l:T Shift.ExpectedCol}" Binding="{Binding ExpectedCash, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Shift.CountedCol}" Binding="{Binding CountedCash, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTemplateColumn Header="{l:T Shift.VarianceCol}" Width="Auto" MinWidth="95">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Variance, Converter={StaticResource Money}}" HorizontalAlignment="Right" FontWeight="SemiBold"
@@ -206,7 +206,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="{l:T Shift.VarianceLbpCol}" Width="120">
+                        <DataGridTemplateColumn Header="{l:T Shift.VarianceLbpCol}" Width="Auto" MinWidth="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding VarianceLbp, Converter={StaticResource Lbp}}" HorizontalAlignment="Right" FontWeight="SemiBold"

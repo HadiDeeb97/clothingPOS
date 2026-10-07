@@ -73,16 +73,16 @@
                         </Style>
                     </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="2*" FontWeight="SemiBold" />
-                        <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Product.Category.Name}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="70" />
-                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode}" Width="120" />
-                        <DataGridTextColumn Header="{l:T Common.Cost}" Binding="{Binding EffectiveCost, Converter={StaticResource Money}}" Width="85" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding EffectivePrice, Converter={StaticResource Money}}" Width="85" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel}" Width="90" ElementStyle="{StaticResource RightCell}" />
-                        <DataGridTextColumn Header="{l:T Inventory.OnHand}" Binding="{Binding StockQuantity}" Width="85" ElementStyle="{StaticResource StrongRightCell}" />
+                        <DataGridTextColumn Header="{l:T Common.Product}" Binding="{Binding Product.Name}" Width="2*" MinWidth="140" FontWeight="SemiBold" />
+                        <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Product.Category.Name}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size}" Width="Auto" MinWidth="70" />
+                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode}" Width="Auto" MinWidth="120" />
+                        <DataGridTextColumn Header="{l:T Common.Cost}" Binding="{Binding EffectiveCost, Converter={StaticResource Money}}" Width="Auto" MinWidth="85" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding EffectivePrice, Converter={StaticResource Money}}" Width="Auto" MinWidth="85" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Inventory.OnHand}" Binding="{Binding StockQuantity}" Width="Auto" MinWidth="85" ElementStyle="{StaticResource StrongRightCell}" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -94,13 +94,13 @@
                     <TextBlock DockPanel.Dock="Top" Text="{l:T Inventory.MovementHistory}" Style="{StaticResource SectionTitle}" Margin="16,14,16,10" />
                     <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Movements}" infra:LayoutMemory.Key="Inventory.Movements">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="140" />
-                            <DataGridTextColumn Header="{l:T Common.Type}" Binding="{Binding Type, Converter={StaticResource EnumDisplay}}" Width="140" />
-                            <DataGridTextColumn Header="{l:T Inventory.Change}" Binding="{Binding QuantityChange, StringFormat={}{0:+#;-#;0}}" Width="80" ElementStyle="{StaticResource StrongRightCell}" />
-                            <DataGridTextColumn Header="{l:T Inventory.After}" Binding="{Binding QuantityAfter}" Width="70" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="{l:T Common.Reference}" Binding="{Binding Reference}" Width="150" />
-                            <DataGridTextColumn Header="{l:T Common.By}" Binding="{Binding User.FullName}" Width="130" />
-                            <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Notes}" Width="*" />
+                            <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="140" />
+                            <DataGridTextColumn Header="{l:T Common.Type}" Binding="{Binding Type, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="140" />
+                            <DataGridTextColumn Header="{l:T Inventory.Change}" Binding="{Binding QuantityChange, StringFormat={}{0:+#;-#;0}}" Width="Auto" MinWidth="80" ElementStyle="{StaticResource StrongRightCell}" />
+                            <DataGridTextColumn Header="{l:T Inventory.After}" Binding="{Binding QuantityAfter}" Width="Auto" MinWidth="70" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridTextColumn Header="{l:T Common.Reference}" Binding="{Binding Reference}" Width="Auto" MinWidth="150" />
+                            <DataGridTextColumn Header="{l:T Common.By}" Binding="{Binding User.FullName}" Width="Auto" MinWidth="130" />
+                            <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Notes}" Width="*" MinWidth="140" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

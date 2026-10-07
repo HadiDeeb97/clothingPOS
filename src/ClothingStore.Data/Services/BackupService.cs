@@ -12,8 +12,9 @@ namespace ClothingStore.Data.Services;
 /// Full copy-only backups taken by SQL Server, checksummed and verified, and logged in <see cref="BackupRecord"/>.
 /// Backups are safe while tills are selling.
 /// <para>
-/// Manual backups get a timestamped file. Automatic ones (scheduled and after a shift closes) reuse one file per
-/// weekday, so the last seven days are kept without the app having to delete files on the server.
+/// Every backup gets its own timestamped file, so none replaces another. Automatic ones (at start-up, scheduled and
+/// after a shift closes) older than <see cref="KeepAutomaticDays"/> days are deleted, always keeping the newest
+/// <see cref="KeepAutomaticAtLeast"/>; manual backups are never deleted.
 /// </para>
 /// </summary>
 public class BackupService(IDbContextFactory<PosDbContext> factory)
@@ -22,6 +23,12 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
 
     /// <summary>After a failed automatic backup, wait this long before trying again.</summary>
     public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromHours(1);
+
+    /// <summary>Automatic backups older than this many days are removed.</summary>
+    public const int KeepAutomaticDays = 30;
+
+    /// <summary>...but at least this many of the newest automatic backups always stay.</summary>
+    public const int KeepAutomaticAtLeast = 10;
 
     /// <summary>Held while a backup runs so two tills never back up at the same time.</summary>
     private const string LockResource = "ClothingStorePOS.Backup";
@@ -203,6 +210,13 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
                 await ReleaseLockAsync(db);
             }
 
+            if (record.Succeeded && kind != BackupKind.Manual)
+            {
+                // Old automatic backups (including start-up ones) go once a new one has safely been written.
+                try { await PruneAsync(ct: CancellationToken.None); }
+                catch (SqlException) { /* cleaning up is optional */ }
+            }
+
             return record.Succeeded
                 ? record
                 : throw new BusinessRuleException(record.FilePath is null
@@ -215,13 +229,56 @@ public class BackupService(IDbContextFactory<PosDbContext> factory)
         }
     }
 
-    private static string FileName(string databaseName, BackupKind kind, DateTime at) => kind switch
+    /// <summary>A new file for every backup (date and time to the millisecond), so one never overwrites another.</summary>
+    private static string FileName(string databaseName, BackupKind kind, DateTime at)
     {
-        BackupKind.Manual => $"{databaseName}_{at:yyyyMMdd-HHmmss}.bak",
-        // Own set of weekday files, so opening the app many times a day never overwrites the end-of-day backups.
-        BackupKind.Startup => $"{databaseName}_startup_{at.ToString("ddd", CultureInfo.InvariantCulture)}.bak",
-        _ => $"{databaseName}_auto_{at.ToString("ddd", CultureInfo.InvariantCulture)}.bak",
-    };
+        var stamp = at.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
+        return kind switch
+        {
+            BackupKind.Manual => $"{databaseName}_{stamp}.bak",
+            BackupKind.Startup => $"{databaseName}_startup_{stamp}.bak",
+            BackupKind.ShiftClose => $"{databaseName}_shift_{stamp}.bak",
+            _ => $"{databaseName}_auto_{stamp}.bak",
+        };
+    }
+
+    /// <summary>
+    /// Deletes automatic backups older than <paramref name="keepDays"/> days (keeping the newest
+    /// <paramref name="keepAtLeast"/> whatever their age) and their log rows. Best effort: if SQL Server may not delete
+    /// files (not an administrator), the files and rows simply stay. Returns how many were removed.
+    /// </summary>
+    public async Task<int> PruneAsync(int keepDays = KeepAutomaticDays, int keepAtLeast = KeepAutomaticAtLeast, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var cutoff = DateTime.Now.AddDays(-keepDays);
+        var automatic = await db.BackupRecords
+            .Where(b => b.Kind != BackupKind.Manual && b.Succeeded && b.FilePath != null)
+            .OrderByDescending(b => b.StartedAt)
+            .ToListAsync(ct);
+        var old = automatic.Skip(keepAtLeast).Where(b => b.StartedAt < cutoff).ToList();
+        // Older versions reused one file per weekday: never delete a file a backup we keep still points to.
+        var stillUsed = automatic.Except(old).Select(b => b.FilePath!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var removed = 0;
+        foreach (var record in old)
+        {
+            if (!stillUsed.Contains(record.FilePath!))
+            {
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync("EXEC master.dbo.xp_delete_file 0, @path;", [new SqlParameter("@path", record.FilePath)], ct);
+                }
+                catch (SqlException)
+                {
+                    break; // no permission to delete files: leave the rest alone
+                }
+            }
+            db.BackupRecords.Remove(record);
+            removed++;
+        }
+        if (removed > 0) await db.SaveChangesAsync(ct);
+        return removed;
+    }
 
     private static async Task<StoreSettings> GetSettingsAsync(PosDbContext db, CancellationToken ct) =>
         await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();

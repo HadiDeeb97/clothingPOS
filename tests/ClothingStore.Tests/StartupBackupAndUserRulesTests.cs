@@ -19,7 +19,7 @@ public class StartupBackupTests
         var record = await backups.BackupOnStartupAsync();
         Assert.NotNull(record);
         Assert.True(record.Succeeded, record.Error);
-        Assert.Matches(@"_startup_[A-Z][a-z]{2}\.bak$", record.FilePath);
+        Assert.Matches(@"_startup_\d{8}-\d{6}-\d{3}\.bak$", record.FilePath);
         Assert.Equal(BackupKind.Startup, Assert.Single(await backups.GetRecentAsync()).Kind);
 
         // A second till opening a minute later doesn't make another one.

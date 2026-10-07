@@ -97,7 +97,8 @@ public static class LayoutMemory
     private static void OnDataGridLoaded(object sender, RoutedEventArgs e)
     {
         var grid = (DataGrid)sender;
-        if (!TryGet(grid, "columns", out var saved)) return;
+        // "cols" (not the older "columns"): widths saved before columns sized themselves to their content are ignored.
+        if (!TryGet(grid, "cols", out var saved)) return;
         var columns = saved.Split(';');
         if (columns.Length != grid.Columns.Count) return;
         var order = new List<(DataGridColumn Column, int Index)>();
@@ -105,8 +106,9 @@ public static class LayoutMemory
         {
             var parts = columns[i].Split(':');
             if (parts.Length != 2) continue;
+            // "-" = the user never resized it: keep its own sizing (fit to content, or share of the free space).
             if (double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var width) && width > 10)
-                grid.Columns[i].Width = new DataGridLength(width);
+                grid.Columns[i].Width = new DataGridLength(Math.Max(width, grid.Columns[i].MinWidth));
             if (int.TryParse(parts[1], out var index) && index >= 0 && index < grid.Columns.Count)
                 order.Add((grid.Columns[i], index));
         }
@@ -118,8 +120,10 @@ public static class LayoutMemory
     {
         var grid = (DataGrid)sender;
         if (grid.Columns.Count == 0 || grid.Columns.All(c => c.ActualWidth <= 0)) return;
-        Set(grid, "columns", string.Join(";", grid.Columns.Select(c =>
-            $"{c.ActualWidth.ToString("0.#", CultureInfo.InvariantCulture)}:{c.DisplayIndex}")));
+        // Only widths the user dragged are pixel widths; columns still auto- or star-sized are saved as "-" so they keep
+        // fitting their content (and the window) next time.
+        Set(grid, "cols", string.Join(";", grid.Columns.Select(c =>
+            $"{(c.Width.IsAbsolute ? c.ActualWidth.ToString("0.#", CultureInfo.InvariantCulture) : "-")}:{c.DisplayIndex}")));
     }
 
     // ---- Storage ----------------------------------------------------------------------------------

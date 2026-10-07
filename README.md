@@ -213,11 +213,13 @@ next to the payment in Sales history.
 * SQL Server writes each backup on its own PC, into the folder set in **Settings** (empty = the server's default backup
   folder). The SQL Server service account must be able to write there. Point it at a cloud-synced or network folder so a
   copy survives if that PC fails.
-* Every time the app starts and the database already exists, it is backed up first (before any upgrade), into
-  `ClothingStorePOS_startup_Mon.bak` ... `_Sun.bak`. Several tills opening within 10 minutes make one backup between
-  them. If it fails, the app says so and still opens.
-* Automatic backups reuse one file per weekday (`ClothingStorePOS_auto_Mon.bak` ... `_Sun.bak`), so the last seven days are
-  kept. **Back up now** writes a separate timestamped file that is never overwritten.
+* Every time the app starts and the database already exists, it is backed up first (before any upgrade). Several tills
+  opening within 10 minutes make one backup between them. If it fails, the app says so and still opens.
+* Every backup gets its own file named with the date and time (`ClothingStorePOS_startup_20261007-091502-317.bak`,
+  `_shift_...`, `_auto_...`, and `ClothingStorePOS_20261007-...bak` for **Back up now**), so none replaces another.
+  Automatic backups older than 30 days are deleted (the newest 10 always stay); **Back up now** files are never deleted.
+  Deleting needs SQL Server administrator rights (the default with Windows sign-in on SQL Express); without them old
+  files are simply kept.
 * Every backup is a full, copy-only backup with checksums, verified straight after it is written. Every till checks whether
   a backup is due, but a lock on the server makes sure only one backs up at a time. After a failure, the next automatic
   attempt waits an hour.

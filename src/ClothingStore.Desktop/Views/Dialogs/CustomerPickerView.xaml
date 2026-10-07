@@ -15,10 +15,10 @@
         </DockPanel>
         <DataGrid ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedCustomer}" MouseDoubleClick="OnDoubleClick">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="{l:T Common.Name}" Binding="{Binding FullName}" Width="*" />
-                <DataGridTextColumn Header="{l:T Common.Phone}" Binding="{Binding Phone}" Width="130" />
-                <DataGridTextColumn Header="{l:T Common.Points}" Binding="{Binding LoyaltyPoints}" Width="80" ElementStyle="{StaticResource RightCell}" />
-                <DataGridTextColumn Header="{l:T Common.Credit}" Binding="{Binding StoreCredit, Converter={StaticResource Money}}" Width="100" ElementStyle="{StaticResource RightCell}" />
+                <DataGridTextColumn Header="{l:T Common.Name}" Binding="{Binding FullName}" Width="*" MinWidth="140" />
+                <DataGridTextColumn Header="{l:T Common.Phone}" Binding="{Binding Phone}" Width="Auto" MinWidth="130" />
+                <DataGridTextColumn Header="{l:T Common.Points}" Binding="{Binding LoyaltyPoints}" Width="Auto" MinWidth="80" ElementStyle="{StaticResource RightCell}" />
+                <DataGridTextColumn Header="{l:T Common.Credit}" Binding="{Binding StoreCredit, Converter={StaticResource Money}}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource RightCell}" />
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>
