@@ -20,6 +20,7 @@
   "License.Reason.Invalid": "This license key isn't valid. Check that it was copied completely.",
   "License.Reason.Missing": "This PC has no license yet. Enter the license key from your supplier.",
   "License.Reason.Valid": "Licensed to {0} until {1}.",
+  "License.Reason.ValidLifetime": "Licensed to {0}, with no expiry date.",
   "License.Reason.WrongMachine": "This license is for a different PC. Send this PC's ID to your supplier to get a license for it.",
   "License.Title": "License"
 }

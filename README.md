@@ -108,23 +108,32 @@ without it the build stops with an explanation. Add `-p:AllowUnlicensedBuild=tru
 
 Each PC needs a license key signed by you. The key names the store, the PCs it is valid on and the last valid day.
 
-1. **Once, on your own computer:** create your signing keys and keep `private.pem` secret and backed up (it is ignored
-   by git; never put it on a customer's PC):
-   ```powershell
-   dotnet run --project tools/ClothingStore.LicenseTool -- keygen --out C:\MyLicenseKeys
-   ```
-   Paste the printed public key into `licensing.json` (`"publicKey"`), with your name, phone and email so customers
-   see how to reach you, then publish.
-2. **For each customer:** install the app. On first start it shows **this PC's ID** (e.g. `7KQ2-M9XD-ABCD-EFGH`).
-   The customer reads or sends it to you. Issue a key (one license can list several tills with repeated `--machine`):
-   ```powershell
-   dotnet run --project tools/ClothingStore.LicenseTool -- issue --key C:\MyLicenseKeys\private.pem `
-       --licensee "Boutique Rana" --machine 7KQ2-M9XD-ABCD-EFGH --days 365 --out rana.lic
-   ```
-   Send the key text or the `.lic` file; they paste or load it on the activation screen.
-3. **Renewal:** from 30 days before the last day, a banner (and a daily message) says how many days are left and how
-   to contact you. After the last day the app opens only the activation screen until a renewed key is entered
-   (user menu → **License…** accepts a new key at any time).
+**License Maker** (`tools/ClothingStore.LicenseMaker`) is a small Windows app for you only (never give it to customers).
+Build it once and keep the `publish` folder on your own PC:
+```powershell
+dotnet publish tools/ClothingStore.LicenseMaker -c Release -r win-x64 --self-contained -o C:\LicenseMaker
+```
+
+1. **Once:** open License Maker, click **Create new keys…** and choose a folder (e.g. `Documents\POS Licenses`). Back
+   that folder up: it holds `private.pem` (without it you can't renew anyone) and the customer list. Click **Copy public
+   key for the app**, paste it into `licensing.json` (`"publicKey"`) with your name, phone and email so customers see
+   how to reach you, then publish the POS.
+2. **New customer:** install the app; on first start it shows **this PC's ID** (e.g. `7KQ2-M9XD-ABCD-EFGH`). The
+   customer sends it to you. In License Maker type the store name, click **Paste** for the PC ID (several tills can share
+   one license), pick **1 month / 3 months / 6 months / 1 year / 2 years / Lifetime** or a date, and click **Generate
+   key**. The key is copied; **Copy WhatsApp message** gives a ready-to-send message, or **Save .lic file…**. The
+   customer pastes it on the activation screen.
+3. **Renewing:** the customer list shows every store with its last day, in orange when 30 days or less are left and red
+   when expired. Click the store, pick how long, **Generate key**. Renewing early adds the time after the current last
+   day, so no days are lost.
+
+Keys made earlier with the command-line tool can be added to the list with **Add old keys…**. The command line still
+works too (`pos-license issue`, see `dotnet run --project tools/ClothingStore.LicenseTool`) and records into the same
+customer list next to `private.pem`.
+
+**On the customer's PC:** from 30 days before the last day, a banner (and a daily message) says how many days are left
+and how to contact you. After the last day the app opens only the activation screen until a renewed key is entered
+(user menu → **License…** accepts a new key at any time). A lifetime key never warns.
 
 Copying the program to another PC doesn't copy the license: that PC has a different ID (taken from Windows' install ID),
 so it asks for its own key. Setting the PC's date back doesn't help either: the check uses the latest of the PC clock,
