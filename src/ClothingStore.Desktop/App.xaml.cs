@@ -97,15 +97,12 @@ public partial class App : Application
             _splash?.SetStatus(Loc.T("Startup.Connecting"));
         }
 
+        if (!await PrepareDatabaseAsync(builder.Configuration.GetValue("Pos:SeedDemoData", true))) return;
+
         try
         {
-            var seedDemo = builder.Configuration.GetValue("Pos:SeedDemoData", true);
-            await Services.GetRequiredService<DatabaseInitializer>().InitializeAsync(seedDemo);
             var settings = Services.GetRequiredService<SettingsService>();
-            CurrencyFormat.Symbol = (await settings.GetAsync()).CurrencySymbol;
             settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
-            try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
-            catch { /* no logo is fine */ }
             await _host.StartAsync(); // starts the automatic backup worker
             if (!upgrading) BackUpInBackground();
 
@@ -126,6 +123,61 @@ public partial class App : Application
         ShowLogin();
     }
 
+    private const int StartupAttempts = 4;
+
+    /// <summary>
+    /// Upgrades the database and loads the settings the first screens need. A PC that is short of memory or busy
+    /// (right after Windows starts, Windows Update, a debugger) can make SQL Server answer too slowly the first time,
+    /// so a timeout or dropped connection is retried a few times before anything is shown. If it still fails, the
+    /// cashier can try again instead of having to start the app again. Returns false when the app was closed.
+    /// </summary>
+    private async Task<bool> PrepareDatabaseAsync(bool seedDemo)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await Services.GetRequiredService<DatabaseInitializer>().InitializeAsync(seedDemo);
+                CurrencyFormat.Symbol = (await Services.GetRequiredService<SettingsService>().GetAsync()).CurrencySymbol;
+                try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
+                catch { /* no logo is fine */ }
+                return true;
+            }
+            catch (Exception ex) when (attempt < StartupAttempts && DbErrors.IsTransient(ex))
+            {
+                StartupLog.Write(ex);
+                SqlConnection.ClearAllPools(); // don't reuse a connection that broke
+                _splash?.SetStatus(Loc.T("Startup.SlowRetry", attempt + 1, StartupAttempts));
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex)
+            {
+                var log = StartupLog.Write(ex);
+                if (!AskTryAgain(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message), log)) return false;
+                attempt = 0;
+                SqlConnection.ClearAllPools();
+            }
+        }
+    }
+
+    /// <summary>Shows a start-up failure with "Try again?"; on No the app closes.</summary>
+    private bool AskTryAgain(string message, string? logPath)
+    {
+        CloseSplash();
+        var text = message + "\n\n" + (logPath is null ? "" : Loc.T("Startup.DetailsSaved", logPath) + "\n\n") + Loc.T("Startup.TryAgain");
+        var retry = MessageBox.Show(text, Loc.T("Shell.AppName"), MessageBoxButton.YesNo, MessageBoxImage.Error, MessageBoxResult.Yes,
+            Loc.IsRightToLeft ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : MessageBoxOptions.None) == MessageBoxResult.Yes;
+        if (!retry)
+        {
+            Shutdown(1);
+            return false;
+        }
+        _splash = new SplashWindow();
+        _splash.Show();
+        _splash.SetStatus(Loc.T("Startup.Connecting"));
+        return true;
+    }
+
     /// <summary>
     /// Checks this PC's license; without a valid one, only the activation screen is shown (with this PC's ID to send
     /// to the vendor). Returns false when the app was closed instead.
@@ -134,14 +186,18 @@ public partial class App : Application
     {
         var license = Services.GetRequiredService<LicenseManager>();
         LicenseStatus status;
-        try
+        while (true)
         {
-            status = await license.CheckAsync();
-        }
-        catch (Exception ex)
-        {
-            StartupError(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message));
-            return false;
+            try
+            {
+                status = await license.CheckAsync();
+                CloseSplash(); // shown again by "Try again"
+                break;
+            }
+            catch (Exception ex)
+            {
+                if (!AskTryAgain(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message), StartupLog.Write(ex))) return false;
+            }
         }
         if (status.State == LicenseState.ExpiringSoon && LocalPreferences.Current.LicenseWarnedOn != DateTime.Today)
         {

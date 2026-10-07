@@ -16,6 +16,8 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
     public async Task InitializeAsync(bool seedDemoData, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        // Upgrading a big database, or a server still busy starting, can take longer than the usual 30 seconds.
+        db.Database.SetCommandTimeout(TimeSpan.FromMinutes(2));
         // An existing database is tuned first, so it doesn't shut itself down (AUTO_CLOSE) while being upgraded.
         var existed = await db.Database.CanConnectAsync(ct);
         if (existed) await TuneDatabaseAsync(db, ct);
