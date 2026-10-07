@@ -267,9 +267,13 @@ public sealed partial class ShiftViewModel(
         CountedCashText = "";
         CountedCashLbpText = "";
         CloseNotes = null;
+        // Stop showing the closed drawer's figures straight away, then load the page again before the Z report and
+        // the backup, which can take a while on a slow PC.
+        Summary = null;
+        NotifyDrawerState();
+        await RefreshAsync();
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Shift.ZReport"), ReceiptBuilder.ShiftReport(closed!, settings.Current)));
         await BackUpAfterCloseAsync();
-        await RefreshAsync();
     }
 
     private async Task BackUpAfterCloseAsync()

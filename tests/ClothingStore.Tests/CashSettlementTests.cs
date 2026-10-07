@@ -56,14 +56,34 @@ public class CashSettlementTests
     }
 
     [Theory]
-    [InlineData(ChangeCurrency.Usd, 28.50, 0)]
-    [InlineData(ChangeCurrency.Mixed, 28, 44_000)]    // 0.50 = 44,750 rounded down
-    [InlineData(ChangeCurrency.Lbp, 0, 2_550_000)]    // 28.50 = 2,550,750 rounded down
+    [InlineData(ChangeCurrency.Usd, 28, 45_000)]      // no dollar coins: the 0.50 is given in pounds
+    [InlineData(ChangeCurrency.Mixed, 28, 45_000)]    // 0.50 = 44,750 to the nearest 1,000
+    [InlineData(ChangeCurrency.Lbp, 0, 2_551_000)]    // 28.50 = 2,550,750 to the nearest 1,000
     public void Change_can_be_given_in_dollars_pounds_or_both(ChangeCurrency changeIn, double usd, int lbp)
     {
         var s = Settle(21.50m, 50m, 0m, changeIn);
         Assert.Equal(((decimal)usd, (decimal)lbp), (s.ChangeUsd, s.ChangeLbp));
         Assert.Equal(21.50m, s.AppliedUsd);
+    }
+
+    /// <summary>59.99 paid with $60: the cent is 895 LBP, which is given as a 1,000 note instead of disappearing.</summary>
+    [Theory]
+    [InlineData(ChangeCurrency.Mixed, 0, 1_000)]
+    [InlineData(ChangeCurrency.Lbp, 0, 1_000)]
+    [InlineData(ChangeCurrency.Usd, 0, 1_000)]
+    public void A_one_cent_change_is_given_as_the_nearest_pound_note(ChangeCurrency changeIn, double usd, int lbp)
+    {
+        var s = Settle(59.99m, 60m, 0m, changeIn);
+        Assert.True(s.IsCovered);
+        Assert.Equal(((decimal)usd, (decimal)lbp), (s.ChangeUsd, s.ChangeLbp));
+    }
+
+    [Fact]
+    public void Less_than_half_a_note_of_change_stays_in_the_drawer()
+    {
+        // 60.00 - 59.995: 447.5 LBP is under half of 1,000.
+        var s = Settle(59.995m, 60m, 0m, ChangeCurrency.Mixed);
+        Assert.Equal((0m, 0m), (s.ChangeUsd, s.ChangeLbp));
     }
 
     [Fact]
@@ -72,5 +92,6 @@ public class CashSettlementTests
         Assert.Throws<BusinessRuleException>(() => CashSettlement.Calculate(10m, new CashTender(0m, 900_000m), 0m, 1_000));
         Assert.Throws<BusinessRuleException>(() => CashSettlement.Calculate(10m, new CashTender(20m, 0m, ChangeCurrency.Lbp), 0m, 1_000));
         Assert.Equal(10m, CashSettlement.Calculate(10m, new CashTender(20m, 0m), 0m, 1_000).ChangeUsd);
+        Assert.Equal(0.01m, CashSettlement.Calculate(59.99m, new CashTender(60m, 0m), 0m, 1_000).ChangeUsd); // cents without LBP
     }
 }

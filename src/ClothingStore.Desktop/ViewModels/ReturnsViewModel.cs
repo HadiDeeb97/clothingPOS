@@ -103,7 +103,25 @@ public sealed partial class ReturnsViewModel(
         ? Loc.T("Returns.OutsideWindow", settings.Current.ReturnWindowDays)
         : "";
 
-    public Task OnNavigatedToAsync() => Task.CompletedTask;
+    /// <summary>
+    /// A receipt still open from the last visit is loaded again: items may have been returned or the sale voided since,
+    /// and refunding from the old figures would be wrong.
+    /// </summary>
+    public async Task OnNavigatedToAsync()
+    {
+        if (Sale is not { } shown) return;
+        try
+        {
+            var sale = await sales.GetByReceiptAsync(shown.ReceiptNumber);
+            if (sale is null || sale.Status == SaleStatus.Voided) Clear();
+            else Show(sale);
+        }
+        catch (Exception ex)
+        {
+            Clear();
+            ReportLoadError(Loc.T("Returns.LoadFailed"), ex);
+        }
+    }
 
     public async Task LoadReceiptAsync(string receiptNumber)
     {

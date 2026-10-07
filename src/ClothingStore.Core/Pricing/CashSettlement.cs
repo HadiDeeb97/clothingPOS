@@ -9,9 +9,12 @@ public static class Lbp
     public static decimal ToPay(decimal usd, decimal rate, int rounding) =>
         rate <= 0 || usd <= 0 ? 0 : RoundUp(usd * rate, rounding);
 
-    /// <summary>LBP handed out for a dollar amount (change, refunds): rounded down so the drawer is never short.</summary>
+    /// <summary>
+    /// LBP handed out for a dollar amount (refunds): to the nearest note, like change, so a cent or two isn't lost to
+    /// either side. The drawer records exactly what was handed out.
+    /// </summary>
     public static decimal ToGive(decimal usd, decimal rate, int rounding) =>
-        rate <= 0 || usd <= 0 ? 0 : RoundDown(usd * rate, rounding);
+        rate <= 0 || usd <= 0 ? 0 : RoundNearest(usd * rate, rounding);
 
     public static decimal RoundUp(decimal lbp, int rounding)
     {
@@ -23,6 +26,13 @@ public static class Lbp
     {
         var step = Math.Max(1, rounding);
         return Math.Floor(lbp / step) * step;
+    }
+
+    /// <summary>To the nearest step; exactly half way goes up.</summary>
+    public static decimal RoundNearest(decimal lbp, int rounding)
+    {
+        var step = Math.Max(1, rounding);
+        return Math.Round(lbp / step, MidpointRounding.AwayFromZero) * step;
     }
 
     /// <summary>"1,567,000 LBP" with the currency name in the current (or given) language.</summary>
@@ -97,22 +107,33 @@ public sealed record CashSettlement
             };
         }
 
+        // Pound change goes to the nearest note: owing 895 LBP (one cent at 89,500) the customer gets 1,000 rather
+        // than nothing, and the drawer records the 1,000 that actually left it.
         var extra = tendered - due;
         decimal changeUsd, changeLbp;
         switch (lbpOn ? tender.ChangeIn : ChangeCurrency.Usd)
         {
             case ChangeCurrency.Lbp:
                 changeUsd = 0;
-                changeLbp = Lbp.RoundDown(extra, step);
+                changeLbp = Lbp.RoundNearest(extra, step);
                 break;
             case ChangeCurrency.Mixed:
                 changeUsd = Math.Floor(extra / r);
-                changeLbp = Lbp.RoundDown(extra - changeUsd * r, step);
+                changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
                 break;
             default:
-                // Cents are kept in the drawer rather than paid out as a fraction.
-                changeUsd = Math.Floor(extra / r * 100m) / 100m;
-                changeLbp = 0;
+                if (lbpOn)
+                {
+                    // There are no dollar coins in circulation: whole dollars, and any cents as the nearest pound note.
+                    changeUsd = Math.Floor(extra / r);
+                    changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
+                }
+                else
+                {
+                    // Cents are kept in the drawer rather than paid out as a fraction.
+                    changeUsd = Math.Floor(extra / r * 100m) / 100m;
+                    changeLbp = 0;
+                }
                 break;
         }
 

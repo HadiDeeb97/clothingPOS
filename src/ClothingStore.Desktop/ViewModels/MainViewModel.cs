@@ -97,6 +97,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<NavGroup> NavGroups { get; } = [];
     public IEnumerable<NavItem> NavItems => NavGroups.SelectMany(g => g.Items);
     public IPageViewModel? CurrentPage => _navigation.CurrentPage;
+    public bool IsPageLoading => _navigation.IsLoading;
     public string StoreName => _settings.Current.StoreName;
     public DateTime Now => DateTime.Now;
     public Branding Branding => Branding.Instance;
@@ -150,6 +151,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     private void OnNavigationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(NavigationService.CurrentPage)) OnPropertyChanged(nameof(CurrentPage));
+        else if (e.PropertyName == nameof(NavigationService.IsLoading)) OnPropertyChanged(nameof(IsPageLoading));
     }
 
     private void OnSettingsChanged(object? sender, EventArgs e)
