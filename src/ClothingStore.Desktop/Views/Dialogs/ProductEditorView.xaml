@@ -36,9 +36,9 @@
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{l:T ProductEditor.CategoryRequired}" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" />
+                    <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" />
                     <TextBlock Text="{l:T Common.Supplier}" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
+                    <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
@@ -138,13 +138,13 @@
 
                 <DataGrid ItemsSource="{Binding Variants}" IsReadOnly="False" RowHeight="38" infra:LayoutMemory.Key="ProductEditor.Variants">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size, UpdateSourceTrigger=PropertyChanged}" Width="70" />
-                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" Width="120" />
-                        <DataGridTextColumn Header="{l:T ProductEditor.PriceOverride}" Binding="{Binding PriceOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="105" />
-                        <DataGridTextColumn Header="{l:T ProductEditor.CostOverride}" Binding="{Binding CostOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="100" />
-                        <DataGridTemplateColumn Header="{l:T Common.Stock}" Width="75">
+                        <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="70" />
+                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="120" />
+                        <DataGridTextColumn Header="{l:T ProductEditor.PriceOverride}" Binding="{Binding PriceOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="105" />
+                        <DataGridTextColumn Header="{l:T ProductEditor.CostOverride}" Binding="{Binding CostOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="100" />
+                        <DataGridTemplateColumn Header="{l:T Common.Stock}" Width="Auto" MinWidth="75">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding StockQuantity, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNew}" Padding="6,2" MinHeight="28"
@@ -152,9 +152,9 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel, UpdateSourceTrigger=LostFocus}" Width="90" />
-                        <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}" Width="65" />
-                        <DataGridTemplateColumn Width="44">
+                        <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel, UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="90" />
+                        <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="65" />
+                        <DataGridTemplateColumn Width="Auto" MinWidth="44">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource IconButton}" Width="30" Height="30" Content="&#xE74D;" Foreground="{StaticResource DangerBrush}"

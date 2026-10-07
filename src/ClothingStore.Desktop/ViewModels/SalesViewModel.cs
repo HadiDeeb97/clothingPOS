@@ -569,15 +569,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         // Their address goes into the delivery notes unless something was typed already.
         if (string.IsNullOrWhiteSpace(OrderNotes) && Customer?.FullAddress is { } address) OrderNotes = address;
 
-        IReadOnlyList<string> couriers = [];
         IReadOnlyList<DeliveryPartner> partners = [];
-        try
-        {
-            couriers = await _deliveries.GetCouriersAsync();
-            partners = await _deliveries.GetPartnersAsync();
-        }
-        catch { /* just no suggestions */ }
-        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference, partners);
+        try { partners = await _deliveries.GetPartnersAsync(); } catch { /* the list can still be opened from the window */ }
+        var dialog = new OnlineSaleViewModel(Dialogs, _deliveries, Channel, DeliveryFee, OrderNotes, Courier, partners, DeliveryReference);
         if (!Dialogs.ShowDialog(dialog)) return;
         Channel = dialog.Channel;
         DeliveryFee = dialog.DeliveryFee;

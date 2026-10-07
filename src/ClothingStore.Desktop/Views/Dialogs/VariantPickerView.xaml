@@ -6,7 +6,7 @@
     <StackPanel>
         <DockPanel Margin="0,0,0,4">
             <TextBlock DockPanel.Dock="Right" Text="{Binding Product.Price, Converter={StaticResource Money}}" FontSize="18" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding Product.Name}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Product.Name}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
         </DockPanel>
         <TextBlock Text="{l:T VariantPicker.Hint}" Style="{StaticResource HintText}" Margin="0,0,0,14" />
 
@@ -32,7 +32,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Color}" Width="120" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Color}" MinWidth="120" MaxWidth="220" VerticalAlignment="Center" FontWeight="SemiBold" TextWrapping="Wrap" />
                                 <ItemsControl ItemsSource="{Binding Cells}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>

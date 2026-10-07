@@ -3,29 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization">
     <DockPanel>
-        <DockPanel DockPanel.Dock="Bottom" Margin="0,18,0,0" LastChildFill="False">
-            <!-- Copies -->
-            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="{l:T Print.Copies}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <Button Content="&#x2212;" Command="{Binding FewerCopiesCommand}" Padding="0" Width="32" Margin="0" />
-                <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Width="44" Margin="4,0" TextAlignment="Center" VerticalContentAlignment="Center" />
-                <Button Content="+" Command="{Binding MoreCopiesCommand}" Padding="0" Width="32" Margin="0" />
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="{l:T Print.ChoosePrinter}" Command="{Binding PrintToCommand}" ToolTip="{l:T Print.ChoosePrinterTip}" />
-                <Button Command="{Binding PrintCommand}" ToolTip="{Binding PrinterText}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE749;" Style="{StaticResource Icon}" Margin="0,0,8,0" />
-                        <TextBlock Text="{l:T Common.Print}" />
-                    </StackPanel>
-                </Button>
-                <Button Content="{Binding CloseText}" Style="{StaticResource PrimaryButton}" Command="{Binding DoneCommand}" IsDefault="True" Margin="0" MinWidth="90" />
-            </StackPanel>
-        </DockPanel>
-        <TextBlock DockPanel.Dock="Bottom" Text="{Binding PrinterText}" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,10,0,0"
-                   Visibility="{Binding PrinterText, Converter={StaticResource HasValueToVis}}" />
+        <!-- How many copies, on its own row so it is never squeezed out by the buttons. -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,16,0">
+                    <TextBlock Text="{l:T Print.Copies}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0" />
+                    <Button Content="&#x2212;" Command="{Binding FewerCopiesCommand}" Style="{StaticResource SmallButton}" Padding="0" MinWidth="34" Height="34" Margin="0" FontSize="16" />
+                    <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" MinWidth="56" Padding="4,6" Margin="6,0" TextAlignment="Center"
+                             FontSize="15" FontWeight="SemiBold" />
+                    <Button Content="+" Command="{Binding MoreCopiesCommand}" Style="{StaticResource SmallButton}" Padding="0" MinWidth="34" Height="34" Margin="0" FontSize="16" />
+                </StackPanel>
+                <TextBlock Text="{Binding PrinterText}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </DockPanel>
+        </Border>
+        <WrapPanel DockPanel.Dock="Bottom" Margin="0,16,0,0" HorizontalAlignment="Right">
+            <Button Content="{l:T Print.ChoosePrinter}" Command="{Binding PrintToCommand}" ToolTip="{l:T Print.ChoosePrinterTip}" Margin="0,0,8,6" />
+            <Button Command="{Binding PrintCommand}" Margin="0,0,8,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE749;" Style="{StaticResource Icon}" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding PrintButtonText}" />
+                </StackPanel>
+            </Button>
+            <Button Content="{Binding CloseText}" Style="{StaticResource PrimaryButton}" Command="{Binding DoneCommand}" IsDefault="True" Margin="0,0,0,6" MinWidth="90" />
+        </WrapPanel>
         <!-- The receipt is fixed-width text, so it always reads left to right. -->
-        <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="22" MaxHeight="620"
+        <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="22" MaxHeight="560"
                 FlowDirection="LeftToRight">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <TextBlock Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="13" />

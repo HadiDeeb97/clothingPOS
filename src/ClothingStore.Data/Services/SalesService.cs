@@ -3,6 +3,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Pricing;
 using ClothingStore.Core.Security;
+using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 
@@ -252,16 +253,30 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (!includeVoided) query = query.Where(s => s.Status == SaleStatus.Completed);
         if (online is true) query = query.Where(s => s.Channel != SalesChannel.InStore);
         else if (online is false) query = query.Where(s => s.Channel == SalesChannel.InStore);
-        if (!string.IsNullOrWhiteSpace(text))
+        if (SmartSearch.PhoneDigits(text) is { } digits)
         {
-            var pattern = QueryHelpers.LikePattern(text);
+            var pattern = SmartSearch.LikePattern(digits);
             query = query.Where(s =>
+                EF.Functions.Like(s.Customer!.Phone!.Replace(" ", "").Replace("-", "").Replace(".", "").Replace("+", ""), pattern, "\\") ||
                 EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
-                EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
-                EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
-                EF.Functions.Like(s.Customer!.LastName, pattern, "\\") ||
-                EF.Functions.Like(s.Customer!.Phone!, pattern, "\\") ||
-                s.Lines.Any(l => EF.Functions.Like(l.ProductName, pattern, "\\") || EF.Functions.Like(l.Sku, pattern, "\\")));
+                EF.Functions.Like(s.DeliveryReference!, pattern, "\\"));
+        }
+        else
+        {
+            foreach (var term in SmartSearch.Terms(text))
+            {
+                var pattern = SmartSearch.LikePattern(term);
+                query = query.Where(s =>
+                    EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
+                    EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
+                    EF.Functions.Like(s.Courier!, pattern, "\\") ||
+                    EF.Functions.Like(s.Notes!, pattern, "\\") ||
+                    EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
+                    EF.Functions.Like(s.Customer!.LastName, pattern, "\\") ||
+                    EF.Functions.Like(s.Customer!.Phone!, pattern, "\\") ||
+                    EF.Functions.Like(s.User!.FullName, pattern, "\\") ||
+                    s.Lines.Any(l => EF.Functions.Like(l.ProductName, pattern, "\\") || EF.Functions.Like(l.Sku, pattern, "\\")));
+            }
         }
 
         return await query.OrderByDescending(s => s.CreatedAt).Take(1000).ToListAsync(ct);

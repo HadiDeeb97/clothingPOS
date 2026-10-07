@@ -22,13 +22,31 @@ public partial class DialogWindow : Window
         viewModel.CloseRequested += OnCloseRequested;
         Closed += (_, _) => viewModel.CloseRequested -= OnCloseRequested;
         PreviewKeyDown += OnPreviewKeyDown;
+        // Set before the first layout so SizeToContent never makes a dialog taller or wider than the screen: content
+        // shrinks to fit (lists and text areas scroll) instead of the bottom buttons ending up off-screen.
+        MaxHeight = SystemParameters.WorkArea.Height - 40;
+        MaxWidth = SystemParameters.WorkArea.Width - 40;
         Loaded += async (_, _) =>
         {
-            MaxHeight = SystemParameters.WorkArea.Height - 40;
-            MaxWidth = SystemParameters.WorkArea.Width - 40;
+            FitViewToScreen();
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             if (_viewModel is DialogViewModelBase dialog) await dialog.OnOpenedAsync();
         };
+    }
+
+    /// <summary>
+    /// Dialog views give a preferred size (Width/Height). On a small screen (a 1366×768 laptop) that would push the
+    /// buttons off the bottom, so shrink the view to what fits; its lists and text areas scroll instead.
+    /// </summary>
+    private void FitViewToScreen()
+    {
+        if (VisualTreeHelper.GetChildrenCount(Host) == 0 || VisualTreeHelper.GetChild(Host, 0) is not FrameworkElement view) return;
+        var chromeHeight = SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight * 2 + 8;
+        var chromeWidth = SystemParameters.ResizeFrameVerticalBorderWidth * 2 + 8;
+        var maxWidth = MaxWidth - Host.Margin.Left - Host.Margin.Right - chromeWidth;
+        var maxHeight = MaxHeight - Host.Margin.Top - Host.Margin.Bottom - chromeHeight;
+        if (!double.IsNaN(view.Width) && view.Width > maxWidth) view.Width = Math.Max(300, maxWidth);
+        if (!double.IsNaN(view.Height) && view.Height > maxHeight) view.Height = Math.Max(240, maxHeight);
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)

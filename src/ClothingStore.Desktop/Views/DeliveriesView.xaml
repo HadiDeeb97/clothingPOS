@@ -25,7 +25,7 @@
                                      IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
                     </StackPanel>
                 </Border>
-                <ComboBox ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}" Width="180" Margin="0,0,6,0" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}" Width="180" Margin="0,0,6,0" />
                 <Button Content="{l:T Deliveries.AllCompanies}" Style="{StaticResource LinkButton}" Command="{Binding ClearCourierCommand}" Margin="0" />
             </WrapPanel>
         </DockPanel>
@@ -78,7 +78,7 @@
                     <Grid>
                         <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" infra:LayoutMemory.Key="Deliveries.List">
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Width="40">
+                                <DataGridTemplateColumn Width="Auto" MinWidth="40">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanCheck}"
@@ -86,14 +86,14 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding Row.ReceiptNumber}" Width="130" />
-                                <DataGridTextColumn Header="{l:T Deliveries.Invoice}" Binding="{Binding Row.DeliveryReference}" Width="120" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding Row.CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="100" />
-                                <DataGridTextColumn Header="{l:T Deliveries.Company}" Binding="{Binding Row.Courier}" Width="110" />
-                                <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Row.Customer}" Width="*" />
-                                <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Row.Notes}" Width="*" />
-                                <DataGridTextColumn Header="{l:T Deliveries.Owed}" Binding="{Binding Row.Owed, Converter={StaticResource Money}}" Width="90" ElementStyle="{StaticResource StrongRightCell}" />
-                                <DataGridTemplateColumn Header="{l:T Common.Status}" Width="150">
+                                <DataGridTextColumn Header="{l:T Common.Receipt}" Binding="{Binding Row.ReceiptNumber}" Width="Auto" MinWidth="130" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Invoice}" Binding="{Binding Row.DeliveryReference}" Width="Auto" MinWidth="120" FontFamily="{StaticResource MonoFont}" />
+                                <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding Row.CreatedAt, StringFormat={}{0:dd MMM HH:mm}}" Width="Auto" MinWidth="100" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Company}" Binding="{Binding Row.Courier}" Width="Auto" MinWidth="110" />
+                                <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Row.Customer}" Width="*" MinWidth="140" />
+                                <DataGridTextColumn Header="{l:T Common.Notes}" Binding="{Binding Row.Notes}" Width="*" MinWidth="140" />
+                                <DataGridTextColumn Header="{l:T Deliveries.Owed}" Binding="{Binding Row.Owed, Converter={StaticResource Money}}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource StrongRightCell}" />
+                                <DataGridTemplateColumn Header="{l:T Common.Status}" Width="Auto" MinWidth="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border x:Name="Pill" Style="{StaticResource Chip}" Background="{StaticResource WarningLightBrush}">

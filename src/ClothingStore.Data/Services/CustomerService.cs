@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 
@@ -14,17 +15,25 @@ public class CustomerService(IDbContextFactory<PosDbContext> factory)
         await using var db = await factory.CreateDbContextAsync(ct);
         var query = db.Customers.AsNoTracking().Where(c => includeInactive || c.IsActive);
         if (regionId is { } r) query = query.Where(c => c.RegionId == r);
-        if (!string.IsNullOrWhiteSpace(text))
+        if (SmartSearch.PhoneDigits(text) is { } digits)
         {
-            foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            // A phone number however it was typed or saved ("70 123 456", "70-123456").
+            var pattern = SmartSearch.LikePattern(digits);
+            query = query.Where(c => EF.Functions.Like(c.Phone!.Replace(" ", "").Replace("-", "").Replace(".", "").Replace("+", ""), pattern, "\\"));
+        }
+        else
+        {
+            foreach (var term in SmartSearch.Terms(text))
             {
-                var pattern = QueryHelpers.LikePattern(word);
+                var pattern = SmartSearch.LikePattern(term);
                 query = query.Where(c =>
                     EF.Functions.Like(c.FirstName, pattern, "\\") ||
                     EF.Functions.Like(c.LastName, pattern, "\\") ||
                     EF.Functions.Like(c.Phone!, pattern, "\\") ||
                     EF.Functions.Like(c.Email!, pattern, "\\") ||
-                    EF.Functions.Like(c.Address!, pattern, "\\"));
+                    EF.Functions.Like(c.Address!, pattern, "\\") ||
+                    EF.Functions.Like(c.Region!.Name, pattern, "\\") ||
+                    EF.Functions.Like(c.Region!.NameAr!, pattern, "\\"));
             }
         }
         return await query.OrderBy(c => c.FirstName).ThenBy(c => c.LastName).Take(max)

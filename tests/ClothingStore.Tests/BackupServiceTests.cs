@@ -32,7 +32,7 @@ public class BackupServiceTests
         var record = await backups.BackupAsync(BackupKind.Manual, db.Admin.Id);
 
         Assert.True(record.Succeeded);
-        Assert.Matches(@"ClothingStorePOS_Test_\w+_\d{8}-\d{6}\.bak$", record.FilePath);
+        Assert.Matches(@"ClothingStorePOS_Test_\w+_\d{8}-\d{6}-\d{3}\.bak$", record.FilePath);
         var logged = Assert.Single(await backups.GetRecentAsync());
         Assert.Equal((record.FilePath, BackupKind.Manual, db.Admin.Id), (logged.FilePath, logged.Kind, logged.UserId));
     }
@@ -53,7 +53,7 @@ public class BackupServiceTests
     }
 
     [Fact]
-    public async Task Scheduled_backup_runs_when_due_into_one_file_per_weekday()
+    public async Task Scheduled_backup_runs_when_due_into_its_own_file()
     {
         await using var db = await TestDatabase.CreateAsync();
         var backups = new BackupService(db.Factory);
@@ -62,12 +62,31 @@ public class BackupServiceTests
         Assert.NotNull(first);
         Assert.Equal(BackupKind.Scheduled, first.Kind);
         Assert.Null(first.UserId);
-        Assert.EndsWith($"_auto_{first.StartedAt.ToString("ddd", CultureInfo.InvariantCulture)}.bak", first.FilePath);
+        Assert.EndsWith($"_auto_{first.StartedAt.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture)}.bak", first.FilePath);
 
         Assert.Null(await backups.RunIfDueAsync()); // last backup is recent
 
         await AgeBackupsAsync(db, TimeSpan.FromHours(25));
-        Assert.NotNull(await backups.RunIfDueAsync());
+        var second = await backups.RunIfDueAsync();
+        Assert.NotNull(second);
+        Assert.NotEqual(first.FilePath, second.FilePath); // the earlier backup is kept, not overwritten
+    }
+
+    [Fact]
+    public async Task Old_automatic_backups_are_removed_but_manual_ones_and_the_newest_stay()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var backups = new BackupService(db.Factory);
+        var manual = await backups.BackupAsync(BackupKind.Manual, db.Admin.Id);
+        await backups.BackupAsync(BackupKind.ShiftClose, db.Admin.Id);
+        await backups.BackupAsync(BackupKind.ShiftClose, db.Admin.Id);
+        await AgeBackupsAsync(db, TimeSpan.FromDays(40));
+
+        Assert.Equal(1, await backups.PruneAsync(keepDays: 30, keepAtLeast: 1));
+        var left = await backups.GetRecentAsync();
+        Assert.Equal(2, left.Count);
+        Assert.Contains(left, b => b.FilePath == manual.FilePath);
+        Assert.Contains(left, b => b.Kind == BackupKind.ShiftClose);
     }
 
     [Fact]

@@ -71,32 +71,82 @@ public sealed partial class ReportsViewModel(
     [ObservableProperty]
     public partial InventoryValuation? Valuation { get; set; }
 
-    public Task OnNavigatedToAsync() => RunReportAsync();
+    public Task OnNavigatedToAsync() => LoadAsync();
+
+    /// <summary>The dates the figures on screen are for.</summary>
+    [ObservableProperty]
+    public partial string? PeriodText { get; set; }
+
+    private bool _reloadPending;
+    private bool _settingRange;
+
+    // Picking a date reloads straight away (no need to press Run).
+    partial void OnFromChanged(DateTime value)
+    {
+        if (!_settingRange) _ = LoadAsync();
+    }
+
+    partial void OnToChanged(DateTime value)
+    {
+        if (!_settingRange) _ = LoadAsync();
+    }
 
     [RelayCommand]
-    private Task RunReportAsync() => RunAsync(async () =>
+    private Task RunReportAsync() => LoadAsync();
+
+    /// <summary>
+    /// Loads the report for From–To. A request made while one is loading (a quick-range click, a date change) runs
+    /// right after it, so the figures always match the dates shown.
+    /// </summary>
+    private async Task LoadAsync()
     {
-        if (To < From) (From, To) = (To, From);
-        Report = await reports.GetSalesReportAsync(From.Date, To.Date.AddDays(1));
-        Valuation = await reports.GetInventoryValuationAsync();
-        Alerts = await reports.GetStockAlertsAsync(From.Date, To.Date.AddDays(1));
-        DeliveryBalances = await deliveries.GetBalancesAsync();
-    });
+        if (IsBusy)
+        {
+            _reloadPending = true;
+            return;
+        }
+        do
+        {
+            _reloadPending = false;
+            var from = From.Date;
+            var to = To.Date;
+            if (to < from) (from, to) = (to, from);
+            await RunAsync(async () =>
+            {
+                Report = await reports.GetSalesReportAsync(from, to.AddDays(1));
+                Valuation = await reports.GetInventoryValuationAsync();
+                Alerts = await reports.GetStockAlertsAsync(from, to.AddDays(1));
+                DeliveryBalances = await deliveries.GetBalancesAsync();
+                PeriodText = from == to
+                    ? Loc.T("Reports.PeriodDay", from.ToString("dddd d MMMM yyyy"))
+                    : Loc.T("Reports.PeriodRange", from.ToString("d MMM yyyy"), to.ToString("d MMM yyyy"));
+            });
+        }
+        while (_reloadPending);
+    }
 
     [RelayCommand]
     private Task QuickRangeAsync(string range)
     {
         var today = DateTime.Today;
-        (From, To) = range switch
+        _settingRange = true;
+        try
         {
-            "today" => (today, today),
-            "yesterday" => (today.AddDays(-1), today.AddDays(-1)),
-            "week" => (today.AddDays(-((7 + (int)today.DayOfWeek - 1) % 7)), today),
-            "lastmonth" => (new DateTime(today.Year, today.Month, 1).AddMonths(-1), new DateTime(today.Year, today.Month, 1).AddDays(-1)),
-            "year" => (new DateTime(today.Year, 1, 1), today),
-            _ => (new DateTime(today.Year, today.Month, 1), today),
-        };
-        return RunReportAsync();
+            (From, To) = range switch
+            {
+                "today" => (today, today),
+                "yesterday" => (today.AddDays(-1), today.AddDays(-1)),
+                "week" => (today.AddDays(-((7 + (int)today.DayOfWeek - 1) % 7)), today),
+                "lastmonth" => (new DateTime(today.Year, today.Month, 1).AddMonths(-1), new DateTime(today.Year, today.Month, 1).AddDays(-1)),
+                "year" => (new DateTime(today.Year, 1, 1), today),
+                _ => (new DateTime(today.Year, today.Month, 1), today),
+            };
+        }
+        finally
+        {
+            _settingRange = false;
+        }
+        return LoadAsync();
     }
 
     [RelayCommand]

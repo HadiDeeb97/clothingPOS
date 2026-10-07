@@ -16,7 +16,7 @@
                 <Button Content="{l:T Print.ChoosePrinter}" Command="{Binding PrintToCommand}" ToolTip="{l:T Print.ChoosePrinterTip}" Margin="8,0,0,0" />
                 <Button Content="{l:T Labels.Print}" Style="{StaticResource PrimaryButton}" Command="{Binding PrintCommand}" Margin="8,0,0,0" MinWidth="120" />
             </StackPanel>
-            <TextBlock Text="{Binding PrinterText}" Style="{StaticResource MutedText}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding PrinterText}" Style="{StaticResource MutedText}" FontSize="11.5" VerticalAlignment="Center" TextWrapping="Wrap" />
         </DockPanel>
 
         <Grid>
@@ -60,19 +60,19 @@
                     <Grid>
                         <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" IsReadOnly="False" CanUserAddRows="False">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding Name, Mode=OneWay}" Width="*" IsReadOnly="True" />
-                                <DataGridTextColumn Header="{l:T Labels.Variant}" Binding="{Binding Variant.Description, Mode=OneWay}" Width="110" IsReadOnly="True" />
-                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Variant.Sku, Mode=OneWay}" Width="120" IsReadOnly="True" />
-                                <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding Variant.EffectivePrice, Converter={StaticResource Money}, Mode=OneWay}" Width="80" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding Variant.StockQuantity, Mode=OneWay}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTemplateColumn Header="{l:T Labels.Copies}" Width="80">
+                                <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding Name, Mode=OneWay}" Width="*" MinWidth="140" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{l:T Labels.Variant}" Binding="{Binding Variant.Description, Mode=OneWay}" Width="Auto" MinWidth="110" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Variant.Sku, Mode=OneWay}" Width="Auto" MinWidth="120" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding Variant.EffectivePrice, Converter={StaticResource Money}, Mode=OneWay}" Width="Auto" MinWidth="80" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Stock}" Binding="{Binding Variant.StockQuantity, Mode=OneWay}" Width="Auto" MinWidth="60" IsReadOnly="True" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTemplateColumn Header="{l:T Labels.Copies}" Width="Auto" MinWidth="80">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" MinHeight="28" HorizontalContentAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Width="40">
+                                <DataGridTemplateColumn Width="Auto" MinWidth="40">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Style="{StaticResource LinkButton}" Foreground="{StaticResource DangerBrush}" ToolTip="{l:T Common.Remove}"

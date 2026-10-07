@@ -12,5 +12,9 @@
         Foreground="{StaticResource TextBrush}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
-    <ContentPresenter Content="{Binding}" Margin="24,22,24,22" />
+    <!-- A form taller than the screen scrolls instead of losing its bottom fields and buttons. Views with their own
+         height (lists) are shrunk to fit in code-behind and scroll inside. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+        <ContentPresenter x:Name="Host" Content="{Binding}" Margin="24,22,24,22" />
+    </ScrollViewer>
 </Window>

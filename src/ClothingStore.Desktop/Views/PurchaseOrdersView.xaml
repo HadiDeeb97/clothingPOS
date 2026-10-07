@@ -17,11 +17,11 @@
             <Border Style="{StaticResource TableCard}">
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder}" infra:LayoutMemory.Key="PurchaseOrders.List">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{l:T Purchasing.Order}" Binding="{Binding OrderNumber}" Width="140" FontWeight="SemiBold" />
-                        <DataGridTextColumn Header="{l:T Common.Supplier}" Binding="{Binding Supplier.Name}" Width="*" />
-                        <DataGridTextColumn Header="{l:T Purchasing.Created}" Binding="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="95" />
-                        <DataGridTextColumn Header="{l:T Common.Status}" Binding="{Binding Status, Converter={StaticResource EnumDisplay}}" Width="120" />
-                        <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Total, Converter={StaticResource Money}}" Width="95" ElementStyle="{StaticResource RightCell}" />
+                        <DataGridTextColumn Header="{l:T Purchasing.Order}" Binding="{Binding OrderNumber}" Width="Auto" MinWidth="140" FontWeight="SemiBold" />
+                        <DataGridTextColumn Header="{l:T Common.Supplier}" Binding="{Binding Supplier.Name}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Purchasing.Created}" Binding="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="Auto" MinWidth="95" />
+                        <DataGridTextColumn Header="{l:T Common.Status}" Binding="{Binding Status, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="120" />
+                        <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Total, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource RightCell}" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -38,7 +38,7 @@
                                 <Border DockPanel.Dock="Right" Style="{StaticResource Chip}" Background="{StaticResource PrimaryLightBrush}">
                                     <TextBlock Text="{Binding Detail.Status, Converter={StaticResource EnumDisplay}}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}" />
                                 </Border>
-                                <TextBlock FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                                <TextBlock FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap">
                                     <Run Text="{Binding Detail.OrderNumber, Mode=OneWay}" />
                                     <Run Text="·" Foreground="{StaticResource SubtleTextBrush}" />
                                     <Run Text="{Binding Detail.Supplier.Name, Mode=OneWay}" />
@@ -66,12 +66,12 @@
                         </Border>
                         <DataGrid ItemsSource="{Binding Detail.Lines}" Style="{StaticResource CardGrid}" infra:LayoutMemory.Key="PurchaseOrders.Lines">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding ProductVariant.DisplayName}" Width="*" />
-                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding ProductVariant.Sku}" Width="140" />
-                                <DataGridTextColumn Header="{l:T Purchasing.Ordered}" Binding="{Binding QuantityOrdered}" Width="75" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Purchasing.Received}" Binding="{Binding QuantityReceived}" Width="80" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Common.Cost}" Binding="{Binding UnitCost, Converter={StaticResource Money}}" Width="85" ElementStyle="{StaticResource RightCell}" />
-                                <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding LineTotal, Converter={StaticResource Money}}" Width="95" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding ProductVariant.DisplayName}" Width="*" MinWidth="140" />
+                                <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding ProductVariant.Sku}" Width="Auto" MinWidth="140" />
+                                <DataGridTextColumn Header="{l:T Purchasing.Ordered}" Binding="{Binding QuantityOrdered}" Width="Auto" MinWidth="75" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Purchasing.Received}" Binding="{Binding QuantityReceived}" Width="Auto" MinWidth="80" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Cost}" Binding="{Binding UnitCost, Converter={StaticResource Money}}" Width="Auto" MinWidth="85" ElementStyle="{StaticResource RightCell}" />
+                                <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding LineTotal, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource RightCell}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>
