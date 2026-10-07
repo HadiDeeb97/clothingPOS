@@ -38,6 +38,9 @@ public sealed partial class DeliveryPartnersViewModel(IDialogService dialogs, De
     /// <summary>True when something was saved or removed, so the caller refreshes its lists.</summary>
     public bool Changed { get; private set; }
 
+    /// <summary>Name of the partner saved last, so the online order window can pick it.</summary>
+    public string? LastSavedName { get; private set; }
+
     public override Task OnOpenedAsync() => RunAsync(() => LoadAsync());
 
     partial void OnSelectedRowChanged(DeliveryPartnerRow? value)
@@ -88,6 +91,7 @@ public sealed partial class DeliveryPartnersViewModel(IDialogService dialogs, De
         Editing.DefaultFee = fee;
         var saved = await deliveries.SavePartnerAsync(Editing);
         Changed = true;
+        LastSavedName = saved.IsActive ? saved.Name : null;
         await LoadAsync(saved.Id);
         Dialogs.Toast(Loc.T("Common.Saved"));
     });

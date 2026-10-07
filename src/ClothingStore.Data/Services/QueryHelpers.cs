@@ -9,10 +9,6 @@ internal static class QueryHelpers
     public static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is SqlException { Number: 2601 or 2627 };
 
-    /// <summary>Builds a LIKE '%text%' pattern with wildcard characters escaped (escape char '\').</summary>
-    public static string LikePattern(string text) =>
-        "%" + text.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
-
     public static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>

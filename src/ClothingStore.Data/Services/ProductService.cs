@@ -1,6 +1,7 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Barcodes;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 
@@ -19,14 +20,17 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
             .Where(p => includeInactive || p.IsActive);
 
         if (categoryId is not null) query = query.Where(p => p.CategoryId == categoryId);
-        if (!string.IsNullOrWhiteSpace(text))
+        foreach (var term in SmartSearch.Terms(text))
         {
-            var pattern = QueryHelpers.LikePattern(text);
+            var pattern = SmartSearch.LikePattern(term);
             query = query.Where(p =>
                 EF.Functions.Like(p.Name, pattern, "\\") ||
                 EF.Functions.Like(p.Brand!, pattern, "\\") ||
                 EF.Functions.Like(p.StyleCode!, pattern, "\\") ||
-                p.Variants.Any(v => EF.Functions.Like(v.Sku, pattern, "\\") || v.Barcode == text.Trim()));
+                EF.Functions.Like(p.Category!.Name, pattern, "\\") ||
+                EF.Functions.Like(p.Supplier!.Name, pattern, "\\") ||
+                p.Variants.Any(v => EF.Functions.Like(v.Sku, pattern, "\\") || EF.Functions.Like(v.Color, pattern, "\\") ||
+                                    v.Size == term || v.Barcode == term));
         }
 
         return await query.OrderBy(p => p.Name).ToListAsync(ct);
@@ -73,22 +77,30 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
             .Include(v => v.Product).ThenInclude(p => p!.Category)
             .Where(v => v.IsActive && v.Product!.IsActive);
 
-        // Every word must match something, so "oxford blue m" narrows nicely.
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        // Every word must match something, in any order, so "blue oxford m" narrows nicely.
+        var terms = SmartSearch.Terms(text);
+        if (terms.Count == 0) return [];
+        foreach (var term in terms)
         {
-            var pattern = QueryHelpers.LikePattern(word);
+            var pattern = SmartSearch.LikePattern(term);
             query = query.Where(v =>
                 EF.Functions.Like(v.Product!.Name, pattern, "\\") ||
                 EF.Functions.Like(v.Product!.Brand!, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.StyleCode!, pattern, "\\") ||
                 EF.Functions.Like(v.Product!.Category!.Name, pattern, "\\") ||
                 EF.Functions.Like(v.Sku, pattern, "\\") ||
                 EF.Functions.Like(v.Color, pattern, "\\") ||
-                v.Size == word ||
-                v.Barcode == word);
+                v.Size == term ||
+                v.Barcode == term);
         }
 
+        // Best matches first: an exact code, then names starting with the first word.
+        var whole = text.Trim();
+        var startsWith = SmartSearch.LikePattern(terms[0])[1..];
         return await query
-            .OrderBy(v => v.Product!.Name).ThenBy(v => v.Color).ThenBy(v => v.Id)
+            .OrderByDescending(v => v.Barcode == whole || v.Sku == whole)
+            .ThenByDescending(v => EF.Functions.Like(v.Product!.Name, startsWith, "\\"))
+            .ThenBy(v => v.Product!.Name).ThenBy(v => v.Color).ThenBy(v => v.Id)
             .Take(max)
             .ToListAsync(ct);
     }

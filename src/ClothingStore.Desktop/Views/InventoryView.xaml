@@ -49,7 +49,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Tag="{l:T Inventory.SearchHint}" Width="300" Margin="0,0,10,0" />
-                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="180" Margin="0,0,14,0" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="180" Margin="0,0,14,0" />
                 <CheckBox Content="{l:T Inventory.LowStockOnly}" IsChecked="{Binding LowStockOnly}" />
             </StackPanel>
         </DockPanel>

@@ -15,7 +15,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Tag="{l:T Products.SearchHint}" Width="320" Margin="0,0,10,0" />
-                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="190" Margin="0,0,14,0" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="190" Margin="0,0,14,0" />
                 <CheckBox Content="{l:T Common.IncludeInactive}" IsChecked="{Binding IncludeInactive}" />
             </StackPanel>
         </DockPanel>

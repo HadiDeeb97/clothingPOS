@@ -36,9 +36,9 @@
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{l:T ProductEditor.CategoryRequired}" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" />
+                    <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" />
                     <TextBlock Text="{l:T Common.Supplier}" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
+                    <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />

@@ -144,6 +144,26 @@ the program (.NET programs are easy to decompile). It stops casual copying and m
 protection, also run the published program through an obfuscator. Reinstalling Windows changes the PC's ID, so that
 customer will need a new key.
 
+## Searching and shortcuts
+
+Every search box works the same way:
+
+* Several words match in any order, each anywhere: `blue oxford m` finds "Oxford shirt, Blue, M"; customers by first and
+  last name in any order, by state, phone, email or address.
+* Arabic spelling variants match each other (أ إ آ ا, ة ه, ى ي ئ, ؤ و); vowel marks and the tatweel are ignored;
+  Arabic digits (٠١٢…) work like 0 1 2; accents don't matter (é = e).
+* A phone number is found however it is typed or saved (`70 123 456`, `70-123456`, `+961 70…`).
+* On the register an exact barcode/SKU comes first, then names starting with the first word.
+* The × in a search box (or Esc) clears it.
+
+Drop-downs with many choices (delivery company/driver, state, category, supplier and the page filters) can be typed
+into to search, but only accept an item from their list. In the online order window the delivery company or driver must
+be one saved under **Deliveries → Companies & drivers** (**Add / edit…** opens that list).
+
+Shortcuts: **F1** shows them all; **Ctrl+F** jumps to the page's search box; **F5** reloads the page; on the register
+F2 search, F4 customer, F6 quantity, F7/F8 discounts, F9/F10 hold/resume, F11 online order, F12 pay. The register's
+keys work wherever the keyboard focus is, also right after using the sidebar or the top bar.
+
 ## Daily workflow
 
 1. **Cash Drawer**: open a shift with your starting float (dollars and pounds). Check the rate in the top bar; a manager

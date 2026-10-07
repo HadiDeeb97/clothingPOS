@@ -15,7 +15,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="{l:T Purchasing.SupplierRequired}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
-                <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="{l:T Purchasing.ExpectedDelivery}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />

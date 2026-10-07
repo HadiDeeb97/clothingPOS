@@ -12,7 +12,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Tag="{l:T Customers.SearchHint}" Width="320" Margin="0,0,14,0" />
-                <ComboBox ItemsSource="{Binding Regions}" SelectedItem="{Binding RegionFilter}" DisplayMemberPath="DisplayName" Width="170" Margin="0,0,14,0" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Regions}" SelectedItem="{Binding RegionFilter}" DisplayMemberPath="DisplayName" Width="170" Margin="0,0,14,0" />
                 <CheckBox Content="{l:T Common.IncludeInactive}" IsChecked="{Binding IncludeInactive}" VerticalAlignment="Center" />
             </StackPanel>
         </DockPanel>

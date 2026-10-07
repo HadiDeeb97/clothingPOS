@@ -25,7 +25,7 @@
                                      IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
                     </StackPanel>
                 </Border>
-                <ComboBox ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}" Width="180" Margin="0,0,6,0" />
+                <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}" Width="180" Margin="0,0,6,0" />
                 <Button Content="{l:T Deliveries.AllCompanies}" Style="{StaticResource LinkButton}" Command="{Binding ClearCourierCommand}" Margin="0" />
             </WrapPanel>
         </DockPanel>

@@ -1,5 +1,6 @@
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
+using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 
@@ -16,19 +17,18 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
 
         if (categoryId is not null) query = query.Where(v => v.Product!.CategoryId == categoryId);
         if (lowStockOnly) query = query.Where(v => v.StockQuantity <= v.ReorderLevel);
-        if (!string.IsNullOrWhiteSpace(search))
+        foreach (var term in SmartSearch.Terms(search))
         {
-            foreach (var word in search.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var pattern = QueryHelpers.LikePattern(word);
-                query = query.Where(v =>
-                    EF.Functions.Like(v.Product!.Name, pattern, "\\") ||
-                    EF.Functions.Like(v.Product!.Brand!, pattern, "\\") ||
-                    EF.Functions.Like(v.Sku, pattern, "\\") ||
-                    EF.Functions.Like(v.Color, pattern, "\\") ||
-                    v.Size == word ||
-                    v.Barcode == word);
-            }
+            var pattern = SmartSearch.LikePattern(term);
+            query = query.Where(v =>
+                EF.Functions.Like(v.Product!.Name, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.Brand!, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.StyleCode!, pattern, "\\") ||
+                EF.Functions.Like(v.Product!.Category!.Name, pattern, "\\") ||
+                EF.Functions.Like(v.Sku, pattern, "\\") ||
+                EF.Functions.Like(v.Color, pattern, "\\") ||
+                v.Size == term ||
+                v.Barcode == term);
         }
 
         return await query.OrderBy(v => v.Product!.Name).ThenBy(v => v.Color).ThenBy(v => v.Id).ToListAsync(ct);
