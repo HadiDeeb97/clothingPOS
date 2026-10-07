@@ -60,7 +60,7 @@ public sealed partial class PurchaseOrdersViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Purchasing.LoadOrderFailed"), ex);
+            ReportLoadError(Loc.T("Purchasing.LoadOrderFailed"), ex);
         }
     }
 
@@ -76,7 +76,7 @@ public sealed partial class PurchaseOrdersViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Purchasing.LoadFailed"), ex);
+            ReportLoadError(Loc.T("Purchasing.LoadFailed"), ex);
         }
     }
 
@@ -251,7 +251,7 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 

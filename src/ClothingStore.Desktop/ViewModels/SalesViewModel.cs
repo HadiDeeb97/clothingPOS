@@ -172,7 +172,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -187,7 +187,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -233,7 +233,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 
@@ -258,7 +258,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 

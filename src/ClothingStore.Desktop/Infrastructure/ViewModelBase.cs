@@ -28,6 +28,10 @@ public abstract partial class ViewModelBase(IDialogService dialogs) : Observable
         {
             Dialogs.Warning(ex.Message);
         }
+        catch (Exception ex) when (DbErrors.IsTransient(ex))
+        {
+            Dialogs.Warning(Loc.T("Common.DbBusyRetry"));
+        }
         catch (Exception ex)
         {
             Dialogs.Error(Loc.T("Common.SomethingWentWrong"), ex);
@@ -37,6 +41,16 @@ public abstract partial class ViewModelBase(IDialogService dialogs) : Observable
             IsBusy = false;
         }
         return false;
+    }
+
+    /// <summary>
+    /// A list or search that couldn't load. When the database was only busy (it has already been retried once), a
+    /// short notice instead of an error box: pressing F5 or searching again loads it.
+    /// </summary>
+    protected void ReportLoadError(string message, Exception ex)
+    {
+        if (DbErrors.IsTransient(ex)) Dialogs.Toast(message + " " + Loc.T("Common.DbBusy"), ToastKind.Warning);
+        else Dialogs.Error(message, ex);
     }
 }
 

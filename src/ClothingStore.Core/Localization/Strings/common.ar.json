@@ -21,6 +21,8 @@
   "Common.CsvFilter": "ملفات CSV (*.csv)|*.csv",
   "Common.Customer": "الزبون",
   "Common.Date": "التاريخ",
+  "Common.DbBusy": "قاعدة البيانات مشغولة؛ اضغط F5 للمحاولة مجدداً.",
+  "Common.DbBusyRetry": "قاعدة البيانات مشغولة أو تأخرت في الرد. يرجى المحاولة بعد قليل.",
   "Common.Delete": "حذف",
   "Common.Description": "الوصف",
   "Common.Details": "التفاصيل",

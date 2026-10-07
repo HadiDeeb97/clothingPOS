@@ -104,4 +104,44 @@ public class LatestSearchTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             search.RunNowAsync<string>(_ => throw new InvalidOperationException("database down"), _ => { }));
     }
+
+    /// <summary>A busy server (timeout, dropped connection) gets one quiet retry before anything is shown to the cashier.</summary>
+    [Fact]
+    public async Task A_search_that_times_out_once_is_retried_and_shown()
+    {
+        var search = new LatestSearch(TimeSpan.Zero);
+        var attempts = 0;
+        var shown = new List<string>();
+
+        var ok = await search.RunNowAsync(_ => ++attempts == 1
+            ? Task.FromException<string>(new TimeoutException("The wait operation timed out."))
+            : Task.FromResult("jeans"), shown.Add);
+
+        Assert.True(ok);
+        Assert.Equal(2, attempts);
+        Assert.Equal(["jeans"], shown);
+    }
+
+    [Fact]
+    public async Task A_failure_that_is_not_the_database_being_busy_is_not_retried()
+    {
+        var search = new LatestSearch(TimeSpan.Zero);
+        var attempts = 0;
+
+        await Assert.ThrowsAsync<ArgumentException>(() => search.RunNowAsync<string>(_ =>
+        {
+            attempts++;
+            throw new ArgumentException("bad filter");
+        }, _ => { }));
+        Assert.Equal(1, attempts);
+    }
+
+    [Fact]
+    public void Busy_database_errors_are_recognised_through_wrapping_exceptions()
+    {
+        Assert.True(DbErrors.IsTransient(new TimeoutException()));
+        Assert.True(DbErrors.IsTransient(new InvalidOperationException("outer", new InvalidOperationException("Invalid operation. The connection is closed."))));
+        Assert.False(DbErrors.IsTransient(new InvalidOperationException("Sequence contains no elements")));
+        Assert.False(DbErrors.IsTransient(null));
+    }
 }

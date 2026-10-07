@@ -22,17 +22,31 @@ public sealed class PageHost : ContentControl
         set => SetValue(PageProperty, value);
     }
 
-    /// <summary>Builds the screen for <paramref name="page"/> now (without showing it).</summary>
+    /// <summary>
+    /// Builds the screen for <paramref name="page"/> now (without showing it). It is connected to its page only when
+    /// shown: connecting it would let its bindings start the page's searches for a page nobody opened.
+    /// </summary>
     public void Prepare(object page) => ViewFor(page);
 
-    private void Show(object? page) => Content = page is null ? null : (object?)ViewFor(page) ?? page;
+    private void Show(object? page)
+    {
+        if (page is null)
+        {
+            Content = null;
+            return;
+        }
+        var view = ViewFor(page);
+        if (view is not null && !ReferenceEquals(view.DataContext, page)) view.DataContext = page;
+        Content = (object?)view ?? page;
+    }
 
     private FrameworkElement? ViewFor(object page)
     {
         if (_views.TryGetValue(page, out var view)) return view;
         if (TryFindResource(new DataTemplateKey(page.GetType())) is not DataTemplate template || template.LoadContent() is not FrameworkElement created)
             return null;
-        created.DataContext = page;
+        // Not inheriting the window's DataContext while waiting to be shown.
+        created.DataContext = null;
         _views[page] = created;
         return created;
     }

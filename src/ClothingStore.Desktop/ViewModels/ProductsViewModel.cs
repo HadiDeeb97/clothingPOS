@@ -86,7 +86,7 @@ public sealed partial class ProductsViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Products.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Products.SearchFailed"), ex);
         }
     }
 

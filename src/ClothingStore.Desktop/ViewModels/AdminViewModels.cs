@@ -45,7 +45,7 @@ public sealed partial class UsersViewModel(IDialogService dialogs, UserService u
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Users.LoadFailed"), ex);
+            ReportLoadError(Loc.T("Users.LoadFailed"), ex);
         }
     }
 

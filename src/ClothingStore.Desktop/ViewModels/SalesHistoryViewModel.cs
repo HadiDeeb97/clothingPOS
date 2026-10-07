@@ -95,7 +95,7 @@ public sealed partial class SalesHistoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("History.SearchFailed"), ex);
+            ReportLoadError(Loc.T("History.SearchFailed"), ex);
         }
     }
 
