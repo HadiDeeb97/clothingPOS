@@ -51,3 +51,18 @@ public class MigrationUpgradeTests
         Assert.Equal(sale.Id, (await db.Deliveries.FindAsync("TRK-1"))!.SaleId);
     }
 }
+
+public class StartupUpgradeCheckTests
+{
+    [Fact]
+    public async Task An_up_to_date_database_needs_no_upgrade_and_an_older_one_does()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var initializer = new ClothingStore.Data.Seeding.DatabaseInitializer(db.Factory);
+        Assert.False(await initializer.NeedsUpgradeAsync());
+
+        await using var ctx = await db.Factory.CreateDbContextAsync();
+        await ctx.GetService<IMigrator>().MigrateAsync("SaleConcurrencyChecks");
+        Assert.True(await initializer.NeedsUpgradeAsync());
+    }
+}

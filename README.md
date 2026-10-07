@@ -233,8 +233,12 @@ next to the payment in Sales history.
 * SQL Server writes each backup on its own PC, into the folder set in **Settings** (empty = the server's default backup
   folder). The SQL Server service account must be able to write there. Point it at a cloud-synced or network folder so a
   copy survives if that PC fails.
-* Every time the app starts and the database already exists, it is backed up first (before any upgrade). Several tills
-  opening within 10 minutes make one backup between them. If it fails, the app says so and still opens.
+* Every time the app starts and the database already exists, it is backed up. When the new version has to upgrade
+  the database, the backup is taken first, before anything changes; otherwise it runs in the background while you
+  sign in, so opening isn't held up. Several tills opening within 10 minutes make one backup between them. If it
+  fails, the app says so and still opens.
+* If SQL Server isn't ready yet when the app starts (just after Windows starts), the app waits for it (up to about a
+  minute and a half, showing "Waiting for SQL Server…") instead of failing.
 * Every backup gets its own file named with the date and time (`ClothingStorePOS_startup_20261007-091502-317.bak`,
   `_shift_...`, `_auto_...`, and `ClothingStorePOS_20261007-...bak` for **Back up now**), so none replaces another.
   Automatic backups older than 30 days are deleted (the newest 10 always stay); **Back up now** files are never deleted.

@@ -113,10 +113,16 @@ public sealed partial class ReportsViewModel(
             if (to < from) (from, to) = (to, from);
             await RunAsync(async () =>
             {
-                Report = await reports.GetSalesReportAsync(from, to.AddDays(1));
-                Valuation = await reports.GetInventoryValuationAsync();
-                Alerts = await reports.GetStockAlertsAsync(from, to.AddDays(1));
-                DeliveryBalances = await deliveries.GetBalancesAsync();
+                // The four parts don't depend on each other: load them side by side.
+                var report = reports.GetSalesReportAsync(from, to.AddDays(1));
+                var valuation = reports.GetInventoryValuationAsync();
+                var alerts = reports.GetStockAlertsAsync(from, to.AddDays(1));
+                var balances = deliveries.GetBalancesAsync();
+                await Task.WhenAll(report, valuation, alerts, balances);
+                Report = report.Result;
+                Valuation = valuation.Result;
+                Alerts = alerts.Result;
+                DeliveryBalances = balances.Result;
                 PeriodText = from == to
                     ? Loc.T("Reports.PeriodDay", from.ToString("dddd d MMMM yyyy"))
                     : Loc.T("Reports.PeriodRange", from.ToString("d MMM yyyy"), to.ToString("d MMM yyyy"));

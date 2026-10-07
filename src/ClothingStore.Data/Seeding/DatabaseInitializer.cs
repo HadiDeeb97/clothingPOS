@@ -39,6 +39,24 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
     }
 
     /// <summary>
+    /// True when the database exists and this version still has to upgrade it (so a backup should be taken first).
+    /// When in doubt, true.
+    /// </summary>
+    public async Task<bool> NeedsUpgradeAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+            if (!await db.Database.CanConnectAsync(ct)) return false; // no database yet: nothing to protect
+            return (await db.Database.GetPendingMigrationsAsync(ct)).Any();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     /// SQL Server Express creates databases with AUTO_CLOSE on: the database shuts down whenever no connection is
     /// open and every screen opened after an idle moment waits seconds for it to start again (and its query plans
     /// are thrown away). AUTO_SHRINK causes similar stalls. Both are switched off; without permission it is skipped.

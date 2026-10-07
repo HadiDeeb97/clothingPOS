@@ -55,6 +55,13 @@ public partial class App : Application
         {
             var csb = new SqlConnectionStringBuilder(connectionString);
             DatabaseName = Loc.T("Startup.DatabaseOn", csb.InitialCatalog, csb.DataSource);
+            // SQL Server Express can take longer than the default 15 seconds to let the first login in (right after
+            // Windows starts, or when a debugger slows things down), so allow 30 unless the setting says otherwise.
+            if (!connectionString.Contains("Timeout", StringComparison.OrdinalIgnoreCase) && csb.ConnectTimeout < 30)
+            {
+                csb.ConnectTimeout = 30;
+                connectionString = csb.ConnectionString;
+            }
         }
         catch (ArgumentException ex)
         {
@@ -67,18 +74,26 @@ public partial class App : Application
         _host = builder.Build();
         Services = _host.Services;
 
-        // Every start: back up the existing database first, so there is a copy from before this version touches it.
-        BackupRecord? startupBackup = null;
-        try
-        {
-            _splash?.SetStatus(Loc.T("Startup.BackingUp"));
-            startupBackup = await Services.GetRequiredService<BackupService>().BackupOnStartupAsync();
-        }
-        catch (Exception)
-        {
-            // Can't even reach the server: the next step reports that properly.
-        }
         _splash?.SetStatus(Loc.T("Startup.Connecting"));
+        await WaitForServerAsync(connectionString);
+
+        // Every start backs up the existing database. Before an upgrade the backup is taken first, so there is a copy
+        // from before this version changes anything; otherwise it runs in the background and doesn't hold up opening.
+        BackupRecord? startupBackup = null;
+        var upgrading = await Services.GetRequiredService<DatabaseInitializer>().NeedsUpgradeAsync();
+        if (upgrading)
+        {
+            try
+            {
+                _splash?.SetStatus(Loc.T("Startup.BackingUp"));
+                startupBackup = await Services.GetRequiredService<BackupService>().BackupOnStartupAsync();
+            }
+            catch (Exception)
+            {
+                // Can't even reach the server: the next step reports that properly.
+            }
+            _splash?.SetStatus(Loc.T("Startup.Connecting"));
+        }
 
         try
         {
@@ -90,6 +105,7 @@ public partial class App : Application
             try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
             catch { /* no logo is fine */ }
             await _host.StartAsync(); // starts the automatic backup worker
+            if (!upgrading) BackUpInBackground();
 
             // Compile the screens' queries while the sign-in screen is up, so first visits are fast too.
             var warmUp = Services.GetRequiredService<QueryWarmUp>();
@@ -145,6 +161,54 @@ public partial class App : Application
         _splash?.Close();
         _splash = null;
         MainWindow = null; // the splash was the first window, so WPF made it the main window
+    }
+
+    /// <summary>
+    /// Waits for SQL Server to accept connections (up to about a minute and a half), so starting the POS right after
+    /// Windows, while the SQL Server service is still starting, waits instead of failing. Wrong passwords and similar
+    /// errors don't wait: the next step reports them.
+    /// </summary>
+    private async Task WaitForServerAsync(string connectionString)
+    {
+        var probe = new SqlConnectionStringBuilder(connectionString) { InitialCatalog = "master", ConnectTimeout = 10, Pooling = false };
+        const int attempts = 6;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(probe.ConnectionString);
+                await connection.OpenAsync();
+                return;
+            }
+            catch (SqlException ex) when (attempt < attempts && ex.Number is not (18456 or 18452 or 18470 or 4060))
+            {
+                _splash?.SetStatus(Loc.T("Startup.WaitingForServer", attempt, attempts - 1));
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception)
+            {
+                return; // the database step that follows shows the real error
+            }
+        }
+    }
+
+    /// <summary>The start-up backup when nothing is being upgraded: runs while the user signs in.</summary>
+    private void BackUpInBackground()
+    {
+        var backups = Services.GetRequiredService<BackupService>();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (await backups.BackupOnStartupAsync() is { Succeeded: false } failed)
+                    await Dispatcher.InvokeAsync(() =>
+                        Services.GetRequiredService<IDialogService>().Warning(Loc.T("Startup.BackupFailed", failed.Error)));
+            }
+            catch (Exception)
+            {
+                // Logged in the backup history when possible; never take the app down over it.
+            }
+        });
     }
 
     private void StartupError(string message)

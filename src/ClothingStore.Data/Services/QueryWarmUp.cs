@@ -8,7 +8,7 @@ namespace ClothingStore.Data.Services;
 public class QueryWarmUp(
     ProductService products, InventoryService inventory, CustomerService customers, SalesService sales,
     ReturnService returns, ReportService reports, CategoryService categories, SupplierService suppliers,
-    ShiftService shifts, PurchaseOrderService purchaseOrders, BackupService backups)
+    ShiftService shifts, PurchaseOrderService purchaseOrders, BackupService backups, DeliveryService deliveries)
 {
     public async Task RunAsync(CancellationToken ct = default)
     {
@@ -25,9 +25,12 @@ public class QueryWarmUp(
             () => products.FindByCodeAsync("~", ct),
             () => customers.SearchAsync(null, ct: ct),
             () => customers.SearchAsync("~", ct: ct),
+            () => customers.SearchAsync("70000000", ct: ct), // phone-number shape
+            () => customers.GetRegionsAsync(ct),
             () => sales.GetHeldAsync(ct),
             () => sales.SearchAsync(today, tomorrow, ct: ct),
             () => sales.SearchAsync(today, tomorrow, "~", ct: ct),
+            () => sales.SearchAsync(today, tomorrow, "70000000", ct: ct),
             () => sales.GetByReceiptAsync("~", ct),
             () => returns.SearchAsync(today, tomorrow, ct),
             () => shifts.GetOpenShiftAsync(0, ct),
@@ -36,6 +39,12 @@ public class QueryWarmUp(
             () => inventory.GetStockAsync("~", ct: ct),
             () => reports.GetInventoryValuationAsync(ct),
             () => reports.GetSalesReportAsync(today, tomorrow, ct),
+            () => reports.GetStockAlertsAsync(today, tomorrow, ct),
+            () => deliveries.GetAsync(false, ct: ct),
+            () => deliveries.GetAsync(false, text: "~", ct: ct),
+            () => deliveries.GetBalancesAsync(ct),
+            () => deliveries.GetPartnersAsync(ct: ct),
+            () => deliveries.GetCouriersAsync(ct),
             () => suppliers.GetAllAsync(ct: ct),
             () => purchaseOrders.GetAllAsync(ct: ct),
             () => backups.GetRecentAsync(ct: ct),
