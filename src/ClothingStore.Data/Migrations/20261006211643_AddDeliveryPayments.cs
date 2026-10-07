@@ -11,88 +11,57 @@ namespace ClothingStore.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Courier",
-                table: "Sales",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "DeliveryReference",
-                table: "Sales",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true,
-                collation: "Latin1_General_100_CI_AS");
-
-            migrationBuilder.AddColumn<int>(
-                name: "DeliverySettlementId",
-                table: "Sales",
-                type: "int",
-                nullable: true);
-
-            migrationBuilder.CreateTable(
-                name: "DeliverySettlements",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    ShiftId = table.Column<int>(type: "int", nullable: true),
-                    Courier = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Method = table.Column<int>(type: "int", nullable: false),
-                    Expected = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Received = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ReceivedLbp = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ExchangeRate = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Reference = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DeliverySettlements", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_DeliverySettlements_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Sales_Courier",
-                table: "Sales",
-                column: "Courier");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Sales_DeliveryReference",
-                table: "Sales",
-                column: "DeliveryReference");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Sales_DeliverySettlementId",
-                table: "Sales",
-                column: "DeliverySettlementId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DeliverySettlements_CreatedAt",
-                table: "DeliverySettlements",
-                column: "CreatedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DeliverySettlements_UserId",
-                table: "DeliverySettlements",
-                column: "UserId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Sales_DeliverySettlements_DeliverySettlementId",
-                table: "Sales",
-                column: "DeliverySettlementId",
-                principalTable: "DeliverySettlements",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+            // An earlier build shipped this migration as 20261006192415_AddDeliveryPayments (everything below except
+            // DeliveryReference). Databases that ran it already have those columns, so each step only runs if needed.
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('dbo.Sales', 'Courier') IS NULL
+                    ALTER TABLE [Sales] ADD [Courier] nvarchar(100) NULL;
+                """);
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('dbo.Sales', 'DeliveryReference') IS NULL
+                    ALTER TABLE [Sales] ADD [DeliveryReference] nvarchar(100) COLLATE Latin1_General_100_CI_AS NULL;
+                """);
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('dbo.Sales', 'DeliverySettlementId') IS NULL
+                    ALTER TABLE [Sales] ADD [DeliverySettlementId] int NULL;
+                """);
+            migrationBuilder.Sql("""
+                IF OBJECT_ID(N'dbo.DeliverySettlements', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [DeliverySettlements] (
+                        [Id] int NOT NULL IDENTITY(1, 1),
+                        [CreatedAt] datetime2 NOT NULL,
+                        [UserId] int NOT NULL,
+                        [ShiftId] int NULL,
+                        [Courier] nvarchar(100) NULL,
+                        [Method] int NOT NULL,
+                        [Expected] decimal(18,2) NOT NULL,
+                        [Received] decimal(18,2) NOT NULL,
+                        [ReceivedLbp] decimal(18,2) NOT NULL,
+                        [ExchangeRate] decimal(18,2) NOT NULL,
+                        [Reference] nvarchar(300) NULL,
+                        CONSTRAINT [PK_DeliverySettlements] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_DeliverySettlements_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id])
+                    );
+                END
+                """);
+            CreateIndexIfMissing(migrationBuilder, "Sales", "IX_Sales_Courier", "[Courier]");
+            CreateIndexIfMissing(migrationBuilder, "Sales", "IX_Sales_DeliveryReference", "[DeliveryReference]");
+            CreateIndexIfMissing(migrationBuilder, "Sales", "IX_Sales_DeliverySettlementId", "[DeliverySettlementId]");
+            CreateIndexIfMissing(migrationBuilder, "DeliverySettlements", "IX_DeliverySettlements_CreatedAt", "[CreatedAt]");
+            CreateIndexIfMissing(migrationBuilder, "DeliverySettlements", "IX_DeliverySettlements_UserId", "[UserId]");
+            migrationBuilder.Sql("""
+                IF OBJECT_ID(N'dbo.FK_Sales_DeliverySettlements_DeliverySettlementId', N'F') IS NULL
+                    ALTER TABLE [Sales] ADD CONSTRAINT [FK_Sales_DeliverySettlements_DeliverySettlementId]
+                        FOREIGN KEY ([DeliverySettlementId]) REFERENCES [DeliverySettlements] ([Id]);
+                """);
         }
+
+        private static void CreateIndexIfMissing(MigrationBuilder migrationBuilder, string table, string index, string columns) =>
+            migrationBuilder.Sql($"""
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{index}' AND object_id = OBJECT_ID(N'dbo.{table}'))
+                    CREATE INDEX [{index}] ON [{table}] ({columns});
+                """);
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
