@@ -274,7 +274,7 @@ public sealed partial class CustomerPickerViewModel(IDialogService dialogs, Cust
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Customers.SearchFailed"), ex);
         }
     }
 

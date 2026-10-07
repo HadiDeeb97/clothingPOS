@@ -37,7 +37,17 @@ public sealed class LatestSearch(TimeSpan delay)
         try
         {
             if (wait > TimeSpan.Zero) await Task.Delay(wait, cts.Token);
-            var result = await load(cts.Token);
+            T result;
+            try
+            {
+                result = await load(cts.Token);
+            }
+            catch (Exception ex) when (!cts.IsCancellationRequested && DbErrors.IsTransient(ex))
+            {
+                // The database was busy (a timeout or a dropped connection): try once more before reporting it.
+                await Task.Delay(TimeSpan.FromMilliseconds(400), cts.Token);
+                result = await load(cts.Token);
+            }
             if (cts.IsCancellationRequested || !ReferenceEquals(_current, cts)) return false;
             apply(result);
             return true;

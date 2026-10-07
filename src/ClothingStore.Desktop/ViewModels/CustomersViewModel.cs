@@ -58,7 +58,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Customers.SearchFailed"), ex);
         }
         await SearchAsync();
     }
@@ -77,7 +77,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Customers.HistoryFailed"), ex);
+            ReportLoadError(Loc.T("Customers.HistoryFailed"), ex);
         }
     }
 
@@ -99,7 +99,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Customers.SearchFailed"), ex);
+            ReportLoadError(Loc.T("Customers.SearchFailed"), ex);
         }
     }
 

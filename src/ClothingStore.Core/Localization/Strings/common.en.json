@@ -21,6 +21,8 @@
   "Common.CsvFilter": "CSV files (*.csv)|*.csv",
   "Common.Customer": "Customer",
   "Common.Date": "Date",
+  "Common.DbBusy": "The database is busy; press F5 to try again.",
+  "Common.DbBusyRetry": "The database is busy or took too long to answer. Please try again in a moment.",
   "Common.Delete": "Delete",
   "Common.Description": "Description",
   "Common.Details": "Details",

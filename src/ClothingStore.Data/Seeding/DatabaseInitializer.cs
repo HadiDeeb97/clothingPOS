@@ -21,6 +21,7 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
         if (existed) await TuneDatabaseAsync(db, ct);
         await MigrateAsync(db, ct);
         if (!existed) await TuneDatabaseAsync(db, ct);
+        await LimitServerMemoryAsync(db, ct);
 
         if (!await db.Settings.AnyAsync(ct)) db.Settings.Add(new StoreSettings());
 
@@ -112,4 +113,44 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
             // The login may not own the database; the app still works, just slower after idle periods.
         }
     }
+
+    /// <summary>SQL Server's out-of-the-box "max server memory" setting: no limit.</summary>
+    internal const int UnlimitedServerMemoryMb = 2147483647;
+
+    /// <summary>
+    /// Out of the box SQL Server keeps taking memory until the PC has almost none left, and the till, Windows and
+    /// everything else on it slow to a crawl. When the limit is still at that default it is set to a quarter of the
+    /// machine's memory (1–4 GB, far more than a store database needs). A limit somebody chose is never changed, and
+    /// without permission to change it the step is skipped.
+    /// </summary>
+    private static async Task LimitServerMemoryAsync(PosDbContext db, CancellationToken ct)
+    {
+        try
+        {
+            var current = await db.Database
+                .SqlQueryRaw<int>("SELECT CAST(value_in_use AS int) AS Value FROM sys.configurations WHERE name = 'max server memory (MB)'")
+                .SingleAsync(ct);
+            if (current != UnlimitedServerMemoryMb) return;
+
+            var physicalMb = await db.Database
+                .SqlQueryRaw<long>("SELECT physical_memory_kb / 1024 AS Value FROM sys.dm_os_sys_info")
+                .SingleAsync(ct);
+            var limitMb = RecommendedServerMemoryMb(physicalMb);
+
+            await db.Database.ExecuteSqlAsync(
+                $"""
+                DECLARE @advanced int = (SELECT CAST(value_in_use AS int) FROM sys.configurations WHERE name = 'show advanced options');
+                IF @advanced = 0 BEGIN EXEC sp_configure 'show advanced options', 1; RECONFIGURE; END;
+                EXEC sp_configure 'max server memory (MB)', {limitMb}; RECONFIGURE;
+                IF @advanced = 0 BEGIN EXEC sp_configure 'show advanced options', 0; RECONFIGURE; END;
+                """, ct);
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // Changing server settings needs an administrator login; the app still works without the limit.
+        }
+    }
+
+    /// <summary>A quarter of the machine's memory, at least 1 GB and at most 4 GB.</summary>
+    internal static int RecommendedServerMemoryMb(long physicalMb) => (int)Math.Clamp(physicalMb / 4, 1024, 4096);
 }

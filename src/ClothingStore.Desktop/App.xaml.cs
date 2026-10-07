@@ -194,7 +194,10 @@ public partial class App : Application
         }
     }
 
-    /// <summary>The start-up backup when nothing is being upgraded: runs while the user signs in.</summary>
+    /// <summary>
+    /// The start-up backup when nothing is being upgraded. It waits a couple of minutes first: a backup reads the whole
+    /// database, and running it while the screens load their first data made those loads time out on busy PCs.
+    /// </summary>
     private void BackUpInBackground()
     {
         var backups = Services.GetRequiredService<BackupService>();
@@ -202,6 +205,7 @@ public partial class App : Application
         {
             try
             {
+                await Task.Delay(TimeSpan.FromMinutes(2));
                 if (await backups.BackupOnStartupAsync() is { Succeeded: false } failed)
                     await Dispatcher.InvokeAsync(() =>
                         Services.GetRequiredService<IDialogService>().Warning(Loc.T("Startup.BackupFailed", failed.Error)));

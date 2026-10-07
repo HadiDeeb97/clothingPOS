@@ -62,7 +62,7 @@ public sealed partial class InventoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Inventory.HistoryFailed"), ex);
+            ReportLoadError(Loc.T("Inventory.HistoryFailed"), ex);
         }
     }
 
@@ -98,7 +98,7 @@ public sealed partial class InventoryViewModel(
         }
         catch (Exception ex)
         {
-            Dialogs.Error(Loc.T("Inventory.LoadFailed"), ex);
+            ReportLoadError(Loc.T("Inventory.LoadFailed"), ex);
         }
     }
 
