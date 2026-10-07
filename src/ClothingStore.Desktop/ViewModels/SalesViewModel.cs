@@ -624,6 +624,23 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             return;
         }
 
+        // The sale is priced on the server from current prices and tax: catch up with changes made at another till
+        // (or in Products) since the items were scanned, so the total and change shown are what is charged.
+        var repriced = 0;
+        if (!await RunAsync(async () =>
+            {
+                await _settings.GetAsync();
+                var variants = (await _products.GetVariantsAsync(Items.Select(i => i.VariantId).Distinct())).ToDictionary(v => v.Id);
+                foreach (var item in Items)
+                    if (variants.TryGetValue(item.VariantId, out var v) && item.Reprice(v.EffectivePrice)) repriced++;
+                Recalculate();
+            })) return;
+        if (repriced > 0)
+        {
+            Dialogs.Warning(Loc.T("Register.PricesChanged", repriced));
+            return; // let the cashier see the new total before taking money
+        }
+
         var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
         if (!Dialogs.ShowDialog(payment)) return;
 

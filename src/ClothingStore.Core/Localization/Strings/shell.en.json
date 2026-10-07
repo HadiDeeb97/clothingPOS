@@ -43,6 +43,7 @@
   "Shell.ShiftOpenSince": "Shift open since {0:HH:mm}",
   "Shell.SignOut": "Sign out",
   "Shell.SignOutConfirm": "Sign out of the register?",
+  "Shell.SignOutConfirmCart": "The register has {0} item(s) that will be cleared. Hold the sale (F9) first to keep it. Sign out anyway?",
   "Shell.ToggleSidebar": "Show or hide menu labels",
   "Startup.BackingUp": "Backing up the database…",
   "Startup.BackupFailed": "The backup taken at startup failed, so there is no fresh copy of today's data:\n\n{0}\n\nCheck the backup folder in Settings. The app will open normally.",

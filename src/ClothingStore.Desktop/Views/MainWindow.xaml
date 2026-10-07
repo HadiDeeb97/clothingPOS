@@ -95,7 +95,9 @@
                 <!-- Signed-in user and their menu -->
                 <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource SidebarHoverBrush}" BorderThickness="0,1,0,0" Padding="8,10">
                     <Grid>
+                        <!-- Not clickable while the menu is open: the click that closes it (outside the popup) would otherwise reopen it. -->
                         <ToggleButton x:Name="UserToggle" Style="{StaticResource UserMenuToggle}" IsChecked="{Binding IsUserMenuOpen, Mode=TwoWay}"
+                                      IsHitTestVisible="{Binding IsOpen, ElementName=UserPopup, Converter={StaticResource Not}}"
                                       ToolTip="{Binding Session.CurrentUser.FullName}">
                             <DockPanel>
                                 <Border Style="{StaticResource Avatar}" Background="{StaticResource SidebarActiveBrush}">
@@ -110,7 +112,7 @@
                                 </StackPanel>
                             </DockPanel>
                         </ToggleButton>
-                        <Popup IsOpen="{Binding IsUserMenuOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=UserToggle}" Placement="Top"
+                        <Popup x:Name="UserPopup" IsOpen="{Binding IsUserMenuOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=UserToggle}" Placement="Top"
                                StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" VerticalOffset="-6">
                             <Border Background="White" CornerRadius="12" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                     Padding="6" Margin="10" MinWidth="230" Effect="{StaticResource PopupShadow}">

@@ -49,9 +49,14 @@ public sealed partial class PurchaseOrdersViewModel(
 
     async partial void OnSelectedOrderChanged(PurchaseOrder? value)
     {
+        // Clear first so Edit/Receive never act on the previous order while this one loads, and drop a slow
+        // answer for an order that is no longer selected.
+        Detail = null;
+        if (value is null) return;
         try
         {
-            Detail = value is null ? null : await orders.GetAsync(value.Id);
+            var detail = await orders.GetAsync(value.Id);
+            if (ReferenceEquals(SelectedOrder, value)) Detail = detail;
         }
         catch (Exception ex)
         {

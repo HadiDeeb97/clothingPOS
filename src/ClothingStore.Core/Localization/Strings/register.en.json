@@ -52,6 +52,7 @@
   "Register.OutOfStock": "{0} is out of stock.",
   "Register.Pay": "PAY",
   "Register.PointsFormat": "{0} points",
+  "Register.PricesChanged": "The price of {0} item(s) changed since they were scanned. The cart now shows the current prices; check the total and press Pay again.",
   "Register.QuantityButton": "Quantity (F6)",
   "Register.QuantityFor": "Quantity for {0} ({1})",
   "Register.RemoveButton": "Remove (Del)",

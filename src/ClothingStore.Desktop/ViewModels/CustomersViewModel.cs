@@ -72,7 +72,8 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
     {
         try
         {
-            History = value is null ? [] : await customers.GetPurchaseHistoryAsync(value.Id);
+            var history = value is null ? [] : await customers.GetPurchaseHistoryAsync(value.Id);
+            if (ReferenceEquals(SelectedCustomer, value)) History = history; // a slower answer for another customer is dropped
         }
         catch (Exception ex)
         {
@@ -80,7 +81,6 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         }
     }
 
-    [RelayCommand]
     private async Task SearchAsync(bool immediately = true)
     {
         var selectedId = SelectedCustomer?.Id;

@@ -52,6 +52,7 @@
   "Register.OutOfStock": "نفد {0} من المخزون.",
   "Register.Pay": "دفع",
   "Register.PointsFormat": "{0} نقطة",
+  "Register.PricesChanged": "تغيّر سعر {0} صنف منذ مسحه. السلة تعرض الأسعار الحالية الآن؛ تحقق من المجموع واضغط دفع مرة أخرى.",
   "Register.QuantityButton": "الكمية (F6)",
   "Register.QuantityFor": "الكمية لـ {0} ({1})",
   "Register.RemoveButton": "إزالة (Del)",
