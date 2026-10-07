@@ -34,6 +34,7 @@ public class QueryWarmUp(
             () => sales.GetByReceiptAsync("~", ct),
             () => returns.SearchAsync(today, tomorrow, ct),
             () => shifts.GetOpenShiftAsync(0, ct),
+            () => shifts.GetTillShiftAsync(0, "~", ct: ct),
             () => shifts.GetShiftsAsync(today, tomorrow, ct: ct),
             () => inventory.GetStockAsync(ct: ct),
             () => inventory.GetStockAsync("~", ct: ct),

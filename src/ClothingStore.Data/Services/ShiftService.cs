@@ -8,7 +8,18 @@ namespace ClothingStore.Data.Services;
 public sealed record ShiftSummary
 {
     public required int ShiftId { get; init; }
+
+    /// <summary>Who opened the drawer.</summary>
     public required string Cashier { get; init; }
+
+    /// <summary>The PC (till) the drawer belongs to.</summary>
+    public string? Till { get; init; }
+
+    /// <summary>Who counted and closed it, when that wasn't the opener.</summary>
+    public string? ClosedBy { get; init; }
+
+    /// <summary>Cashiers the drawer was handed over to, in order.</summary>
+    public IReadOnlyList<HandoverRow> Handovers { get; init; } = [];
     public required DateTime OpenedAt { get; init; }
     public DateTime? ClosedAt { get; init; }
     public decimal OpeningFloat { get; init; }
@@ -52,25 +63,115 @@ public sealed record ShiftSummary
     public bool ShowLbp { get; init; }
 }
 
+public sealed record HandoverRow(DateTime At, string From, string To);
+
+/// <summary>The drawer of a till for a user: none open, theirs, or another cashier's still open there.</summary>
+public sealed record TillShift(Shift? Shift, bool IsMine)
+{
+    public bool IsOtherCashiers => Shift is not null && !IsMine;
+}
+
 public class ShiftService(IDbContextFactory<PosDbContext> factory)
 {
+    /// <summary>
+    /// The open drawer of this till, and whether <paramref name="userId"/> runs it. An open shift of this user from
+    /// before tills were tracked is attached to this till.
+    /// </summary>
+    public async Task<TillShift> GetTillShiftAsync(int userId, string tillId, string? tillName = null, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var open = await OpenShifts(db).FirstOrDefaultAsync(s => s.TillId == tillId, ct);
+        if (open is null)
+        {
+            var legacy = await db.Shifts.FirstOrDefaultAsync(
+                s => s.Status == ShiftStatus.Open && s.TillId == null && (s.CurrentUserId ?? s.UserId) == userId, ct);
+            if (legacy is null) return new TillShift(null, false);
+            legacy.TillId = tillId;
+            legacy.TillName = tillName;
+            await db.SaveChangesAsync(ct);
+            return new TillShift(await OpenShifts(db).FirstAsync(s => s.Id == legacy.Id, ct), true);
+        }
+        return new TillShift(open, open.RunningUserId == userId);
+    }
+
+    /// <summary>Every open drawer, on every till (for managers).</summary>
+    public async Task<List<Shift>> GetOpenShiftsAsync(CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await OpenShifts(db).OrderBy(s => s.OpenedAt).ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// <paramref name="userId"/> continues the open drawer without counting it (a hand-over). Their sales go into it from
+    /// now on; the hand-over is recorded and printed on the Z report.
+    /// </summary>
+    public async Task<Shift> TakeOverAsync(int shiftId, int userId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct) ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
+        if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException(Loc.T("Err.ShiftAlreadyClosed"));
+        if (shift.RunningUserId != userId)
+        {
+            await EnsureNoOtherDrawerAsync(db, userId, shiftId, ct);
+            db.ShiftHandovers.Add(new ShiftHandover { ShiftId = shift.Id, FromUserId = shift.RunningUserId, ToUserId = userId, At = DateTime.Now });
+            shift.CurrentUserId = userId;
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new BusinessRuleException(Loc.T("Err.ShiftChanged"));
+            }
+        }
+        return await OpenShifts(db).FirstAsync(s => s.Id == shiftId, ct);
+    }
+
+    private static IQueryable<Shift> OpenShifts(PosDbContext db) =>
+        db.Shifts.AsNoTracking().Include(s => s.User).Include(s => s.CurrentUser).Where(s => s.Status == ShiftStatus.Open);
+
+    /// <summary>A cashier runs one drawer at a time.</summary>
+    private static async Task EnsureNoOtherDrawerAsync(PosDbContext db, int userId, int? exceptShiftId, CancellationToken ct)
+    {
+        var other = await db.Shifts.AsNoTracking()
+            .Where(s => s.Status == ShiftStatus.Open && (s.CurrentUserId ?? s.UserId) == userId && s.Id != exceptShiftId)
+            .Select(s => new { s.TillName })
+            .FirstOrDefaultAsync(ct);
+        if (other is not null)
+            throw new BusinessRuleException(other.TillName is { Length: > 0 } till
+                ? Loc.T("Err.ShiftOpenOnTill", till)
+                : Loc.T("Err.ShiftAlreadyOpen"));
+    }
+
     public async Task<Shift?> GetOpenShiftAsync(int userId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.Shifts.AsNoTracking().Include(s => s.User)
-            .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == ShiftStatus.Open, ct);
+        return await OpenShifts(db).FirstOrDefaultAsync(s => (s.CurrentUserId ?? s.UserId) == userId, ct);
     }
 
-    public async Task<Shift> OpenShiftAsync(int userId, decimal openingFloat, decimal openingFloatLbp = 0, CancellationToken ct = default)
+    /// <summary>
+    /// Opens a drawer on <paramref name="tillId"/> (this PC). Refused while another drawer is open on the same till:
+    /// continue it (<see cref="TakeOverAsync"/>) or count and close it first.
+    /// </summary>
+    public async Task<Shift> OpenShiftAsync(
+        int userId, decimal openingFloat, decimal openingFloatLbp = 0, string? tillId = null, string? tillName = null, CancellationToken ct = default)
     {
         if (openingFloat < 0 || openingFloatLbp < 0) throw new BusinessRuleException(Loc.T("Err.FloatNegative"));
         await using var db = await factory.CreateDbContextAsync(ct);
-        if (await db.Shifts.AnyAsync(s => s.UserId == userId && s.Status == ShiftStatus.Open, ct))
-            throw new BusinessRuleException(Loc.T("Err.ShiftAlreadyOpen"));
+        await EnsureNoOtherDrawerAsync(db, userId, null, ct);
+        if (tillId is not null)
+        {
+            var open = await OpenShifts(db).FirstOrDefaultAsync(s => s.TillId == tillId, ct);
+            if (open is not null)
+                throw new BusinessRuleException(Loc.T("Err.TillDrawerOpen", (open.CurrentUser ?? open.User)?.FullName ?? "?"));
+        }
 
         var shift = new Shift
         {
             UserId = userId,
+            CurrentUserId = userId,
+            TillId = tillId,
+            TillName = tillName,
             OpeningFloat = Money.Round(openingFloat),
             OpeningFloatLbp = RoundLbp(openingFloatLbp),
             OpenedAt = DateTime.Now,
@@ -109,7 +210,7 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
     }
 
     public async Task<ShiftSummary> CloseShiftAsync(
-        int shiftId, decimal countedCash, string? notes, decimal? countedCashLbp = null, CancellationToken ct = default)
+        int shiftId, decimal countedCash, string? notes, decimal? countedCashLbp = null, int? closedByUserId = null, CancellationToken ct = default)
     {
         if (countedCash < 0 || countedCashLbp < 0) throw new BusinessRuleException(Loc.T("Err.CountedCashNegative"));
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -124,8 +225,16 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
         shift.CountedCashLbp = countedCashLbp is { } lbp ? RoundLbp(lbp) : summary.ShowLbp ? 0 : null;
         shift.Notes = QueryHelpers.Clean(notes);
         shift.ClosedAt = DateTime.Now;
+        shift.ClosedByUserId = closedByUserId;
         shift.Status = ShiftStatus.Closed;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.ShiftChanged")); // closed or taken over at the same moment elsewhere
+        }
 
         return await BuildSummaryAsync(db, shiftId, ct);
     }
@@ -133,9 +242,10 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
     public async Task<List<Shift>> GetShiftsAsync(DateTime from, DateTime to, int? userId = null, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.Shifts.AsNoTracking().Include(s => s.User)
-            .Where(s => s.OpenedAt >= from && s.OpenedAt < to);
-        if (userId is not null) query = query.Where(s => s.UserId == userId);
+        var query = db.Shifts.AsNoTracking().Include(s => s.User).Include(s => s.CurrentUser)
+            .Where(s => s.OpenedAt >= from && s.OpenedAt < to || s.Status == ShiftStatus.Open);
+        if (userId is not null)
+            query = query.Where(s => s.UserId == userId || s.CurrentUserId == userId || s.Handovers.Any(h => h.ToUserId == userId));
         return await query.OrderByDescending(s => s.OpenedAt).ToListAsync(ct);
     }
 
@@ -143,7 +253,11 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
     {
         var shift = await db.Shifts.AsNoTracking()
             .Include(s => s.User)
+            .Include(s => s.ClosedBy)
             .Include(s => s.CashMovements)
+            .Include(s => s.Handovers).ThenInclude(h => h.FromUser)
+            .Include(s => s.Handovers).ThenInclude(h => h.ToUser)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.Id == shiftId, ct)
             ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
 
@@ -192,6 +306,10 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
         {
             ShiftId = shift.Id,
             Cashier = shift.User?.FullName ?? "",
+            Till = shift.TillName,
+            ClosedBy = shift.ClosedByUserId is { } closer && closer != shift.UserId ? shift.ClosedBy?.FullName : null,
+            Handovers = shift.Handovers.OrderBy(h => h.At)
+                .Select(h => new HandoverRow(h.At, h.FromUser?.FullName ?? "?", h.ToUser?.FullName ?? "?")).ToList(),
             OpenedAt = shift.OpenedAt,
             ClosedAt = shift.ClosedAt,
             OpeningFloat = shift.OpeningFloat,

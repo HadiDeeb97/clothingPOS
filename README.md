@@ -175,6 +175,23 @@ keys work wherever the keyboard focus is, also right after using the sidebar or 
 5. **Backups** happen automatically: after every shift close, and whenever the last backup is older than the interval set in
    **Settings** (24 hours by default). See below.
 
+### Cash drawer per PC (changing cashiers)
+
+The cash drawer belongs to the PC (till), not to the person: each PC has at most one open drawer.
+
+* When a cashier signs in on a PC where another cashier's drawer is still open (they signed out or closed the app
+  without closing it), the app asks:
+  * **Continue this drawer**: their sales go into the same shift. The hand-over (who, when) is recorded and printed on
+    the Z report; each sale still shows who made it.
+  * **Count and close it**: count the cash and close the previous shift (any difference goes on that shift, and the Z
+    report shows who closed it). Then open your own drawer; the counted cash is filled in as the starting float.
+  Both choices are also on the **Cash Drawer** page.
+* Signing out or closing the app with your drawer open asks whether to **leave it open** for the next cashier or
+  **close it now**.
+* Managers see open drawers on every PC in the Cash Drawer list (with the PC and who runs it now) and can **Count and
+  close…** one that was left open.
+* A cashier runs one drawer at a time. Drawers opened before this version attach to the PC their cashier next signs in on.
+
 ### Cash in Lebanese pounds
 
 * **Settings → Lebanese pounds** switches LBP on or off and sets the rounding step (1,000 by default). New and existing

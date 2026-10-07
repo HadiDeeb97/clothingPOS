@@ -74,16 +74,102 @@ public sealed partial class ShiftViewModel(
 
     public async Task OnNavigatedToAsync() => await RefreshAsync();
 
-    [RelayCommand]
-    private Task RefreshAsync() => RunAsync(async () =>
+    // ---- Whose drawer ----------------------------------------------------------------------
+    // The drawer belongs to this PC. If another cashier's is still open here, this user continues it (hand-over) or
+    // counts and closes it before opening their own. A manager can also count and close a drawer left open on another PC.
+
+    /// <summary>A drawer being counted and closed that isn't this user's own (null when closing their own).</summary>
+    [ObservableProperty]
+    public partial Shift? ClosingShift { get; set; }
+
+    /// <summary>The drawer shown on the left: this user's, or the one being closed.</summary>
+    private Shift? ActiveShift => session.CurrentShift ?? ClosingShift;
+
+    public bool ShowOpenForm => !session.HasOpenShift && session.OtherDrawer is null && ClosingShift is null;
+    public bool ShowOtherDrawer => !session.HasOpenShift && session.OtherDrawer is not null && ClosingShift is null;
+    public bool ShowActiveDrawer => session.HasOpenShift || ClosingShift is not null;
+    public bool IsClosingOther => ClosingShift is not null;
+    public bool IsOwnDrawer => session.HasOpenShift && ClosingShift is null;
+
+    public string OtherDrawerText => session.OtherDrawer is { } d
+        ? Loc.T("Shift.OtherDrawerOpen", Name(d), d.OpenedAt.ToString("g"))
+        : "";
+
+    public string ClosingText => ClosingShift is { } d
+        ? Loc.T("Shift.ClosingOther", Name(d), d.TillName ?? "-", d.OpenedAt.ToString("g"))
+        : "";
+
+    private static string Name(Shift d) => (d.CurrentUser ?? d.User)?.FullName ?? "?";
+
+    private void NotifyDrawerState()
     {
-        session.CurrentShift = await shifts.GetOpenShiftAsync(session.User.Id);
-        Summary = session.CurrentShift is { } shift ? await shifts.GetSummaryAsync(shift.Id) : null;
-        OnPropertyChanged(nameof(VariancePreview));
-        OnPropertyChanged(nameof(VariancePreviewLbp));
+        foreach (var name in new[] { nameof(ShowOpenForm), nameof(ShowOtherDrawer), nameof(ShowActiveDrawer), nameof(IsClosingOther),
+                     nameof(IsOwnDrawer), nameof(OtherDrawerText), nameof(ClosingText), nameof(VariancePreview), nameof(VariancePreviewLbp) })
+            OnPropertyChanged(name);
+        CloseSelectedDrawerCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Continue the other cashier's drawer: sales go into it from now on (recorded as a hand-over).</summary>
+    [RelayCommand]
+    private Task ContinueDrawerAsync() => RunAsync(async () =>
+    {
+        if (session.OtherDrawer is not { } drawer) return;
+        session.CurrentShift = await shifts.TakeOverAsync(drawer.Id, session.User.Id);
+        session.OtherDrawer = null;
+        Dialogs.Toast(Loc.T("Shift.TookOver", Name(drawer)));
+        await LoadAsync();
+    });
+
+    /// <summary>Count the other cashier's drawer and close it, then open this user's own.</summary>
+    [RelayCommand]
+    private async Task CountOtherDrawerAsync()
+    {
+        if (session.OtherDrawer is not { } drawer) return;
+        ClosingShift = drawer;
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task StopClosingAsync()
+    {
+        ClosingShift = null;
+        await RefreshAsync();
+    }
+
+    /// <summary>Managers: count and close a drawer left open (on any PC) from the list.</summary>
+    [RelayCommand(CanExecute = nameof(CanCloseSelectedDrawer))]
+    private async Task CloseSelectedDrawerAsync()
+    {
+        if (SelectedHistory is not { Status: ShiftStatus.Open } drawer) return;
+        ClosingShift = drawer;
+        await RefreshAsync();
+    }
+
+    private bool CanCloseSelectedDrawer() =>
+        SelectedHistory is { Status: ShiftStatus.Open } d && d.Id != session.CurrentShift?.Id
+        && (session.Can(Permission.ViewAllShifts) || d.Id == session.OtherDrawer?.Id);
+
+    partial void OnSelectedHistoryChanged(Shift? value) => CloseSelectedDrawerCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand]
+    private Task RefreshAsync() => RunAsync(LoadAsync);
+
+    private async Task LoadAsync()
+    {
+        var till = await shifts.GetTillShiftAsync(session.User.Id, session.TillId, session.TillName);
+        session.CurrentShift = till.IsMine ? till.Shift : null;
+        session.OtherDrawer = till.IsOtherCashiers ? till.Shift : null;
+        if (ClosingShift is { } closing && (closing.Id == session.CurrentShift?.Id)) ClosingShift = null;
+        Summary = ActiveShift is { } shift ? await shifts.GetSummaryAsync(shift.Id) : null;
+        if (Summary?.ClosedAt is not null) // closed elsewhere meanwhile
+        {
+            ClosingShift = null;
+            Summary = null;
+        }
         var userFilter = session.Can(Permission.ViewAllShifts) ? (int?)null : session.User.Id;
         History = await shifts.GetShiftsAsync(DateTime.Today.AddDays(-60), DateTime.Today.AddDays(1), userFilter);
-    });
+        NotifyDrawerState();
+    }
 
     [RelayCommand]
     private async Task OpenShiftAsync()
@@ -99,7 +185,7 @@ public sealed partial class ShiftViewModel(
             Dialogs.Warning(Loc.T("Shift.EnterFloat"));
             return;
         }
-        if (await RunAsync(() => shifts.OpenShiftAsync(session.User.Id, amount, amountLbp)))
+        if (await RunAsync(() => shifts.OpenShiftAsync(session.User.Id, amount, amountLbp, session.TillId, session.TillName)))
         {
             Dialogs.Toast(Loc.T("Shift.Opened"));
             await RefreshAsync();
@@ -133,7 +219,8 @@ public sealed partial class ShiftViewModel(
     [RelayCommand]
     private async Task CloseShiftAsync()
     {
-        if (session.CurrentShift is not { } shift || Summary is null) return;
+        if (ActiveShift is not { } shift || Summary is null) return;
+        var closingOther = ClosingShift is not null;
         if (!TryParse(CountedCashText, out var counted))
         {
             Dialogs.Warning(Loc.T("Shift.EnterCount"));
@@ -160,9 +247,23 @@ public sealed partial class ShiftViewModel(
         if (!Dialogs.Confirm(message, Loc.T("Shift.CloseShift"))) return;
 
         ShiftSummary? closed = null;
-        if (!await RunAsync(async () => closed = await shifts.CloseShiftAsync(shift.Id, counted, CloseNotes, countedLbp))) return;
+        if (!await RunAsync(async () => closed = await shifts.CloseShiftAsync(shift.Id, counted, CloseNotes, countedLbp, session.User.Id))) return;
 
-        session.CurrentShift = null;
+        if (closingOther)
+        {
+            // The cash just counted stays in the drawer: start the next shift with it.
+            if (shift.Id == session.OtherDrawer?.Id || shift.TillId == session.TillId)
+            {
+                OpeningFloatText = counted.ToString("0.00", CultureInfo.CurrentCulture);
+                OpeningFloatLbpText = (countedLbp ?? 0).ToString("0", CultureInfo.CurrentCulture);
+            }
+            ClosingShift = null;
+            session.OtherDrawer = null;
+        }
+        else
+        {
+            session.CurrentShift = null;
+        }
         CountedCashText = "";
         CountedCashLbpText = "";
         CloseNotes = null;

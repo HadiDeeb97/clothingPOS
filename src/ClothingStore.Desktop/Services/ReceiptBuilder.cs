@@ -148,6 +148,13 @@ public static class ReceiptBuilder
             Row(Loc.T("Common.Cashier"), sum.Cashier),
             Row(Loc.T("Report.Opened"), sum.OpenedAt.ToString("yyyy-MM-dd HH:mm")),
             Row(Loc.T("Report.Closed"), sum.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-"),
+        };
+        if (!string.IsNullOrWhiteSpace(sum.Till)) lines.Insert(lines.Count - 2, Row(Loc.T("Report.Till"), sum.Till));
+        foreach (var h in sum.Handovers)
+            lines.Add(Row("  " + Loc.T("Report.HandedOver", h.To), h.At.ToString("HH:mm")));
+        if (sum.ClosedBy is not null) lines.Add(Row(Loc.T("Report.ClosedBy"), sum.ClosedBy));
+        lines.AddRange(
+        [
             rule,
             Row(Loc.T("Reports.Transactions"), sum.SalesCount.ToString()),
             Row(Loc.T("Report.Voided"), sum.VoidedCount.ToString()),
@@ -158,7 +165,7 @@ public static class ReceiptBuilder
             Row(Loc.T("Reports.TotalSales"), M(sum.TotalSales)),
             rule,
             Loc.T("Common.Payments"),
-        };
+        ]);
         foreach (var method in Enum.GetValues<PaymentMethod>())
             if (sum.Payments.TryGetValue(method, out var amount))
                 lines.Add(Row("  " + Loc.EnumText(method), M(amount)));
