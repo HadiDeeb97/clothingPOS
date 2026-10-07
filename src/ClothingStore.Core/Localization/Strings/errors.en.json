@@ -9,6 +9,7 @@
   "Err.CantDeactivateSelf": "You can't deactivate your own account.",
   "Err.CantDeleteSelf": "You can't delete your own account.",
   "Err.CartEmpty": "The cart is empty.",
+  "Err.CashNotNeeded": "The other payments already cover the total, so no cash is needed. Clear the cash amount.",
   "Err.CashOverrideNeedsApproval": "Refunding a card or wallet payment in cash needs manager approval.",
   "Err.CashRefundNeedsShift": "Open a cash drawer shift to give cash refunds.",
   "Err.CashierInactive": "Cashier account not found or inactive.",

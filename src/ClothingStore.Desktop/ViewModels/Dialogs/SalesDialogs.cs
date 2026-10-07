@@ -280,6 +280,9 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
         OnPropertyChanged(nameof(CashDue));
         OnPropertyChanged(nameof(CashDueLbp));
         AmountText = CashDue.ToString("0.00");
+        // Card, wallet or delivery now cover everything: cash typed earlier is not being taken, so it must not
+        // turn into "change" on the receipt and in the drawer count.
+        if (CashDue == 0 && (UsdText.Length > 0 || LbpText.Length > 0)) ClearCash();
         RefreshCash();
     }
 

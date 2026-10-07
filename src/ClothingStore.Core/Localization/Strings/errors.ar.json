@@ -9,6 +9,7 @@
   "Err.CantDeactivateSelf": "لا يمكنك تعطيل حسابك الخاص.",
   "Err.CantDeleteSelf": "لا يمكنك حذف حسابك الخاص.",
   "Err.CartEmpty": "السلة فارغة.",
+  "Err.CashNotNeeded": "المدفوعات الأخرى تغطي المجموع، لذلك لا حاجة للنقد. امسح المبلغ النقدي.",
   "Err.CashOverrideNeedsApproval": "إعادة دفعة البطاقة أو المحفظة نقداً تتطلب موافقة المدير.",
   "Err.CashRefundNeedsShift": "افتح وردية درج النقد لإعادة مبالغ نقدية.",
   "Err.CashierInactive": "حساب أمين الصندوق غير موجود أو غير نشط.",

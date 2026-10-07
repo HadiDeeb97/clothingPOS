@@ -139,3 +139,50 @@ public class DeliveryPaymentTests
         Assert.Single(await db.Sales.SearchAsync(DateTime.Today, DateTime.Today.AddDays(1), "TT-88231"));
     }
 }
+
+public class DeliveryCashMixupTests
+{
+    [Fact]
+    public async Task Cash_left_in_the_box_when_the_delivery_company_pays_everything_is_refused()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var shopper = await db.ShopperIdAsync();
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, CustomerId = shopper, Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
+            Channel = SalesChannel.WhatsApp, Courier = "test",
+            Payments = [new PaymentInput(PaymentMethod.Delivery, 22m), new PaymentInput(PaymentMethod.Cash, 22m)],
+        }));
+        Assert.Contains("cash", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Upgrading_clears_the_phantom_cash_on_sales_already_recorded_that_way()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var delivery = await db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, CustomerId = await db.ShopperIdAsync(), Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
+            Channel = SalesChannel.WhatsApp, Courier = "test", Payments = [new PaymentInput(PaymentMethod.Delivery, 22m)],
+        });
+        var cash = await db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, Lines = [new CheckoutLine(tee.Variants[1].Id, 1)], Payments = [new PaymentInput(PaymentMethod.Cash, 30m)],
+        });
+
+        await using var ctx = await db.Factory.CreateDbContextAsync();
+        var migrator = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>(ctx);
+        await migrator.MigrateAsync("SaleConcurrencyChecks");
+        // How the earlier version saved it: the $22 left in the cash box all became change.
+        await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(ctx.Database,
+            $"UPDATE Sales SET CashTendered = 22, ChangeGiven = 21, ChangeGivenLbp = 89000 WHERE Id = {delivery.Id}");
+        await migrator.MigrateAsync();
+
+        var fixedSale = await db.Sales.GetAsync(delivery.Id);
+        Assert.Equal((0m, 0m, 0m, 0m), (fixedSale!.CashTendered, fixedSale.ChangeGiven, fixedSale.CashTenderedLbp, fixedSale.ChangeGivenLbp));
+        var untouched = await db.Sales.GetAsync(cash.Id);
+        Assert.Equal((30m, 8m), (untouched!.CashTendered, untouched.ChangeGiven));
+    }
+}
