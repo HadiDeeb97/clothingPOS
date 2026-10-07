@@ -150,6 +150,10 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (tender.Lbp > 0 || changeIn != ChangeCurrency.Usd) EnsureRate(settings, shownRate);
 
         var cashDue = sale.Total - nonCashTotal;
+        // Cash handed over when other payments already cover the sale would all be "change": refuse it rather than
+        // record cash in and out of the drawer that never happened.
+        if (cashDue <= 0 && (tender.Usd > 0 || tender.Lbp > 0))
+            throw new BusinessRuleException(Loc.T("Err.CashNotNeeded"));
         var cash = CashSettlement.Calculate(cashDue, tender, rate, settings.LbpRounding);
         if (!cash.IsCovered)
             throw new BusinessRuleException(Loc.T("Err.PaymentShort", cash.ShortUsd));
