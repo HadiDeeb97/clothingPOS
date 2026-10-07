@@ -56,7 +56,7 @@ public class CashSettlementTests
     }
 
     [Theory]
-    [InlineData(ChangeCurrency.Usd, 28.50, 0)]
+    [InlineData(ChangeCurrency.Usd, 28, 45_000)]      // no dollar coins: the 0.50 is given in pounds
     [InlineData(ChangeCurrency.Mixed, 28, 45_000)]    // 0.50 = 44,750 to the nearest 1,000
     [InlineData(ChangeCurrency.Lbp, 0, 2_551_000)]    // 28.50 = 2,550,750 to the nearest 1,000
     public void Change_can_be_given_in_dollars_pounds_or_both(ChangeCurrency changeIn, double usd, int lbp)
@@ -70,7 +70,7 @@ public class CashSettlementTests
     [Theory]
     [InlineData(ChangeCurrency.Mixed, 0, 1_000)]
     [InlineData(ChangeCurrency.Lbp, 0, 1_000)]
-    [InlineData(ChangeCurrency.Usd, 0.01, 0)]
+    [InlineData(ChangeCurrency.Usd, 0, 1_000)]
     public void A_one_cent_change_is_given_as_the_nearest_pound_note(ChangeCurrency changeIn, double usd, int lbp)
     {
         var s = Settle(59.99m, 60m, 0m, changeIn);
@@ -92,5 +92,6 @@ public class CashSettlementTests
         Assert.Throws<BusinessRuleException>(() => CashSettlement.Calculate(10m, new CashTender(0m, 900_000m), 0m, 1_000));
         Assert.Throws<BusinessRuleException>(() => CashSettlement.Calculate(10m, new CashTender(20m, 0m, ChangeCurrency.Lbp), 0m, 1_000));
         Assert.Equal(10m, CashSettlement.Calculate(10m, new CashTender(20m, 0m), 0m, 1_000).ChangeUsd);
+        Assert.Equal(0.01m, CashSettlement.Calculate(59.99m, new CashTender(60m, 0m), 0m, 1_000).ChangeUsd); // cents without LBP
     }
 }

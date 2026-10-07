@@ -9,9 +9,12 @@ public static class Lbp
     public static decimal ToPay(decimal usd, decimal rate, int rounding) =>
         rate <= 0 || usd <= 0 ? 0 : RoundUp(usd * rate, rounding);
 
-    /// <summary>LBP handed out for a dollar amount (change, refunds): rounded down so the drawer is never short.</summary>
+    /// <summary>
+    /// LBP handed out for a dollar amount (refunds): to the nearest note, like change, so a cent or two isn't lost to
+    /// either side. The drawer records exactly what was handed out.
+    /// </summary>
     public static decimal ToGive(decimal usd, decimal rate, int rounding) =>
-        rate <= 0 || usd <= 0 ? 0 : RoundDown(usd * rate, rounding);
+        rate <= 0 || usd <= 0 ? 0 : RoundNearest(usd * rate, rounding);
 
     public static decimal RoundUp(decimal lbp, int rounding)
     {
@@ -119,9 +122,18 @@ public sealed record CashSettlement
                 changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
                 break;
             default:
-                // Cents are kept in the drawer rather than paid out as a fraction.
-                changeUsd = Math.Floor(extra / r * 100m) / 100m;
-                changeLbp = 0;
+                if (lbpOn)
+                {
+                    // There are no dollar coins in circulation: whole dollars, and any cents as the nearest pound note.
+                    changeUsd = Math.Floor(extra / r);
+                    changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
+                }
+                else
+                {
+                    // Cents are kept in the drawer rather than paid out as a fraction.
+                    changeUsd = Math.Floor(extra / r * 100m) / 100m;
+                    changeLbp = 0;
+                }
                 break;
         }
 
