@@ -268,6 +268,16 @@
             <Grid>
                 <infra:PageHost x:Name="PageHost" Page="{Binding CurrentPage}" Margin="24,20,24,20" Focusable="False" />
 
+                <!-- Covers a kept page while it refreshes, so last visit's figures can't be read or used -->
+                <Grid Background="{StaticResource BackgroundBrush}" Opacity="0.94" Cursor="Wait"
+                      Visibility="{Binding IsPageLoading, Converter={StaticResource BoolToVis}}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="{l:T Common.Refreshing}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" />
+                        <ProgressBar IsIndeterminate="True" Height="3" Width="220" Margin="0,12,0,0" BorderThickness="0"
+                                     Background="{StaticResource BorderBrush}" Foreground="{StaticResource PrimaryBrush}" />
+                    </StackPanel>
+                </Grid>
+
                 <!-- Toasts -->
                 <ItemsControl ItemsSource="{Binding Items, Source={x:Static infra:ToastHost.Instance}}"
                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="24" Focusable="False">

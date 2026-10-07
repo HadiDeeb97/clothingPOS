@@ -63,6 +63,7 @@
   "Common.Receipt": "Receipt",
   "Common.Reference": "Reference",
   "Common.Refresh": "Refresh",
+  "Common.Refreshing": "Loading the latest data…",
   "Common.Remove": "Remove",
   "Common.Required": "{0} *",
   "Common.Role": "Role",

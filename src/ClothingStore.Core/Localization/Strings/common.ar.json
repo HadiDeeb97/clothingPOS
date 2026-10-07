@@ -63,6 +63,7 @@
   "Common.Receipt": "الإيصال",
   "Common.Reference": "المرجع",
   "Common.Refresh": "تحديث",
+  "Common.Refreshing": "جارٍ تحميل أحدث البيانات…",
   "Common.Remove": "إزالة",
   "Common.Required": "{0} *",
   "Common.Role": "الدور",

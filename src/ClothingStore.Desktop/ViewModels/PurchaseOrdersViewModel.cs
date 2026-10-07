@@ -39,10 +39,11 @@ public sealed partial class PurchaseOrdersViewModel(
     [ObservableProperty]
     public partial PurchaseOrder? Detail { get; set; }
 
-    public Task OnNavigatedToAsync()
+    public async Task OnNavigatedToAsync()
     {
-        SelectedFilter = Filters[0]; // triggers the first load
-        return Task.CompletedTask;
+        // The first visit picks the first filter (which loads); later visits keep the filter and reload.
+        if (SelectedFilter is null) SelectedFilter = Filters[0];
+        else await RefreshAsync();
     }
 
     partial void OnSelectedFilterChanged(StatusFilter value) => _ = RefreshAsync();

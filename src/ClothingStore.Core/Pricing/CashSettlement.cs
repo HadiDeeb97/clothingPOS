@@ -25,6 +25,13 @@ public static class Lbp
         return Math.Floor(lbp / step) * step;
     }
 
+    /// <summary>To the nearest step; exactly half way goes up.</summary>
+    public static decimal RoundNearest(decimal lbp, int rounding)
+    {
+        var step = Math.Max(1, rounding);
+        return Math.Round(lbp / step, MidpointRounding.AwayFromZero) * step;
+    }
+
     /// <summary>"1,567,000 LBP" with the currency name in the current (or given) language.</summary>
     public static string Format(decimal lbp, string? language = null) =>
         $"{lbp:N0} {(language is null ? Loc.T("Currency.Lbp") : Loc.Get(language, "Currency.Lbp"))}";
@@ -97,17 +104,19 @@ public sealed record CashSettlement
             };
         }
 
+        // Pound change goes to the nearest note: owing 895 LBP (one cent at 89,500) the customer gets 1,000 rather
+        // than nothing, and the drawer records the 1,000 that actually left it.
         var extra = tendered - due;
         decimal changeUsd, changeLbp;
         switch (lbpOn ? tender.ChangeIn : ChangeCurrency.Usd)
         {
             case ChangeCurrency.Lbp:
                 changeUsd = 0;
-                changeLbp = Lbp.RoundDown(extra, step);
+                changeLbp = Lbp.RoundNearest(extra, step);
                 break;
             case ChangeCurrency.Mixed:
                 changeUsd = Math.Floor(extra / r);
-                changeLbp = Lbp.RoundDown(extra - changeUsd * r, step);
+                changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
                 break;
             default:
                 // Cents are kept in the drawer rather than paid out as a fraction.
