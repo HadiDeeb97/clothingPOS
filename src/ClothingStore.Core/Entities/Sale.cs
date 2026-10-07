@@ -53,6 +53,9 @@ public class Sale : Entity
     /// <summary>Delivery company or driver of an online order.</summary>
     public string? Courier { get; set; }
 
+    /// <summary>The delivery company's invoice / tracking number (often a barcode on its slip), to find the order when it pays.</summary>
+    public string? DeliveryReference { get; set; }
+
     /// <summary>
     /// When part of the sale was paid with <see cref="PaymentMethod.Delivery"/>: the payment from the delivery company
     /// that covered it. Null while the money is still owed.

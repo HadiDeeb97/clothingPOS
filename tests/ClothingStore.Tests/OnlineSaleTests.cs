@@ -12,6 +12,7 @@ public class OnlineSaleTests
     private static CheckoutRequest Request(TestDatabase db, int variantId, SalesChannel channel, decimal fee, PaymentMethod method, decimal paid) => new()
     {
         UserId = db.Cashier.Id,
+        CustomerId = channel == SalesChannel.InStore ? null : db.ShopperIdAsync().GetAwaiter().GetResult(),
         Lines = [new CheckoutLine(variantId, 1)],
         Payments = [new PaymentInput(method, paid)],
         Channel = channel,
@@ -52,6 +53,16 @@ public class OnlineSaleTests
             db.Sales.CompleteSaleAsync(Request(db, tee.Variants[0].Id, SalesChannel.InStore, 2m, PaymentMethod.Card, 24m)));
         await Assert.ThrowsAsync<BusinessRuleException>(() =>
             db.Sales.CompleteSaleAsync(Request(db, tee.Variants[0].Id, SalesChannel.WhatsApp, -1m, PaymentMethod.Card, 21m)));
+    }
+
+    [Fact]
+    public async Task An_online_order_needs_a_customer()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            db.Sales.CompleteSaleAsync(Request(db, tee.Variants[0].Id, SalesChannel.WhatsApp, 0m, PaymentMethod.Card, 22m) with { CustomerId = null }));
+        Assert.Contains("customer", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

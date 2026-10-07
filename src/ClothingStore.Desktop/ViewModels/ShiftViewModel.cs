@@ -23,7 +23,7 @@ public sealed partial class ShiftViewModel(
     public Session Session => session;
 
     [ObservableProperty]
-    public partial string OpeningFloatText { get; set; } = "100.00";
+    public partial string OpeningFloatText { get; set; } = 100m.ToString("0.00", CultureInfo.CurrentCulture); // read back with the same culture
 
     [ObservableProperty]
     public partial string OpeningFloatLbpText { get; set; } = "0";

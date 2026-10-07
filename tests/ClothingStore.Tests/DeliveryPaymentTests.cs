@@ -6,10 +6,10 @@ namespace ClothingStore.Tests;
 /// <summary>Online orders paid through a delivery company. The tee sells for 22.00 (20 + 10% tax).</summary>
 public class DeliveryPaymentTests
 {
-    private static Task<Core.Entities.Sale> SellAsync(TestDatabase db, int variantId, int qty, string courier, decimal fee = 3m, int? shiftId = null) =>
-        db.Sales.CompleteSaleAsync(new CheckoutRequest
+    private static async Task<Core.Entities.Sale> SellAsync(TestDatabase db, int variantId, int qty, string courier, decimal fee = 3m, int? shiftId = null) =>
+        await db.Sales.CompleteSaleAsync(new CheckoutRequest
         {
-            UserId = db.Cashier.Id, ShiftId = shiftId,
+            UserId = db.Cashier.Id, ShiftId = shiftId, CustomerId = await db.ShopperIdAsync(),
             Lines = [new CheckoutLine(variantId, qty)],
             Channel = SalesChannel.Instagram, DeliveryFee = fee, Courier = courier,
             Payments = [new PaymentInput(PaymentMethod.Delivery, 22m * qty + fee)],
@@ -116,5 +116,26 @@ public class DeliveryPaymentTests
         });
         Assert.Equal(RefundMethod.Cash, second.Refunds.Single().Method);
         Assert.Equal(100m + 22m - 22m, (await db.Shifts.GetSummaryAsync(shift.Id)).ExpectedCash);
+    }
+
+    [Fact]
+    public async Task Orders_are_found_by_the_delivery_invoice_number_for_scanning()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var sale = await db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
+            Channel = SalesChannel.WhatsApp, Courier = "Toters", DeliveryReference = " tt-88231 ", CustomerId = await db.ShopperIdAsync(),
+            Payments = [new PaymentInput(PaymentMethod.Delivery, 22m)],
+        });
+        Assert.Equal("TT-88231", sale.DeliveryReference);
+
+        var found = await db.Deliveries.FindAsync("tt-88231");
+        Assert.Equal((sale.Id, 22m, false), (found!.SaleId, found.Owed, found.IsPaid));
+        Assert.Equal(sale.Id, (await db.Deliveries.FindAsync(sale.ReceiptNumber))!.SaleId);
+        Assert.Null(await db.Deliveries.FindAsync("nope"));
+        Assert.Single(await db.Deliveries.GetAsync(paid: false, text: "88231"));
+        Assert.Single(await db.Sales.SearchAsync(DateTime.Today, DateTime.Today.AddDays(1), "TT-88231"));
     }
 }

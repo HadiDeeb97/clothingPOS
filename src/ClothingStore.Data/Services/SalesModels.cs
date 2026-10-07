@@ -45,6 +45,9 @@ public sealed record CheckoutRequest
 
     /// <summary>Delivery company or driver of an online order.</summary>
     public string? Courier { get; init; }
+
+    /// <summary>The delivery company's invoice / tracking number.</summary>
+    public string? DeliveryReference { get; init; }
 }
 
 public sealed record HeldCartLine(int VariantId, int Quantity, DiscountType DiscountType, decimal DiscountValue);
@@ -57,7 +60,8 @@ public sealed record HeldCart(
     SalesChannel Channel = SalesChannel.InStore,
     decimal DeliveryFee = 0,
     string? Notes = null,
-    string? Courier = null);
+    string? Courier = null,
+    string? DeliveryReference = null);
 
 public sealed record ReturnLineRequest(int SaleLineId, int Quantity, bool Restock = true);
 

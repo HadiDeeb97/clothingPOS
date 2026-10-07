@@ -150,6 +150,10 @@ namespace ClothingStore.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
                     b.Property<DateTime?>("Birthday")
                         .HasColumnType("datetime2");
 
@@ -183,6 +187,9 @@ namespace ClothingStore.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<int?>("RegionId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("StoreCredit")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -197,7 +204,61 @@ namespace ClothingStore.Data.Migrations
                         .IsUnique()
                         .HasFilter("[Phone] IS NOT NULL");
 
+                    b.HasIndex("RegionId");
+
                     b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("ClothingStore.Core.Entities.DeliveryPartner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal?>("DefaultFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Phone2")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("DeliveryPartners");
                 });
 
             modelBuilder.Entity("ClothingStore.Core.Entities.DeliverySettlement", b =>
@@ -551,6 +612,104 @@ namespace ClothingStore.Data.Migrations
                     b.ToTable("PurchaseOrderLines");
                 });
 
+            modelBuilder.Entity("ClothingStore.Core.Entities.Region", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<string>("NameAr")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Regions");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            IsActive = true,
+                            Name = "Beirut",
+                            NameAr = "بيروت",
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            IsActive = true,
+                            Name = "Mount Lebanon",
+                            NameAr = "جبل لبنان",
+                            SortOrder = 2
+                        },
+                        new
+                        {
+                            Id = 3,
+                            IsActive = true,
+                            Name = "North",
+                            NameAr = "الشمال",
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            Id = 4,
+                            IsActive = true,
+                            Name = "Akkar",
+                            NameAr = "عكار",
+                            SortOrder = 4
+                        },
+                        new
+                        {
+                            Id = 5,
+                            IsActive = true,
+                            Name = "Bekaa",
+                            NameAr = "البقاع",
+                            SortOrder = 5
+                        },
+                        new
+                        {
+                            Id = 6,
+                            IsActive = true,
+                            Name = "Baalbek-Hermel",
+                            NameAr = "بعلبك الهرمل",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = 7,
+                            IsActive = true,
+                            Name = "South",
+                            NameAr = "الجنوب",
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            IsActive = true,
+                            Name = "Nabatieh",
+                            NameAr = "النبطية",
+                            SortOrder = 8
+                        });
+                });
+
             modelBuilder.Entity("ClothingStore.Core.Entities.Sale", b =>
                 {
                     b.Property<int>("Id")
@@ -599,7 +758,13 @@ namespace ClothingStore.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("DeliveryReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
                     b.Property<int?>("DeliverySettlementId")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<decimal>("DiscountTotal")
@@ -628,6 +793,7 @@ namespace ClothingStore.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("Status")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<decimal>("Subtotal")
@@ -661,6 +827,8 @@ namespace ClothingStore.Data.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("DeliveryReference");
 
                     b.HasIndex("DeliverySettlementId");
 
@@ -1186,6 +1354,16 @@ namespace ClothingStore.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Shift");
+                });
+
+            modelBuilder.Entity("ClothingStore.Core.Entities.Customer", b =>
+                {
+                    b.HasOne("ClothingStore.Core.Entities.Region", "Region")
+                        .WithMany()
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("ClothingStore.Core.Entities.DeliverySettlement", b =>

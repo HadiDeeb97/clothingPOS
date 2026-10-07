@@ -17,6 +17,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (request.DeliveryFee < 0) throw new BusinessRuleException(Loc.T("Err.DeliveryFeeNegative"));
         if (request.DeliveryFee > 0 && request.Channel == SalesChannel.InStore)
             throw new BusinessRuleException(Loc.T("Err.DeliveryFeeInStore"));
+        if (request.Channel != SalesChannel.InStore && request.CustomerId is null)
+            throw new BusinessRuleException(Loc.T("Err.OnlineNeedsCustomer"));
         if (request.Channel == SalesChannel.InStore && request.Payments.Any(p => p.Method == PaymentMethod.Delivery && p.Amount > 0))
             throw new BusinessRuleException(Loc.T("Err.DeliveryPaymentInStore"));
 
@@ -71,6 +73,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             DeliveryFee = Money.Round(request.DeliveryFee),
             Channel = request.Channel,
             Courier = request.Channel == SalesChannel.InStore ? null : QueryHelpers.Clean(request.Courier),
+            DeliveryReference = request.Channel == SalesChannel.InStore ? null : QueryHelpers.Clean(request.DeliveryReference)?.ToUpperInvariant(),
             CartDiscountType = request.CartDiscountType,
             CartDiscountValue = request.CartDiscountType == DiscountType.None ? 0 : request.CartDiscountValue,
             Notes = QueryHelpers.Clean(request.Notes),
@@ -254,6 +257,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             var pattern = QueryHelpers.LikePattern(text);
             query = query.Where(s =>
                 EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
+                EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.LastName, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.Phone!, pattern, "\\") ||
@@ -286,9 +290,15 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException(Loc.T("Err.ReturnedCantVoid"));
         if (sale.Shift is { Status: ShiftStatus.Closed })
             throw new BusinessRuleException(Loc.T("Err.VoidShiftClosed"));
+        if (sale.DeliverySettlementId is not null)
+            throw new BusinessRuleException(Loc.T("Err.VoidSettledDelivery"));
 
         foreach (var line in sale.Lines)
+        {
             StockLedger.Apply(db, line.ProductVariant!, line.Quantity, StockMovementType.Void, userId, sale.ReceiptNumber, "Sale voided");
+            // Checked on save, so a return taken at another till meanwhile stops the void.
+            db.Entry(line).Property(l => l.ReturnedQuantity).IsModified = true;
+        }
 
         if (sale.Customer is { } customer)
         {
@@ -330,6 +340,16 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     }
 
     /// <summary>Returns the cart and deletes the held record.</summary>
+    /// <summary>Reads a held cart without taking it off hold (to load its items before <see cref="ResumeAsync"/>).</summary>
+    public async Task<HeldCart> PeekHeldAsync(int heldSaleId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var payload = await db.HeldSales.AsNoTracking().Where(h => h.Id == heldSaleId).Select(h => h.Payload).FirstOrDefaultAsync(ct)
+            ?? throw new BusinessRuleException(Loc.T("Err.HeldNotFound"));
+        return JsonSerializer.Deserialize<HeldCart>(payload) ?? throw new BusinessRuleException(Loc.T("Err.HeldCorrupt"));
+    }
+
+    /// <summary>Takes a cart off hold and returns it; fails if another till already resumed it.</summary>
     public async Task<HeldCart> ResumeAsync(int heldSaleId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);

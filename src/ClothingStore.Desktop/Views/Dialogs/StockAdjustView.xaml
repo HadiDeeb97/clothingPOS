@@ -16,7 +16,7 @@
         <TextBlock Text="{l:T Common.Qty}" Style="{StaticResource FieldLabel}" />
         <TextBox Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
         <TextBlock Text="{l:T Common.Notes}" Style="{StaticResource FieldLabel}" />
-        <TextBox Text="{Binding Notes}" />
+        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" />
         <StackPanel Style="{StaticResource DialogFooter}">
             <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
             <Button Content="{l:T Inventory.SaveAdjustment}" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" IsDefault="True" Margin="0" />

@@ -8,7 +8,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | Area | What it does |
 | --- | --- |
 | **Register** | Scan barcodes or search by name/SKU/colour/size; size & colour variants; quantity +/-; line and cart discounts (% or amount); cashier discount limit with manager override; hold & resume sales (fitting room); keyboard shortcuts (F2 search, F4 customer, F6 qty, F7/F8 discounts, F9/F10 hold/resume, F12 pay) |
-| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4) |
+| **Payments** | Split tender across cash (dollars and Lebanese pounds), card, mobile wallet, store credit and loyalty points; quick-cash buttons for both currencies; change in dollars, pounds or both; printable receipts with the LBP total (auto-fits 58/80 mm thermal or A4), number of copies per print |
 | **Lebanese pounds** | Prices stay in dollars; LBP is a second cash currency at the store's rate. Managers and admins change the rate from the top bar, every change is logged, and other tills pick it up within a minute. A sale or refund at an old rate is refused. LBP is rounded to a configurable step (up when collecting, down when paying out) |
 | **Returns & exchanges** | Look up a receipt; partial returns; restock or write off; refunds go back the way the sale was paid (split payments in proportion), or to store credit; store credit and loyalty points always come back as credit and points, never cash; card refunds in cash need a manager; return window with manager override; refunds reconcile to the cent per tender |
 | **Sales history** | Search by date/receipt/customer/product; reprint; void (manager only, restocks and reverses balances); CSV export |
@@ -16,7 +16,7 @@ A Windows desktop point-of-sale system for clothing and fashion retail, built wi
 | **Inventory** | Stock levels and valuation; low-stock highlighting; adjustments (damaged, lost, received…); physical stock counts; full movement ledger |
 | **Price labels** | Select several products or stock rows (Ctrl/Shift+click) and print them in one go, or scan items into the list; copies per item, for all, or from stock; label size presets (A4 sheets such as 21/24/65 per page, label printers, hang tags) or a custom size and sheet position; choose what is printed (name, size/colour, price, LBP price, barcode, SKU, store name); live preview; settings remembered per PC |
 | **Purchasing** | Suppliers; purchase orders; "add supplier's low-stock items"; partial and full receiving into stock with cost updates |
-| **Customers** | Profiles, purchase history, lifetime spend; loyalty points (earn and redeem); store credit |
+| **Customers** | Profiles with address and state (Lebanon's governorates, more can be added), filter by state, total spent / visits / last purchase per customer, purchase history; loyalty points (earn and redeem); store credit |
 | **Cash drawer** | Open shift with float; pay-ins/pay-outs; X report; count and close with over/short; Z report; shift history. Dollars and pounds are counted separately |
 | **Reports** | Sales, net revenue, gross profit and margin, average basket; breakdowns by product, category, size, payment method, cashier and day; stock valuation; CSV export and printable summary |
 | **Online orders** | On the register, mark a sale as an online order (button or F11): where it came from (WhatsApp, Instagram, Facebook, phone, website, other), an optional delivery fee added to the total, and an address/notes line printed on the receipt. Sales history shows the source of every sale (in store or which channel) and filters by it; reports break sales down by channel |
@@ -161,8 +161,9 @@ customer will need a new key.
 
 Orders that come in by message are rung up on the **Register** like any sale:
 
-1. Scan or pick the items and choose the customer (F4) as usual.
-2. Click **Online order** (or press **F11**), pick where the order came from, enter the delivery fee (if any; the last one
+1. Scan or pick the items.
+2. Click **Online order** (or press **F11**). An online order always needs a customer: if none is chosen yet the
+   customer picker opens first (create one there with their address and state). Then pick where the order came from, enter the delivery fee (if any; the last one
    used on this PC is suggested) and the address or Instagram name. The register shows "Online order · WhatsApp" and adds
    the delivery fee to the total. The **x** turns it back into an in-store sale.
 3. Pay (cash in USD/LBP, card or wallet). The receipt says "Order via WhatsApp" and prints the address/notes.
@@ -173,7 +174,11 @@ An online order can be put on hold (F9) like any cart and keeps its details when
 
 **When the delivery company collects the money** (it doesn't hand you cash straight away):
 
-1. In the online order window, enter the **delivery company / driver** (companies used before are suggested).
+1. In the online order window, pick the **delivery company / driver**. Save them once under **Deliveries →
+   Companies & drivers** (company or driver, contact person, phones, address, usual delivery fee, notes): picking one
+   shows its phone and fills in its usual fee. Any other name can still be typed. Renaming a company there renames it on
+   its orders; one with orders is set inactive instead of deleted. Companies typed on older orders are added
+   automatically on upgrade.
 2. When paying, choose **Delivery company (pay later)**. The sale is recorded, but that amount is not cash in the
    drawer: it is **owed** by the company. A tracking number can go in the reference box.
 3. **Deliveries** (under Sell) lists those orders as *Awaiting payment* and shows what each company owes.
@@ -214,6 +219,10 @@ next to the payment in Sales history.
 
 * **Barcode scanners**: any USB/Bluetooth scanner in keyboard-wedge mode that sends Enter after each scan.
 * **Receipt printers**: any Windows-installed printer. Set *Receipt width* to 42 for 80 mm or 32 for 58 mm paper.
+* **Default printers (per PC)**: *Settings → Printers* picks the invoice/receipt printer, how many invoice copies to
+  print, and the label printer. With a printer chosen, receipts and labels print straight to it without the Windows print
+  window (**Test** prints a short slip). **Choose printer…** in the print window prints elsewhere once. *Ask every time*
+  brings the Windows print window back. If a chosen printer is removed, the Windows print window is shown instead.
 * **Labels**: 3-across A4/Letter label sheets (labels about 33 mm tall), or one label per page on a label printer. Labels use Code 128.
 * Cash drawers that open from the receipt printer work through the printer driver's "open drawer" setting.
 

@@ -342,7 +342,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         else Items.Remove(item);
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    [RelayCommand(CanExecute = nameof(CanRemoveItem))]
     private void RemoveItem(CartItemViewModel? item)
     {
         item ??= SelectedItem;
@@ -405,6 +405,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     private bool HasSelection() => SelectedItem is not null;
 
+    /// <summary>The X on a row passes that row; the toolbar button passes nothing and removes the selected one.</summary>
+    private bool CanRemoveItem(CartItemViewModel? item) => item is not null || SelectedItem is not null;
+
     /// <summary>Cashiers need a manager's credentials for discounts above the configured limit.</summary>
     private bool EnsureDiscountApproved()
     {
@@ -438,7 +441,15 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     }
 
     [RelayCommand]
-    private void ClearCustomer() => Customer = null;
+    private void ClearCustomer()
+    {
+        if (IsOnline)
+        {
+            Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+            return;
+        }
+        Customer = null;
+    }
 
     // ---- Hold / resume ----------------------------------------------------------------------
 
@@ -452,7 +463,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         var cart = new HeldCart(
             Items.Select(i => new HeldCartLine(i.VariantId, i.Quantity, i.DiscountType, i.DiscountValue)).ToList(),
-            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null, IsOnline ? Courier : null);
+            CartDiscountType, CartDiscountValue, Customer?.Id, Channel, IsOnline ? DeliveryFee : 0, IsOnline ? OrderNotes : null, IsOnline ? Courier : null, IsOnline ? DeliveryReference : null);
         await _sales.HoldAsync(label, Session.User.Id, cart);
         ResetSale();
         Dialogs.Toast(Loc.T("Register.Held", label));
@@ -471,8 +482,11 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             return;
         }
 
-        var cart = await _sales.ResumeAsync(picker.Chosen.Id);
+        // Load everything first and only then take it off hold, so a failed load doesn't lose the cart.
+        var cart = await _sales.PeekHeldAsync(picker.Chosen.Id);
         var variants = (await _products.GetVariantsAsync(cart.Lines.Select(l => l.VariantId))).ToDictionary(v => v.Id);
+        var customer = cart.CustomerId is { } customerId ? await _customers.GetAsync(customerId) : null;
+        await _sales.ResumeAsync(picker.Chosen.Id);
 
         ResetSale();
         var missing = 0;
@@ -487,11 +501,13 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
         CartDiscountType = cart.CartDiscountType;
         CartDiscountValue = cart.CartDiscountValue;
-        if (cart.CustomerId is { } customerId) Customer = await _customers.GetAsync(customerId);
+        Customer = customer;
         Channel = cart.Channel;
         DeliveryFee = cart.DeliveryFee;
         OrderNotes = cart.Notes;
         Courier = cart.Courier;
+        DeliveryReference = cart.DeliveryReference;
+        SelectedItem = Items.FirstOrDefault();
         Recalculate();
         await RefreshHeldCountAsync();
 
@@ -524,6 +540,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [ObservableProperty]
     public partial string? Courier { get; set; }
 
+    /// <summary>The delivery company's invoice / tracking number.</summary>
+    [ObservableProperty]
+    public partial string? DeliveryReference { get; set; }
+
     public bool IsOnline => Channel != SalesChannel.InStore;
 
     /// <summary>Items plus the delivery fee of an online order.</summary>
@@ -533,14 +553,37 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [RelayCommand]
     private async Task OnlineOrderAsync()
     {
+        // An online order is always for someone: pick (or add) the customer first.
+        if (Customer is null)
+        {
+            var picker = new CustomerPickerViewModel(Dialogs, _customers);
+            if (!Dialogs.ShowDialog(picker) || picker.Selected is null)
+            {
+                Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+                return;
+            }
+            Customer = picker.Selected.Region is null && picker.Selected.RegionId is not null
+                ? await _customers.GetAsync(picker.Selected.Id) ?? picker.Selected
+                : picker.Selected;
+        }
+        // Their address goes into the delivery notes unless something was typed already.
+        if (string.IsNullOrWhiteSpace(OrderNotes) && Customer?.FullAddress is { } address) OrderNotes = address;
+
         IReadOnlyList<string> couriers = [];
-        try { couriers = await _deliveries.GetCouriersAsync(); } catch { /* just no suggestions */ }
-        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers);
+        IReadOnlyList<DeliveryPartner> partners = [];
+        try
+        {
+            couriers = await _deliveries.GetCouriersAsync();
+            partners = await _deliveries.GetPartnersAsync();
+        }
+        catch { /* just no suggestions */ }
+        var dialog = new OnlineSaleViewModel(Dialogs, Channel, DeliveryFee, OrderNotes, Courier, couriers, DeliveryReference, partners);
         if (!Dialogs.ShowDialog(dialog)) return;
         Channel = dialog.Channel;
         DeliveryFee = dialog.DeliveryFee;
         OrderNotes = dialog.Notes;
         Courier = dialog.Courier;
+        DeliveryReference = dialog.DeliveryReference;
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -552,6 +595,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         DeliveryFee = 0;
         OrderNotes = null;
         Courier = null;
+        DeliveryReference = null;
     }
 
     // ---- Checkout ---------------------------------------------------------------------------
@@ -574,6 +618,28 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
 
         if (!EnsureDiscountApproved()) return;
+        if (IsOnline && Customer is null)
+        {
+            Dialogs.Warning(Loc.T("Register.OnlineNeedsCustomer"));
+            return;
+        }
+
+        // The sale is priced on the server from current prices and tax: catch up with changes made at another till
+        // (or in Products) since the items were scanned, so the total and change shown are what is charged.
+        var repriced = 0;
+        if (!await RunAsync(async () =>
+            {
+                await _settings.GetAsync();
+                var variants = (await _products.GetVariantsAsync(Items.Select(i => i.VariantId).Distinct())).ToDictionary(v => v.Id);
+                foreach (var item in Items)
+                    if (variants.TryGetValue(item.VariantId, out var v) && item.Reprice(v.EffectivePrice)) repriced++;
+                Recalculate();
+            })) return;
+        if (repriced > 0)
+        {
+            Dialogs.Warning(Loc.T("Register.PricesChanged", repriced));
+            return; // let the cashier see the new total before taking money
+        }
 
         var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
         if (!Dialogs.ShowDialog(payment)) return;
@@ -597,6 +663,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 DeliveryFee = IsOnline ? DeliveryFee : 0,
                 Notes = IsOnline ? OrderNotes : null,
                 Courier = IsOnline ? Courier : null,
+                DeliveryReference = IsOnline ? DeliveryReference : null,
             });
         });
         if (!ok || sale is null)
@@ -619,7 +686,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         var title = change is not null
             ? Loc.T("Register.ChangeDue", change)
             : Loc.T("Register.SaleComplete", sale.ReceiptNumber);
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale")));
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale"), LocalPreferences.Current.ReceiptCopies));
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -635,6 +702,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         DeliveryFee = 0;
         OrderNotes = null;
         Courier = null;
+        DeliveryReference = null;
         SearchText = "";
         HideResults();
         _approvedByUserId = null;

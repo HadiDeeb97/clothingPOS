@@ -29,6 +29,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
     public DbSet<AppState> AppState => Set<AppState>();
     public DbSet<DeliverySettlement> DeliverySettlements => Set<DeliverySettlement>();
+    public DbSet<Region> Regions => Set<Region>();
+    public DbSet<DeliveryPartner> DeliveryPartners => Set<DeliveryPartner>();
 
     /// <summary>
     /// Usernames, SKUs and category/supplier names are unique regardless of case, even if the
@@ -98,6 +100,12 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.Email).HasMaxLength(150);
             e.Property(x => x.Version).IsConcurrencyToken();
             e.Ignore(x => x.FullName);
+            e.Property(x => x.Address).HasMaxLength(300);
+            e.HasOne(x => x.Region).WithMany().HasForeignKey(x => x.RegionId).OnDelete(DeleteBehavior.SetNull);
+            e.Ignore(x => x.TotalSpent);
+            e.Ignore(x => x.Visits);
+            e.Ignore(x => x.LastVisit);
+            e.Ignore(x => x.FullAddress);
         });
 
         b.Entity<Sale>(e =>
@@ -112,8 +120,13 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasMany(x => x.Payments).WithOne(p => p.Sale).HasForeignKey(p => p.SaleId).OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Courier).HasMaxLength(100);
             e.HasIndex(x => x.Courier);
+            e.Property(x => x.DeliveryReference).HasMaxLength(100).UseCollation(CaseInsensitive);
+            e.HasIndex(x => x.DeliveryReference);
             e.HasOne(x => x.DeliverySettlement).WithMany(d => d.Sales).HasForeignKey(x => x.DeliverySettlementId).OnDelete(DeleteBehavior.Restrict);
             e.Ignore(x => x.ItemCount);
+            // Void, return and delivery settlement each check the sale wasn't voided or settled at another till meanwhile.
+            e.Property(x => x.Status).IsConcurrencyToken();
+            e.Property(x => x.DeliverySettlementId).IsConcurrencyToken();
         });
 
         b.Entity<SaleLine>(e =>
@@ -189,6 +202,35 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
             e.Ignore(x => x.ActiveLbpRate);
+        });
+
+        b.Entity<Region>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(100).UseCollation(CaseInsensitive).IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.NameAr).HasMaxLength(100);
+            e.Ignore(x => x.DisplayName);
+            // Lebanon's governorates to start with; stores can add more.
+            e.HasData(
+                new Region { Id = 1, Name = "Beirut", NameAr = "بيروت", SortOrder = 1 },
+                new Region { Id = 2, Name = "Mount Lebanon", NameAr = "جبل لبنان", SortOrder = 2 },
+                new Region { Id = 3, Name = "North", NameAr = "الشمال", SortOrder = 3 },
+                new Region { Id = 4, Name = "Akkar", NameAr = "عكار", SortOrder = 4 },
+                new Region { Id = 5, Name = "Bekaa", NameAr = "البقاع", SortOrder = 5 },
+                new Region { Id = 6, Name = "Baalbek-Hermel", NameAr = "بعلبك الهرمل", SortOrder = 6 },
+                new Region { Id = 7, Name = "South", NameAr = "الجنوب", SortOrder = 7 },
+                new Region { Id = 8, Name = "Nabatieh", NameAr = "النبطية", SortOrder = 8 });
+        });
+
+        b.Entity<DeliveryPartner>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(100).UseCollation(CaseInsensitive).IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.ContactName).HasMaxLength(150);
+            e.Property(x => x.Phone).HasMaxLength(40);
+            e.Property(x => x.Phone2).HasMaxLength(40);
+            e.Property(x => x.Address).HasMaxLength(300);
+            e.Property(x => x.Notes).HasMaxLength(1000);
         });
 
         b.Entity<DeliverySettlement>(e =>

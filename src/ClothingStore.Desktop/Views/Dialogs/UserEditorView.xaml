@@ -5,9 +5,9 @@
              Width="400">
     <StackPanel>
         <TextBlock Text="{l:T Users.UsernameRequired}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
-        <TextBox x:Name="UserBox" Text="{Binding Username}" />
+        <TextBox x:Name="UserBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
         <TextBlock Text="{l:T Users.FullNameRequired}" Style="{StaticResource FieldLabel}" />
-        <TextBox Text="{Binding FullName}" />
+        <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" />
         <TextBlock Text="{l:T Common.Role}" Style="{StaticResource FieldLabel}" />
         <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" IsEnabled="{Binding CanChooseRole}">
             <ComboBox.ItemTemplate>

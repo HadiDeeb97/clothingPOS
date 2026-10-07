@@ -18,6 +18,14 @@ namespace ClothingStore.Data.Migrations
                 maxLength: 100,
                 nullable: true);
 
+            migrationBuilder.AddColumn<string>(
+                name: "DeliveryReference",
+                table: "Sales",
+                type: "nvarchar(100)",
+                maxLength: 100,
+                nullable: true,
+                collation: "Latin1_General_100_CI_AS");
+
             migrationBuilder.AddColumn<int>(
                 name: "DeliverySettlementId",
                 table: "Sales",
@@ -58,6 +66,11 @@ namespace ClothingStore.Data.Migrations
                 column: "Courier");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Sales_DeliveryReference",
+                table: "Sales",
+                column: "DeliveryReference");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Sales_DeliverySettlementId",
                 table: "Sales",
                 column: "DeliverySettlementId");
@@ -96,11 +109,19 @@ namespace ClothingStore.Data.Migrations
                 table: "Sales");
 
             migrationBuilder.DropIndex(
+                name: "IX_Sales_DeliveryReference",
+                table: "Sales");
+
+            migrationBuilder.DropIndex(
                 name: "IX_Sales_DeliverySettlementId",
                 table: "Sales");
 
             migrationBuilder.DropColumn(
                 name: "Courier",
+                table: "Sales");
+
+            migrationBuilder.DropColumn(
+                name: "DeliveryReference",
                 table: "Sales");
 
             migrationBuilder.DropColumn(

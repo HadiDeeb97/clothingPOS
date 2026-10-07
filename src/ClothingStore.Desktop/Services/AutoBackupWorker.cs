@@ -27,9 +27,10 @@ public sealed class AutoBackupWorker(BackupService backups, ILogger<AutoBackupWo
                     if (await backups.RunIfDueAsync(stoppingToken).ConfigureAwait(false) is { } record)
                         logger.LogInformation("Scheduled backup written to {Path}", record.FilePath);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
-                    // Already recorded in the backup log, which Settings shows; try again on the next tick.
+                    // Already recorded in the backup log, which Settings shows; try again on the next tick. (A timeout
+                    // from SQL Server can surface as a cancellation too; only the app closing stops the loop.)
                     logger.LogWarning(ex, "Scheduled backup failed");
                 }
             }

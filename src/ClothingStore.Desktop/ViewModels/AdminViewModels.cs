@@ -3,6 +3,7 @@ using ClothingStore.Core.Entities;
 using ClothingStore.Core.Security;
 using ClothingStore.Data.Services;
 using ClothingStore.Desktop.Infrastructure;
+using ClothingStore.Desktop.Services;
 using ClothingStore.Desktop.ViewModels.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -160,8 +161,11 @@ public sealed partial class UserEditorViewModel : DialogViewModelBase
 
 public sealed record LanguageOption(string Code, string Name);
 
-public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session, BrandingService branding)
-    : ViewModelBase(dialogs), IPageViewModel
+/// <summary>A printer to pick in Settings; an empty <see cref="Name"/> means "ask every time" (Windows print dialog).</summary>
+public sealed record PrinterChoice(string Name, string Display);
+
+public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session, BrandingService branding,
+    PrintService print) : ViewModelBase(dialogs), IPageViewModel
 {
     public string Title => Loc.T("Nav.Settings");
     public string DatabaseName => App.DatabaseName;
@@ -187,11 +191,67 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
 
     partial void OnSettingsChanged(StoreSettings value) => OnPropertyChanged(nameof(RateText));
 
+    // ---- Printers (this PC only, kept in LocalPreferences) -------------------------------------
+
+    [ObservableProperty]
+    public partial List<PrinterChoice> Printers { get; set; } = [];
+
+    [ObservableProperty]
+    public partial string ReceiptPrinter { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string LabelPrinter { get; set; } = "";
+
+    [ObservableProperty]
+    public partial int ReceiptCopies { get; set; } = 1;
+
+    [RelayCommand]
+    private void RefreshPrinters()
+    {
+        var installed = PrintService.InstalledPrinters();
+        var list = new List<PrinterChoice> { new("", Loc.T("Print.AskEveryTime")) };
+        list.AddRange(installed.Select(n => new PrinterChoice(n, n)));
+        // A saved printer that is unplugged or renamed stays visible, so it isn't silently forgotten.
+        foreach (var saved in new[] { LocalPreferences.Current.ReceiptPrinter, LocalPreferences.Current.LabelPrinter })
+            if (!string.IsNullOrEmpty(saved) && list.All(c => !string.Equals(c.Name, saved, StringComparison.OrdinalIgnoreCase)))
+                list.Add(new PrinterChoice(saved, Loc.T("Print.NotFound", saved)));
+        Printers = list;
+        ReceiptPrinter = LocalPreferences.Current.ReceiptPrinter ?? "";
+        LabelPrinter = LocalPreferences.Current.LabelPrinter ?? "";
+        ReceiptCopies = Math.Clamp(LocalPreferences.Current.ReceiptCopies, 1, 99);
+    }
+
+    private void SavePrinters()
+    {
+        var prefs = LocalPreferences.Current;
+        prefs.ReceiptPrinter = string.IsNullOrEmpty(ReceiptPrinter) ? null : ReceiptPrinter;
+        prefs.LabelPrinter = string.IsNullOrEmpty(LabelPrinter) ? null : LabelPrinter;
+        prefs.ReceiptCopies = Math.Clamp(ReceiptCopies, 1, 99);
+        prefs.Save();
+    }
+
+    [RelayCommand]
+    private void TestReceiptPrinter()
+    {
+        SavePrinters();
+        try
+        {
+            string[] lines = [Settings.StoreName, "", Loc.T("Print.TestLine"), DateTime.Now.ToString("g"), "", new string('-', 32)];
+            if (print.PrintText(lines, Loc.T("Print.TestTitle")))
+                Dialogs.Toast(Loc.T("Print.Sent", 1));
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Common.PrintFailed"), ex);
+        }
+    }
+
     public async Task OnNavigatedToAsync() => await ReloadAsync();
 
     [RelayCommand]
     private Task ReloadAsync() => RunAsync(async () =>
     {
+        RefreshPrinters();
         Settings = (await settings.GetAsync()).Clone();
         Backups = await backup.GetRecentAsync();
     });
@@ -199,6 +259,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
+        SavePrinters();
         await settings.SaveAsync(Settings.Clone());
         Settings = (await settings.GetAsync()).Clone();
         Dialogs.Toast(Loc.T("Settings.Saved"));

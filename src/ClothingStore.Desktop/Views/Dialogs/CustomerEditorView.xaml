@@ -12,11 +12,11 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="{l:T Customers.FirstNameRequired}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
-                <TextBox x:Name="FirstBox" Text="{Binding Customer.FirstName}" />
+                <TextBox x:Name="FirstBox" Text="{Binding Customer.FirstName, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="{l:T Customers.LastName}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
-                <TextBox Text="{Binding Customer.LastName}" />
+                <TextBox Text="{Binding Customer.LastName, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
         </Grid>
         <Grid>
@@ -27,7 +27,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="{l:T Common.Phone}" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding Customer.Phone}" />
+                <TextBox Text="{Binding Customer.Phone, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="{l:T Customers.Birthday}" Style="{StaticResource FieldLabel}" />
@@ -35,9 +35,18 @@
             </StackPanel>
         </Grid>
         <TextBlock Text="{l:T Common.Email}" Style="{StaticResource FieldLabel}" />
-        <TextBox Text="{Binding Customer.Email}" />
+        <TextBox Text="{Binding Customer.Email, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Text="{l:T Customers.State}" Style="{StaticResource FieldLabel}" />
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{l:T Customers.AddState}" Command="{Binding AddRegionCommand}" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" Width="30" Height="30" Command="{Binding ClearRegionCommand}"
+                    ToolTip="{l:T Common.Remove}" Margin="6,0,0,0" />
+            <ComboBox ItemsSource="{Binding Regions}" SelectedItem="{Binding SelectedRegion}" DisplayMemberPath="DisplayName" />
+        </DockPanel>
+        <TextBlock Text="{l:T Customers.Address}" Style="{StaticResource FieldLabel}" />
+        <TextBox Text="{Binding Customer.Address, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}" Height="56" Tag="{l:T Customers.AddressHint}" />
         <TextBlock Text="{l:T Customers.NotesLabel}" Style="{StaticResource FieldLabel}" />
-        <TextBox Text="{Binding Customer.Notes}" Style="{StaticResource MultilineBox}" Height="72" />
+        <TextBox Text="{Binding Customer.Notes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}" Height="72" />
         <CheckBox Content="{l:T Common.Active}" IsChecked="{Binding Customer.IsActive}" Margin="0,12,0,0" />
         <StackPanel Style="{StaticResource DialogFooter}">
             <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />

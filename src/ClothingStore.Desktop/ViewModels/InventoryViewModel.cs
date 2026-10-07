@@ -57,7 +57,8 @@ public sealed partial class InventoryViewModel(
     {
         try
         {
-            Movements = value is null ? [] : await inventory.GetMovementsAsync(value.Id, max: 200);
+            var movements = value is null ? [] : await inventory.GetMovementsAsync(value.Id, max: 200);
+            if (ReferenceEquals(SelectedItem, value)) Movements = movements; // a slower answer for another item is dropped
         }
         catch (Exception ex)
         {

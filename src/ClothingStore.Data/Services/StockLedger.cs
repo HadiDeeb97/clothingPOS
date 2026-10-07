@@ -18,7 +18,9 @@ internal static class StockLedger
         bool allowNegative = false)
     {
         var after = variant.StockQuantity + change;
-        if (after < 0 && !allowNegative)
+        // Only taking stock out can be refused: receiving, returns and voids must go through even while the count is
+        // already below zero (after a sale with negative stock allowed), or that stock could never be put back.
+        if (change < 0 && after < 0 && !allowNegative)
             throw new BusinessRuleException(Loc.T("Err.NotEnoughStock", variant.Sku, variant.StockQuantity, -change));
 
         variant.StockQuantity = after;

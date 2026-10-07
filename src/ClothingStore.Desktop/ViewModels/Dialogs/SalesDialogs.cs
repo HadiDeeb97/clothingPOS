@@ -169,10 +169,10 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     partial void OnChangeInChanged(ChangeCurrency value) => RefreshCash();
 
     [RelayCommand]
-    private void SetUsd(QuickCash option) => UsdText = option.Amount.ToString("0.##", CultureInfo.InvariantCulture);
+    private void SetUsd(QuickCash option) => UsdText = option.Amount.ToString("0.##", CultureInfo.CurrentCulture);
 
     [RelayCommand]
-    private void SetLbp(QuickCash option) => LbpText = option.Amount.ToString("#,0", CultureInfo.InvariantCulture);
+    private void SetLbp(QuickCash option) => LbpText = option.Amount.ToString("#,0", CultureInfo.CurrentCulture);
 
     [RelayCommand]
     private void ClearCash()

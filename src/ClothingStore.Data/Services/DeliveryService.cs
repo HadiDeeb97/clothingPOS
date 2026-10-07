@@ -14,6 +14,9 @@ public sealed record DeliveryRow
     public required DateTime CreatedAt { get; init; }
     public SalesChannel Channel { get; init; }
     public string? Courier { get; init; }
+
+    /// <summary>The delivery company's invoice / tracking number.</summary>
+    public string? DeliveryReference { get; init; }
     public string? Customer { get; init; }
     public string? Notes { get; init; }
     public decimal Total { get; init; }
@@ -63,6 +66,7 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             var pattern = QueryHelpers.LikePattern(text);
             query = query.Where(s =>
                 EF.Functions.Like(s.ReceiptNumber, pattern, "\\") ||
+                EF.Functions.Like(s.DeliveryReference!, pattern, "\\") ||
                 EF.Functions.Like(s.Courier!, pattern, "\\") ||
                 EF.Functions.Like(s.Notes!, pattern, "\\") ||
                 EF.Functions.Like(s.Customer!.FirstName, pattern, "\\") ||
@@ -77,6 +81,22 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// The order with this delivery invoice / tracking number (or receipt number), paid or not, for scanning the
+    /// company's slips when it pays. Null when nothing matches.
+    /// </summary>
+    public async Task<DeliveryRow?> FindAsync(string code, CancellationToken ct = default)
+    {
+        code = code.Trim();
+        if (code.Length == 0) return null;
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await DeliverySales(db)
+            .Where(s => s.DeliveryReference == code || s.ReceiptNumber == code)
+            .OrderBy(s => s.DeliverySettlementId == null ? 0 : 1).ThenByDescending(s => s.CreatedAt)
+            .Select(Row(db))
+            .FirstOrDefaultAsync(ct);
+    }
+
     /// <summary>What each delivery company still owes.</summary>
     public async Task<List<CourierBalance>> GetBalancesAsync(CancellationToken ct = default)
     {
@@ -89,17 +109,90 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             .ToList();
     }
 
-    /// <summary>Delivery companies used before (for the online order dialog).</summary>
+    /// <summary>
+    /// Names for picking a delivery company / driver: the active partners first, then names used on older orders that
+    /// aren't saved as partners.
+    /// </summary>
     public async Task<List<string>> GetCouriersAsync(CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.Sales.AsNoTracking()
+        var partners = await db.DeliveryPartners.AsNoTracking().Where(p => p.IsActive).OrderBy(p => p.Name).Select(p => p.Name).ToListAsync(ct);
+        var known = await db.DeliveryPartners.AsNoTracking().Select(p => p.Name).ToListAsync(ct);
+        var used = await db.Sales.AsNoTracking()
             .Where(s => s.Courier != null && s.Courier != "")
             .GroupBy(s => s.Courier!)
             .OrderByDescending(g => g.Max(s => s.CreatedAt))
             .Select(g => g.Key)
             .Take(30)
             .ToListAsync(ct);
+        var seen = new HashSet<string>(known, StringComparer.OrdinalIgnoreCase);
+        return [.. partners, .. used.Where(seen.Add)];
+    }
+
+    // ---- Delivery companies and drivers -----------------------------------------------------
+
+    public async Task<List<DeliveryPartner>> GetPartnersAsync(bool includeInactive = false, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.DeliveryPartners.AsNoTracking()
+            .Where(p => includeInactive || p.IsActive)
+            .OrderBy(p => p.Kind).ThenBy(p => p.Name)
+            .ToListAsync(ct);
+    }
+
+    /// <summary>Adds or updates a partner. Renaming one also renames it on its orders and settlements.</summary>
+    public async Task<DeliveryPartner> SavePartnerAsync(DeliveryPartner partner, CancellationToken ct = default)
+    {
+        var name = partner.Name.Trim();
+        if (name.Length == 0) throw new BusinessRuleException(Loc.T("Err.PartnerNameRequired"));
+        if (partner.DefaultFee < 0) throw new BusinessRuleException(Loc.T("Err.DeliveryFeeNegative"));
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        if (await db.DeliveryPartners.AnyAsync(p => p.Name == name && p.Id != partner.Id, ct))
+            throw new BusinessRuleException(Loc.T("Err.PartnerExists", name));
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var entity = partner.Id == 0
+            ? db.DeliveryPartners.Add(new DeliveryPartner()).Entity
+            : await db.DeliveryPartners.FindAsync([partner.Id], ct) ?? throw new BusinessRuleException(Loc.T("Err.PartnerNotFound"));
+
+        var oldName = entity.Name;
+        entity.Name = name;
+        entity.Kind = partner.Kind;
+        entity.ContactName = QueryHelpers.Clean(partner.ContactName);
+        entity.Phone = QueryHelpers.Clean(partner.Phone);
+        entity.Phone2 = QueryHelpers.Clean(partner.Phone2);
+        entity.Address = QueryHelpers.Clean(partner.Address);
+        entity.DefaultFee = partner.DefaultFee is { } fee ? Money.Round(fee) : null;
+        entity.Notes = QueryHelpers.Clean(partner.Notes);
+        entity.IsActive = partner.IsActive;
+        await db.SaveChangesAsync(ct);
+
+        if (partner.Id != 0 && !string.Equals(oldName, name, StringComparison.Ordinal))
+        {
+            // Balances and filters group by name, so the orders follow the new one.
+            await db.Sales.Where(s => s.Courier == oldName).ExecuteUpdateAsync(u => u.SetProperty(s => s.Courier, name), ct);
+            await db.DeliverySettlements.Where(s => s.Courier == oldName).ExecuteUpdateAsync(u => u.SetProperty(s => s.Courier, name), ct);
+        }
+        await tx.CommitAsync(ct);
+        return entity;
+    }
+
+    /// <summary>Deletes a partner never used on an order; one with orders is deactivated instead (returns false).</summary>
+    public async Task<bool> DeletePartnerAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var entity = await db.DeliveryPartners.FindAsync([id], ct);
+        if (entity is null) return false;
+        if (await db.Sales.AnyAsync(s => s.Courier == entity.Name, ct))
+        {
+            entity.IsActive = false;
+            await db.SaveChangesAsync(ct);
+            return false;
+        }
+        db.DeliveryPartners.Remove(entity);
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     /// <summary>Records money from a delivery company for the chosen orders and marks them paid.</summary>
@@ -152,7 +245,15 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
         var sales = await db.Sales.Where(s => ids.Contains(s.Id)).ToListAsync(ct);
         foreach (var sale in sales) sale.DeliverySettlement = settlement;
         db.DeliverySettlements.Add(settlement);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another till settled (or voided) one of these orders after they were loaded.
+            throw new BusinessRuleException(Loc.T("Err.SettleAlreadyPaid"));
+        }
         return settlement;
     }
 
@@ -170,6 +271,7 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
         CreatedAt = s.CreatedAt,
         Channel = s.Channel,
         Courier = s.Courier,
+        DeliveryReference = s.DeliveryReference,
         Customer = s.Customer != null ? s.Customer.FirstName + " " + s.Customer.LastName : null,
         Notes = s.Notes,
         Total = s.Total,

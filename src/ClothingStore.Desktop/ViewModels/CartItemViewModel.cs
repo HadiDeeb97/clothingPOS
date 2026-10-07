@@ -23,7 +23,17 @@ public sealed partial class CartItemViewModel : ObservableObject
     public string ProductName { get; }
     public string VariantDescription { get; }
     public string Sku { get; }
-    public decimal UnitPrice { get; }
+    /// <summary>Shelf price when added; refreshed before payment in case it was changed meanwhile.</summary>
+    [ObservableProperty]
+    public partial decimal UnitPrice { get; private set; }
+
+    /// <summary>Takes the current shelf price; true when it differed.</summary>
+    public bool Reprice(decimal price)
+    {
+        if (price == UnitPrice) return false;
+        UnitPrice = price;
+        return true;
+    }
     public int StockOnHand { get; }
 
     [ObservableProperty]

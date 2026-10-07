@@ -39,11 +39,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     private readonly BrandingService _branding;
     private readonly DispatcherTimer _clock;
 
+    private readonly SalesViewModel _register;
+
     public MainViewModel(
         IDialogService dialogs, NavigationService navigation, Session session, SettingsService settings, UserService users,
-        BrandingService branding, LicenseManager license)
+        BrandingService branding, LicenseManager license, SalesViewModel register)
         : base(dialogs)
     {
+        _register = register;
         License = license;
         _navigation = navigation;
         _settings = settings;
@@ -56,7 +59,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
             Nav<SalesViewModel>("Nav.Register", "", Permission.Sell),
             Nav<ReturnsViewModel>("Nav.Returns", "", Permission.ProcessReturns),
             Nav<SalesHistoryViewModel>("Nav.SalesHistory", "", Permission.Sell),
-            Nav<DeliveriesViewModel>("Nav.Deliveries", "\uE7BF", Permission.Sell),
+            Nav<DeliveriesViewModel>("Nav.Deliveries", "\uE7B8", Permission.Sell),
             Nav<ShiftViewModel>("Nav.CashDrawer", "", Permission.Sell));
         AddGroup("Nav.Group.People",
             Nav<CustomersViewModel>("Nav.Customers", "", Permission.ManageCustomers));
@@ -253,7 +256,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     private void SignOut()
     {
         IsUserMenuOpen = false;
-        if (Dialogs.Confirm(Loc.T("Shell.SignOutConfirm"))) SignOutRequested?.Invoke(this, EventArgs.Empty);
+        // Signing out clears the register, so say so when a sale is in progress (hold it with F9 to keep it).
+        var question = _register.HasItems ? Loc.T("Shell.SignOutConfirmCart", _register.Items.Count) : Loc.T("Shell.SignOutConfirm");
+        if (Dialogs.Confirm(question)) SignOutRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose()

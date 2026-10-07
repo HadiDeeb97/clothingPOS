@@ -1,6 +1,11 @@
 {
+  "Customers.AddState": "إضافة محافظة…",
+  "Customers.AddStatePrompt": "اسم المحافظة الجديدة:",
+  "Customers.Address": "العنوان",
+  "Customers.AddressHint": "المنطقة، الشارع، المبنى، الطابق…",
   "Customers.AdjustCredit": "تعديل رصيد المتجر",
   "Customers.AdjustCreditPrompt": "رصيد {0} هو {1}.\nأدخل المبلغ المراد إضافته (استخدم رقماً سالباً للخصم):",
+  "Customers.AllStates": "كل المحافظات",
   "Customers.Birthday": "تاريخ الميلاد",
   "Customers.CreditAdjusted": "تم تحديث رصيد {0}.",
   "Customers.Edit": "تعديل الزبون",
@@ -9,6 +14,7 @@
   "Customers.FirstNameRequired": "الاسم الأول *",
   "Customers.HistoryFailed": "تعذّر تحميل سجل المشتريات.",
   "Customers.LastName": "اسم العائلة",
+  "Customers.LastVisit": "آخر شراء",
   "Customers.LifetimeSpend": "إجمالي المشتريات",
   "Customers.New": "زبون جديد",
   "Customers.NewButton": "+ زبون جديد",
@@ -22,6 +28,8 @@
   "Customers.SelectHint": "اختر زبوناً لعرض سجله.",
   "Customers.Since": "منذ",
   "Customers.SinceFormat": "زبون منذ {0:MMM yyyy}",
+  "Customers.State": "المحافظة",
   "Customers.StoreCredit": "رصيد المتجر",
+  "Customers.TotalSpent": "إجمالي المشتريات",
   "Customers.Visits": "الزيارات"
 }

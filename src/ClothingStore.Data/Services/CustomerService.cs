@@ -7,10 +7,13 @@ namespace ClothingStore.Data.Services;
 
 public class CustomerService(IDbContextFactory<PosDbContext> factory)
 {
-    public async Task<List<Customer>> SearchAsync(string? text = null, bool includeInactive = false, int max = 200, CancellationToken ct = default)
+    /// <summary>Customers matching the text (name, phone, email, address), each with what they spent and how often.</summary>
+    public async Task<List<Customer>> SearchAsync(
+        string? text = null, bool includeInactive = false, int max = 200, int? regionId = null, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var query = db.Customers.AsNoTracking().Where(c => includeInactive || c.IsActive);
+        if (regionId is { } r) query = query.Where(c => c.RegionId == r);
         if (!string.IsNullOrWhiteSpace(text))
         {
             foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
@@ -20,16 +23,55 @@ public class CustomerService(IDbContextFactory<PosDbContext> factory)
                     EF.Functions.Like(c.FirstName, pattern, "\\") ||
                     EF.Functions.Like(c.LastName, pattern, "\\") ||
                     EF.Functions.Like(c.Phone!, pattern, "\\") ||
-                    EF.Functions.Like(c.Email!, pattern, "\\"));
+                    EF.Functions.Like(c.Email!, pattern, "\\") ||
+                    EF.Functions.Like(c.Address!, pattern, "\\"));
             }
         }
-        return await query.OrderBy(c => c.FirstName).ThenBy(c => c.LastName).Take(max).ToListAsync(ct);
+        return await query.OrderBy(c => c.FirstName).ThenBy(c => c.LastName).Take(max)
+            .Select(c => new Customer
+            {
+                Id = c.Id, FirstName = c.FirstName, LastName = c.LastName, Phone = c.Phone, Email = c.Email, Birthday = c.Birthday,
+                Notes = c.Notes, Address = c.Address, RegionId = c.RegionId, Region = c.Region, LoyaltyPoints = c.LoyaltyPoints,
+                StoreCredit = c.StoreCredit, IsActive = c.IsActive, CreatedAt = c.CreatedAt, Version = c.Version,
+                // Net of refunds, completed sales only.
+                TotalSpent = (db.Sales.Where(s => s.CustomerId == c.Id && s.Status == SaleStatus.Completed).Sum(s => (decimal?)s.Total) ?? 0)
+                             - (db.Returns.Where(r => r.CustomerId == c.Id).Sum(r => (decimal?)r.TotalRefund) ?? 0),
+                Visits = db.Sales.Count(s => s.CustomerId == c.Id && s.Status == SaleStatus.Completed),
+                LastVisit = db.Sales.Where(s => s.CustomerId == c.Id && s.Status == SaleStatus.Completed).Max(s => (DateTime?)s.CreatedAt),
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<Region>> GetRegionsAsync(CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Regions.AsNoTracking().Where(r => r.IsActive).OrderBy(r => r.SortOrder).ThenBy(r => r.Name).ToListAsync(ct);
+    }
+
+    /// <summary>Adds a state / governorate (or returns the existing one with that name).</summary>
+    public async Task<Region> AddRegionAsync(string name, CancellationToken ct = default)
+    {
+        name = name.Trim();
+        if (name.Length == 0) throw new BusinessRuleException(Loc.T("Err.RegionNameRequired"));
+        if (name.Length > 100) name = name[..100];
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var existing = await db.Regions.FirstOrDefaultAsync(r => r.Name == name || r.NameAr == name, ct);
+        if (existing is not null)
+        {
+            if (!existing.IsActive) { existing.IsActive = true; await db.SaveChangesAsync(ct); }
+            return existing;
+        }
+        var region = new Region { Name = name, SortOrder = (await db.Regions.MaxAsync(r => (int?)r.SortOrder, ct) ?? 0) + 1 };
+        db.Regions.Add(region);
+        await db.SaveChangesAsync(ct);
+        return region;
     }
 
     public async Task<Customer?> GetAsync(int id, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+        return await db.Customers.AsNoTracking().Include(c => c.Region).FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
     public async Task<Customer> SaveAsync(Customer customer, CancellationToken ct = default)
@@ -56,6 +98,8 @@ public class CustomerService(IDbContextFactory<PosDbContext> factory)
         entity.Email = customer.Email;
         entity.Birthday = customer.Birthday;
         entity.Notes = QueryHelpers.Clean(customer.Notes);
+        entity.Address = QueryHelpers.Clean(customer.Address);
+        entity.RegionId = customer.RegionId;
         entity.IsActive = customer.IsActive;
 
         await SaveAsync(db, ct);

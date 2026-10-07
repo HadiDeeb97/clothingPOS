@@ -8,6 +8,7 @@
   "Receipt.Customer": "الزبون:",
   "Receipt.Date": "التاريخ:",
   "Receipt.Delivery": "التوصيل",
+  "Receipt.DeliveryRef": "فاتورة التوصيل: {0}",
   "Receipt.Discount": "الحسم",
   "Receipt.Items": "عدد القطع: {0}",
   "Receipt.No": "رقم:",

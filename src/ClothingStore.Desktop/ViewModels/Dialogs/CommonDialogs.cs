@@ -109,20 +109,46 @@ public sealed partial class ManagerApprovalViewModel(IDialogService dialogs, Use
     private void Cancel() => Close(false);
 }
 
-/// <summary>Shows monospaced text (receipt, Z report, PO) with a Print button.</summary>
-public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintService print, string title, IReadOnlyList<string> lines, string? closeText = null)
-    : DialogViewModelBase(dialogs)
+/// <summary>
+/// Shows monospaced text (receipt, Z report, PO) with a Print button and how many copies to print. Print goes to this
+/// PC's default receipt printer when one is set; "Choose printer" always asks.
+/// </summary>
+public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintService print, string title, IReadOnlyList<string> lines,
+    string? closeText = null, int copies = 1) : DialogViewModelBase(dialogs)
 {
     public override string Title { get; } = title;
     public string Text { get; } = string.Join(Environment.NewLine, lines);
     public string CloseText { get; } = closeText ?? Loc.T("Common.Close");
 
+    [ObservableProperty]
+    public partial int Copies { get; set; } = Math.Clamp(copies, 1, 99);
+
+    partial void OnCopiesChanged(int value)
+    {
+        if (value is < 1 or > 99) Copies = Math.Clamp(value, 1, 99);
+    }
+
+    /// <summary>"Printer: …" when receipts go straight to a default printer, else null.</summary>
+    public string? PrinterText { get; } = LocalPreferences.Current.ReceiptPrinter is { Length: > 0 } p ? Loc.T("Print.PrinterIs", p) : null;
+
     [RelayCommand]
-    private void Print()
+    private void MoreCopies() => Copies++;
+
+    [RelayCommand]
+    private void FewerCopies() => Copies--;
+
+    [RelayCommand]
+    private void Print() => Send(choosePrinter: false);
+
+    [RelayCommand]
+    private void PrintTo() => Send(choosePrinter: true);
+
+    private void Send(bool choosePrinter)
     {
         try
         {
-            print.PrintText(lines, Title);
+            if (print.PrintText(lines, Title, Copies, choosePrinter))
+                Dialogs.Toast(Loc.T("Print.Sent", Copies));
         }
         catch (Exception ex)
         {
@@ -147,13 +173,49 @@ public sealed partial class CustomerEditorViewModel : DialogViewModelBase
             {
                 Id = existing.Id, FirstName = existing.FirstName, LastName = existing.LastName, Phone = existing.Phone,
                 Email = existing.Email, Birthday = existing.Birthday, Notes = existing.Notes, IsActive = existing.IsActive,
-                LoyaltyPoints = existing.LoyaltyPoints, StoreCredit = existing.StoreCredit,
+                LoyaltyPoints = existing.LoyaltyPoints, StoreCredit = existing.StoreCredit, Address = existing.Address, RegionId = existing.RegionId,
             };
     }
 
     public override string Title => Loc.T(Customer.Id == 0 ? "Customers.New" : "Customers.Edit");
     public Customer Customer { get; }
     public Customer? Saved { get; private set; }
+
+    /// <summary>States / governorates to pick from (Lebanon's to start with; "Add state" adds more).</summary>
+    [ObservableProperty]
+    public partial List<Region> Regions { get; set; } = [];
+
+    [ObservableProperty]
+    public partial Region? SelectedRegion { get; set; }
+
+    partial void OnSelectedRegionChanged(Region? value) => Customer.RegionId = value?.Id;
+
+    public override async Task OnOpenedAsync()
+    {
+        try
+        {
+            Regions = await _customers.GetRegionsAsync();
+            SelectedRegion = Regions.FirstOrDefault(r => r.Id == Customer.RegionId);
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Loc.T("Common.SomethingWentWrong"), ex);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddRegionAsync()
+    {
+        var name = Dialogs.Prompt(Loc.T("Customers.AddState"), Loc.T("Customers.AddStatePrompt"));
+        if (string.IsNullOrWhiteSpace(name)) return;
+        Region? region = null;
+        if (!await RunAsync(async () => region = await _customers.AddRegionAsync(name))) return;
+        Regions = await _customers.GetRegionsAsync();
+        SelectedRegion = Regions.FirstOrDefault(r => r.Id == region!.Id);
+    }
+
+    [RelayCommand]
+    private void ClearRegion() => SelectedRegion = null;
 
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
