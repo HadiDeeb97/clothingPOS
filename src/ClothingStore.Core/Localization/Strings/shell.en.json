@@ -56,7 +56,10 @@
   "Startup.CannotConnect": "Could not connect to the database:\n{0}\n\n{1}\n\nCheck that SQL Server is running and reachable from this PC, and that ConnectionStrings:Pos in appsettings.json is correct.",
   "Startup.Connecting": "Connecting to the database…",
   "Startup.DatabaseOn": "{0} on {1}",
+  "Startup.DetailsSaved": "Details were saved to:\n{0}",
   "Startup.NoConnectionString": "No database is configured. Set ConnectionStrings:Pos in appsettings.json.",
+  "Startup.SlowRetry": "The database is slow to answer. Trying again ({0} of {1})…",
+  "Startup.TryAgain": "Try again?",
   "Startup.UnexpectedError": "An unexpected error occurred.",
   "Startup.WaitingForServer": "Waiting for SQL Server to start… (try {0} of {1})"
 }
