@@ -489,7 +489,7 @@
                         <StackPanel Margin="0,12,0,0">
                             <DockPanel Margin="0,0,0,8"><Button DockPanel.Dock="Right" Content="{l:T Common.ExportCsv}" Command="{Binding ExportCommand}" CommandParameter="lowstock" Margin="0" /><TextBlock Text="{l:T Reports.LowStock}" Style="{StaticResource SectionTitle}" Margin="0" VerticalAlignment="Center" /></DockPanel>
                             <Border Style="{StaticResource TableCard}" MaxHeight="320">
-                                <DataGrid Style="{StaticResource ReportGrid}" ItemsSource="{Binding Alerts.LowStock}" infra:LayoutMemory.Key="Reports.LowStock">
+                                <DataGrid MaxHeight="380" MinHeight="120" Style="{StaticResource ReportGrid}" ItemsSource="{Binding Alerts.LowStock}" infra:LayoutMemory.Key="Reports.LowStock">
                                     <DataGrid.Columns>
                                     <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding Product}" Width="*" MinWidth="140" />
                                     <DataGridTextColumn Header="{l:T Labels.Variant}" Binding="{Binding Variant}" Width="Auto" MinWidth="110" />
@@ -503,7 +503,7 @@
                             <DockPanel Margin="0,16,0,8"><Button DockPanel.Dock="Right" Content="{l:T Common.ExportCsv}" Command="{Binding ExportCommand}" CommandParameter="slow" Margin="0" /><TextBlock Text="{l:T Reports.SlowMovers}" Style="{StaticResource SectionTitle}" Margin="0" VerticalAlignment="Center" /></DockPanel>
                             <TextBlock Text="{l:T Reports.SlowMoversHint}" Style="{StaticResource HintText}" Margin="0,0,0,8" />
                             <Border Style="{StaticResource TableCard}" MaxHeight="320">
-                                <DataGrid Style="{StaticResource ReportGrid}" ItemsSource="{Binding Alerts.SlowMovers}" infra:LayoutMemory.Key="Reports.SlowMovers">
+                                <DataGrid MaxHeight="380" MinHeight="120" Style="{StaticResource ReportGrid}" ItemsSource="{Binding Alerts.SlowMovers}" infra:LayoutMemory.Key="Reports.SlowMovers">
                                     <DataGrid.Columns>
                                     <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding Product}" Width="*" MinWidth="140" />
                                     <DataGridTextColumn Header="{l:T Labels.Variant}" Binding="{Binding Variant}" Width="Auto" MinWidth="110" />
@@ -516,7 +516,7 @@
                             </Border>
                             <TextBlock Text="{l:T Reports.StockByCategory}" Style="{StaticResource SectionTitle}" Margin="0,16,0,8" />
                             <Border Style="{StaticResource TableCard}" MaxHeight="320">
-                                <DataGrid Style="{StaticResource ReportGrid}" ItemsSource="{Binding Valuation.ByCategoryCost}" infra:LayoutMemory.Key="Reports.Stock">
+                                <DataGrid MaxHeight="380" MinHeight="120" Style="{StaticResource ReportGrid}" ItemsSource="{Binding Valuation.ByCategoryCost}" infra:LayoutMemory.Key="Reports.Stock">
                                     <DataGrid.Columns>
                                     <DataGridTextColumn Header="{l:T Common.Category}" Binding="{Binding Name}" Width="*" MinWidth="140" />
                                     <DataGridTextColumn Header="{l:T Reports.Units}" Binding="{Binding Quantity}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource RightCell}" />

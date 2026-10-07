@@ -54,5 +54,6 @@
   "Startup.Connecting": "Connecting to the database…",
   "Startup.DatabaseOn": "{0} on {1}",
   "Startup.NoConnectionString": "No database is configured. Set ConnectionStrings:Pos in appsettings.json.",
-  "Startup.UnexpectedError": "An unexpected error occurred."
+  "Startup.UnexpectedError": "An unexpected error occurred.",
+  "Startup.WaitingForServer": "Waiting for SQL Server to start… (try {0} of {1})"
 }

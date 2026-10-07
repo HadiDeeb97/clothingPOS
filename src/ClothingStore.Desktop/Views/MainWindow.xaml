@@ -266,7 +266,7 @@
             </Border>
 
             <Grid>
-                <ContentControl x:Name="PageHost" Content="{Binding CurrentPage}" Margin="24,20,24,20" Focusable="False" />
+                <infra:PageHost x:Name="PageHost" Page="{Binding CurrentPage}" Margin="24,20,24,20" Focusable="False" />
 
                 <!-- Toasts -->
                 <ItemsControl ItemsSource="{Binding Items, Source={x:Static infra:ToastHost.Instance}}"

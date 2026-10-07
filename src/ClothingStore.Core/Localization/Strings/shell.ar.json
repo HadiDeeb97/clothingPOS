@@ -54,5 +54,6 @@
   "Startup.Connecting": "جارٍ الاتصال بقاعدة البيانات…",
   "Startup.DatabaseOn": "{0} على {1}",
   "Startup.NoConnectionString": "لم يتم إعداد قاعدة البيانات. اضبط ConnectionStrings:Pos في الملف appsettings.json.",
-  "Startup.UnexpectedError": "حدث خطأ غير متوقع."
+  "Startup.UnexpectedError": "حدث خطأ غير متوقع.",
+  "Startup.WaitingForServer": "بانتظار تشغيل SQL Server… (محاولة {0} من {1})"
 }
