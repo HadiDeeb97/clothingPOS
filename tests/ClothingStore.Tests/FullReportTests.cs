@@ -1,4 +1,5 @@
 using ClothingStore.Core;
+using ClothingStore.Core.Localization;
 using ClothingStore.Data.Services;
 
 namespace ClothingStore.Tests;
@@ -37,6 +38,13 @@ public class FullReportTests
         await db.Shifts.CloseShiftAsync(shift.Id, 115m, null, 0m);
 
         var report = await db.Reports.GetSalesReportAsync(DateTime.Today, DateTime.Today.AddDays(1));
+
+        // Sizes and payments are filled, with each row's share of the total.
+        Assert.Equal([("S", 2), ("M", 1)], report.BySize.Select(x => (x.Name, x.Quantity)));
+        Assert.Equal(100m, report.BySize.Sum(x => x.SharePercent));
+        var payments = report.ByPaymentMethod.ToDictionary(x => x.Name);
+        Assert.Equal((44m, 66.7m), (payments[Loc.EnumText(PaymentMethod.Card)].Amount, payments[Loc.EnumText(PaymentMethod.Card)].SharePercent));
+        Assert.Equal(22m, payments[Loc.EnumText(PaymentMethod.Delivery)].Amount);
 
         var product = Assert.Single(report.TopProducts);
         Assert.Equal((3, 60m, 24m, 36m), (product.Quantity, product.Amount, product.Cost, product.Profit));

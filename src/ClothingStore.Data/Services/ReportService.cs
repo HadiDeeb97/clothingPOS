@@ -8,6 +8,9 @@ namespace ClothingStore.Data.Services;
 /// <param name="Cost">Cost of the items (for profit columns); 0 where it doesn't apply.</param>
 public sealed record NamedAmount(string Name, int Quantity, decimal Amount, int Count = 0, decimal Cost = 0)
 {
+    /// <summary>This row's part of the total amount of its table, in percent.</summary>
+    public decimal SharePercent { get; init; }
+
     public decimal Profit => Amount - Cost;
     public decimal MarginPercent => Amount == 0 ? 0 : Math.Round(Profit / Amount * 100m, 1);
 }
@@ -197,14 +200,14 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             NetRevenue = totalSales - tax - (refunds - refundTax),
             CostOfGoods = lines.Sum(l => l.UnitCost * l.Quantity) - returnedCost,
 
-            ByPaymentMethod = payments
+            ByPaymentMethod = WithShares(payments
                 .Select(p => new NamedAmount(Loc.EnumText(p.Method), 0, p.Amount, p.Count))
-                .OrderByDescending(x => x.Amount).ToList(),
+                .OrderByDescending(x => x.Amount)),
 
-            ByCategory = lines
+            ByCategory = WithShares(lines
                 .GroupBy(l => l.CategoryName ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount), 0, g.Sum(l => l.UnitCost * l.Quantity)))
-                .OrderByDescending(x => x.Amount).ToList(),
+                .OrderByDescending(x => x.Amount)),
 
             TopProducts = lines
                 .GroupBy(l => l.ProductName)
@@ -212,22 +215,22 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .OrderByDescending(x => x.Quantity).ThenByDescending(x => x.Amount)
                 .Take(100).ToList(),
 
-            BySize = lines
+            BySize = WithShares(lines
                 .GroupBy(l => string.IsNullOrWhiteSpace(l.Size) ? "-" : l.Size)
                 .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
-                .OrderByDescending(x => x.Quantity).ToList(),
+                .OrderByDescending(x => x.Quantity)),
 
-            ByCashier = completed
+            ByCashier = WithShares(completed
                 .GroupBy(s => s.Cashier ?? "?")
                 .Select(g => new NamedAmount(g.Key, g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
-                .OrderByDescending(x => x.Amount).ToList(),
+                .OrderByDescending(x => x.Amount)),
 
             DeliveryFees = completed.Sum(s => s.DeliveryFee),
 
-            ByChannel = completed
+            ByChannel = WithShares(completed
                 .GroupBy(s => s.Channel)
                 .Select(g => new NamedAmount(Loc.EnumText(g.Key), g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
-                .OrderByDescending(x => x.Amount).ToList(),
+                .OrderByDescending(x => x.Amount)),
 
             ByDay = completed
                 .GroupBy(s => s.CreatedAt.Date)
@@ -355,5 +358,13 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .GroupBy(v => v.Product!.Category?.Name ?? Loc.T("Reports.Uncategorised"))
                 .Select(g => new NamedAmount(g.Key, g.Sum(v => v.StockQuantity), g.Sum(v => v.StockQuantity * v.EffectiveCost)))
                 .OrderByDescending(x => x.Amount).ToList());
+    }
+
+    /// <summary>Adds each row's share of the table's total amount.</summary>
+    private static List<NamedAmount> WithShares(IEnumerable<NamedAmount> rows)
+    {
+        var list = rows.ToList();
+        var total = list.Sum(r => r.Amount);
+        return list.Select(r => r with { SharePercent = total == 0 ? 0 : Math.Round(r.Amount / total * 100m, 1) }).ToList();
     }
 }
