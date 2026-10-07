@@ -12,6 +12,32 @@ public partial class MainWindow : Window
         InitializeComponent();
         WindowAppearance.Apply(this);
         PreviewKeyDown += OnPreviewKeyDown;
+        Loaded += (_, _) => PreparePagesWhenIdle();
+    }
+
+    /// <summary>
+    /// After the window is up, builds the other pages' screens one at a time whenever the app is idle, so opening any
+    /// page for the first time is quick too. Nothing is loaded from the database until a page is opened.
+    /// </summary>
+    private void PreparePagesWhenIdle()
+    {
+        if (DataContext is not ViewModels.MainViewModel main
+            || App.Services.GetService(typeof(NavigationService)) is not NavigationService navigation) return;
+        var queue = new Queue<Type>(main.NavGroups.SelectMany(g => g.Items).Select(i => i.PageType));
+        void Next()
+        {
+            if (queue.Count == 0 || !IsLoaded) return;
+            try
+            {
+                PageHost.Prepare(navigation.GetPage(queue.Dequeue()));
+            }
+            catch (Exception)
+            {
+                // Best effort: the page is simply built when it is opened.
+            }
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, Next);
+        }
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, Next);
     }
 
     /// <summary>
@@ -74,7 +100,7 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
         }
-        else if (e.Key == Key.F5 && Keyboard.Modifiers == ModifierKeys.None && PageHost.Content is IPageViewModel page)
+        else if (e.Key == Key.F5 && Keyboard.Modifiers == ModifierKeys.None && PageHost.Page is IPageViewModel page)
         {
             // Reloads the page's data, as when opening it from the sidebar (the register keeps its cart).
             e.Handled = true;

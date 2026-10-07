@@ -26,6 +26,14 @@ public partial class SalesView : UserControl
         };
         Loaded += (_, _) =>
         {
+            // The screen is kept between visits: listen again after being taken off screen (Unloaded stops listening).
+            if (DataContext is SalesViewModel current)
+            {
+                current.FocusSearchRequested -= OnFocusSearchRequested;
+                current.PropertyChanged -= OnViewModelPropertyChanged;
+                current.FocusSearchRequested += OnFocusSearchRequested;
+                current.PropertyChanged += OnViewModelPropertyChanged;
+            }
             FocusSearch();
             // After the saved panel sizes are restored.
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => ApplyBrowseVisibility(ViewModel?.IsBrowseVisible ?? true));
