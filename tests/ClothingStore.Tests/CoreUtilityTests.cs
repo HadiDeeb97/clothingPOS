@@ -62,6 +62,8 @@ public class CoreUtilityTests
         Assert.True(Permissions.Has(UserRole.Manager, Permission.VoidSales));
         Assert.False(Permissions.Has(UserRole.Manager, Permission.ManageUsers));
         Assert.True(Permissions.Has(UserRole.Admin, Permission.ManageUsers));
+        Assert.False(Permissions.Has(UserRole.Cashier, Permission.ViewCustomerSpending));
+        Assert.True(Permissions.Has(UserRole.Manager, Permission.ViewCustomerSpending));
     }
 
     [Theory]

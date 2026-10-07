@@ -16,6 +16,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
 {
     public string Title => Loc.T("Nav.Customers");
     public bool CanAdjustCredit => session.Can(Permission.AdjustStoreCredit);
+    public bool CanSeeSpending => session.Can(Permission.ViewCustomerSpending);
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = "";
@@ -45,7 +46,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
     public partial List<Sale> History { get; set; } = [];
 
     /// <summary>All completed purchases, net of refunds (from the list query, so not limited to the history shown).</summary>
-    public decimal LifetimeSpend => SelectedCustomer?.TotalSpent ?? 0;
+    public decimal LifetimeSpend => CanSeeSpending ? SelectedCustomer?.TotalSpent ?? 0 : 0;
     public int VisitCount => SelectedCustomer?.Visits ?? 0;
 
     public async Task OnNavigatedToAsync()
@@ -147,15 +148,17 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         if (path is null) return;
         try
         {
+            var spending = CanSeeSpending;
             CsvExporter.Write(path,
                 [Loc.T("Customers.FirstName"), Loc.T("Customers.LastName"), Loc.T("Common.Phone"), Loc.T("Common.Email"),
-                    Loc.T("Customers.State"), Loc.T("Customers.Address"), Loc.T("Customers.TotalSpent"), Loc.T("Customers.Visits"), Loc.T("Customers.LastVisit"),
+                    Loc.T("Customers.State"), Loc.T("Customers.Address"), .. (spending ? [Loc.T("Customers.TotalSpent")] : Array.Empty<string>()),
+                    Loc.T("Customers.Visits"), Loc.T("Customers.LastVisit"),
                     Loc.T("Common.Points"), Loc.T("Customers.StoreCredit"), Loc.T("Customers.Since"), Loc.T("Common.Active")],
-                Customers.Select(c => new object?[]
-                {
-                    c.FirstName, c.LastName, c.Phone, c.Email, c.Region?.DisplayName, c.Address, c.TotalSpent, c.Visits, c.LastVisit,
-                    c.LoyaltyPoints, c.StoreCredit, c.CreatedAt, c.IsActive,
-                }));
+                Customers.Select(c => (object?[])
+                [
+                    c.FirstName, c.LastName, c.Phone, c.Email, c.Region?.DisplayName, c.Address, .. (spending ? [c.TotalSpent] : Array.Empty<object?>()),
+                    c.Visits, c.LastVisit, c.LoyaltyPoints, c.StoreCredit, c.CreatedAt, c.IsActive,
+                ]));
             Dialogs.Toast(Loc.T("Common.Exported", Customers.Count));
         }
         catch (Exception ex)
