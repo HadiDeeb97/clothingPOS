@@ -22,6 +22,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<ShiftHandover> ShiftHandovers => Set<ShiftHandover>();
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<StoreSettings> Settings => Set<StoreSettings>();
     public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
@@ -179,10 +180,26 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         b.Entity<Shift>(e =>
         {
             e.HasIndex(x => new { x.UserId, x.Status });
+            e.HasIndex(x => new { x.TillId, x.Status });
+            e.Property(x => x.TillId).HasMaxLength(40);
+            e.Property(x => x.TillName).HasMaxLength(100);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CurrentUser).WithMany().HasForeignKey(x => x.CurrentUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ClosedBy).WithMany().HasForeignKey(x => x.ClosedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Handovers).WithOne(h => h.Shift).HasForeignKey(h => h.ShiftId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.RunningUserId);
+            // Closing and taking over the same drawer at the same moment: one of them is refused.
+            e.Property(x => x.CurrentUserId).IsConcurrencyToken();
+            e.Property(x => x.Status).IsConcurrencyToken();
             e.HasMany(x => x.CashMovements).WithOne(m => m.Shift).HasForeignKey(m => m.ShiftId).OnDelete(DeleteBehavior.Cascade);
             e.Ignore(x => x.Variance);
             e.Ignore(x => x.VarianceLbp);
+        });
+
+        b.Entity<ShiftHandover>(e =>
+        {
+            e.HasOne(x => x.FromUser).WithMany().HasForeignKey(x => x.FromUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ToUser).WithMany().HasForeignKey(x => x.ToUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<HeldSale>(e => e.Property(x => x.Label).HasMaxLength(100));

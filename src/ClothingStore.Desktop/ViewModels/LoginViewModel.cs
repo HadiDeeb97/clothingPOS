@@ -67,7 +67,9 @@ public sealed partial class LoginViewModel(IDialogService dialogs, UserService u
         }
 
         session.CurrentUser = user;
-        session.CurrentShift = await shifts.GetOpenShiftAsync(user.Id);
+        var till = await shifts.GetTillShiftAsync(user.Id, session.TillId, session.TillName);
+        session.CurrentShift = till.IsMine ? till.Shift : null;
+        session.OtherDrawer = till.IsOtherCashiers ? till.Shift : null;
         SignedIn?.Invoke(this, EventArgs.Empty);
     });
 }

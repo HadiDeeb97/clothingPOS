@@ -13,6 +13,9 @@ public interface IDialogService
     void Error(string message, Exception? ex = null);
     bool Confirm(string message, string? title = null);
 
+    /// <summary>A question with two named answers; true for <paramref name="yesText"/>, false for the other (or closing it).</summary>
+    bool Choose(string message, string title, string yesText, string noText);
+
     /// <summary>A short notice that disappears by itself (for confirmations that need no answer).</summary>
     void Toast(string message, ToastKind kind = ToastKind.Success);
 
@@ -41,6 +44,9 @@ public sealed class DialogService : IDialogService
 
     public bool Confirm(string message, string? title = null) =>
         ShowDialog(new MessageDialogViewModel(this, MessageKind.Question, title ?? Loc.T("Common.PleaseConfirm"), message));
+
+    public bool Choose(string message, string title, string yesText, string noText) =>
+        ShowDialog(new MessageDialogViewModel(this, MessageKind.Question, title, message) { YesText = yesText, NoText = noText });
 
     public void Toast(string message, ToastKind kind = ToastKind.Success)
     {

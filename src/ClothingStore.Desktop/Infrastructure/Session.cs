@@ -17,6 +17,17 @@ public sealed partial class Session : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasOpenShift), nameof(ShiftDisplay))]
     public partial Shift? CurrentShift { get; set; }
 
+    /// <summary>
+    /// Another cashier's drawer still open on this PC (they signed out or closed the app without closing it): this
+    /// user can continue it or count and close it before opening their own.
+    /// </summary>
+    [ObservableProperty]
+    public partial Shift? OtherDrawer { get; set; }
+
+    /// <summary>This PC (till): its PC ID, and its name for people to read. The cash drawer belongs to the till.</summary>
+    public string TillId { get; set; } = Environment.MachineName;
+    public string TillName { get; } = Environment.MachineName;
+
     public bool IsSignedIn => CurrentUser is not null;
     public bool HasOpenShift => CurrentShift is { Status: ShiftStatus.Open };
 
@@ -33,6 +44,7 @@ public sealed partial class Session : ObservableObject
     public void SignOut()
     {
         CurrentShift = null;
+        OtherDrawer = null;
         CurrentUser = null;
     }
 }

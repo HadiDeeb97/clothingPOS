@@ -30,7 +30,12 @@ public sealed partial class MessageDialogViewModel(IDialogService dialogs, Messa
         _ => "",
     };
 
-    public string PrimaryText => IsQuestion ? Loc.T("Common.Yes") : Loc.T("Common.Ok");
+    /// <summary>Button texts for a question with two named choices instead of Yes / No.</summary>
+    public string? YesText { get; init; }
+    public string? NoText { get; init; }
+
+    public string PrimaryText => YesText ?? (IsQuestion ? Loc.T("Common.Yes") : Loc.T("Common.Ok"));
+    public string SecondaryText => NoText ?? Loc.T("Common.No");
 
     [RelayCommand]
     private void Accept() => Close(true);

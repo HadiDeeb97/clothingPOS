@@ -36,7 +36,7 @@
             </StackPanel>
         </DockPanel>
         <StackPanel Style="{StaticResource DialogFooter}">
-            <Button Content="{l:T Common.No}" Command="{Binding DeclineCommand}" IsCancel="True"
+            <Button Content="{Binding SecondaryText}" Command="{Binding DeclineCommand}" IsCancel="True"
                     Visibility="{Binding IsQuestion, Converter={StaticResource BoolToVis}}" />
             <Button x:Name="PrimaryButton" Content="{Binding PrimaryText}" Style="{StaticResource PrimaryButton}" Command="{Binding AcceptCommand}"
                     IsDefault="True" MinWidth="90" Margin="0" />

@@ -73,6 +73,8 @@ public partial class App : Application
         ConfigureServices(builder.Services);
         _host = builder.Build();
         Services = _host.Services;
+        // The cash drawer belongs to this PC: identify it by the same PC ID the license uses.
+        Services.GetRequiredService<Session>().TillId = Services.GetRequiredService<LicenseManager>().MachineId;
 
         _splash?.SetStatus(Loc.T("Startup.Connecting"));
         await WaitForServerAsync(connectionString);
@@ -320,6 +322,11 @@ public partial class App : Application
             resetLayout = true;
             next = AfterMain.Rebuild;
             main.Close();
+        };
+        main.Closing += (_, e) =>
+        {
+            // Closing the app (not signing out or switching language) with the drawer still open: same choice as signing out.
+            if (next == AfterMain.Exit && !vm.ConfirmLeavingDrawerOpen()) e.Cancel = true;
         };
         main.Closed += (_, _) =>
         {

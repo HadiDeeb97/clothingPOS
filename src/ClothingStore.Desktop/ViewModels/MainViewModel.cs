@@ -125,10 +125,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Opens the first screen this user may use (the register for sellers).</summary>
-    public Task StartAsync(Type? page = null)
+    public async Task StartAsync(Type? page = null)
     {
         var start = NavItems.FirstOrDefault(i => i.PageType == page) ?? NavItems.FirstOrDefault();
-        return start?.NavigateCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+        if (start is not null) await start.NavigateCommand.ExecuteAsync(null);
+        await OfferOtherDrawerAsync();
     }
 
     private NavItem? Nav<TPage>(string titleKey, string glyph, Permission permission) where TPage : IPageViewModel =>
@@ -257,8 +258,46 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     {
         IsUserMenuOpen = false;
         // Signing out clears the register, so say so when a sale is in progress (hold it with F9 to keep it).
-        var question = _register.HasItems ? Loc.T("Shell.SignOutConfirmCart", _register.Items.Count) : Loc.T("Shell.SignOutConfirm");
-        if (Dialogs.Confirm(question)) SignOutRequested?.Invoke(this, EventArgs.Empty);
+        if (_register.HasItems && !Dialogs.Confirm(Loc.T("Shell.SignOutConfirmCart", _register.Items.Count))) return;
+        if (Session.HasOpenShift)
+        {
+            if (!ConfirmLeavingDrawerOpen()) return;
+        }
+        else if (!_register.HasItems && !Dialogs.Confirm(Loc.T("Shell.SignOutConfirm")))
+        {
+            return;
+        }
+        SignOutRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Leaving with the drawer still open: leave it open for the next cashier (they can continue it or count it), or
+    /// go and close it now. True to go ahead and leave.
+    /// </summary>
+    public bool ConfirmLeavingDrawerOpen()
+    {
+        if (!Session.HasOpenShift) return true;
+        if (Dialogs.Choose(Loc.T("Shell.DrawerStillOpen"), Loc.T("Nav.CashDrawer"), Loc.T("Shell.LeaveDrawerOpen"), Loc.T("Shell.CloseDrawerNow")))
+            return true;
+        _ = _navigation.NavigateToAsync<ShiftViewModel>();
+        return false;
+    }
+
+    /// <summary>
+    /// Right after signing in: another cashier's drawer is still open on this PC. Continue it, or count and close it.
+    /// </summary>
+    private async Task OfferOtherDrawerAsync()
+    {
+        if (Session.OtherDrawer is not { } drawer || !Session.Can(Permission.Sell)) return;
+        var name = (drawer.CurrentUser ?? drawer.User)?.FullName ?? "?";
+        var keep = Dialogs.Choose(
+            Loc.T("Shift.OtherDrawerOpen", name, drawer.OpenedAt.ToString("g")) + "\n\n" + Loc.T("Shift.OtherDrawerQuestion"),
+            Loc.T("Shift.OtherDrawerTitle"), Loc.T("Shift.ContinueDrawer"), Loc.T("Shift.CountAndClose"));
+        await _navigation.NavigateToAsync<ShiftViewModel>(async page =>
+        {
+            if (keep) await page.ContinueDrawerCommand.ExecuteAsync(null);
+            else await page.CountOtherDrawerCommand.ExecuteAsync(null);
+        });
     }
 
     public void Dispose()
