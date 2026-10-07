@@ -31,7 +31,7 @@
                         <DataGridTextColumn Header="{l:T Common.Name}" Binding="{Binding FullName}" Width="*" MinWidth="140" />
                         <DataGridTextColumn Header="{l:T Common.Phone}" Binding="{Binding Phone}" Width="Auto" MinWidth="120" />
                         <DataGridTextColumn Header="{l:T Customers.State}" Binding="{Binding Region.DisplayName}" Width="Auto" MinWidth="110" />
-                        <DataGridTextColumn Header="{l:T Customers.TotalSpent}" Binding="{Binding TotalSpent, Converter={StaticResource Money}}" Width="Auto" MinWidth="105" ElementStyle="{StaticResource StrongRightCell}" />
+                        <DataGridTextColumn x:Name="TotalSpentColumn" Header="{l:T Customers.TotalSpent}" Binding="{Binding TotalSpent, Converter={StaticResource Money}}" Width="Auto" MinWidth="105" ElementStyle="{StaticResource StrongRightCell}" />
                         <DataGridTextColumn Header="{l:T Customers.Visits}" Binding="{Binding Visits}" Width="Auto" MinWidth="65" ElementStyle="{StaticResource RightCell}" />
                         <DataGridTextColumn Header="{l:T Customers.LastVisit}" Binding="{Binding LastVisit, StringFormat={}{0:dd MMM yyyy}}" Width="Auto" MinWidth="105" />
                         <DataGridTextColumn Header="{l:T Common.Points}" Binding="{Binding LoyaltyPoints}" Width="Auto" MinWidth="80" ElementStyle="{StaticResource RightCell}" />
@@ -70,12 +70,12 @@
                             <Border Style="{StaticResource InfoBanner}" Margin="0,10,0,0" Visibility="{Binding SelectedCustomer.Notes, Converter={StaticResource HasValueToVis}}">
                                 <TextBlock Text="{Binding SelectedCustomer.Notes}" TextWrapping="Wrap" />
                             </Border>
-                            <UniformGrid Columns="4" Margin="0,16,0,16">
+                            <UniformGrid Rows="1" Margin="0,16,0,16">
                                 <StackPanel>
                                     <TextBlock Text="{l:T Customers.Visits}" Style="{StaticResource Caption}" />
                                     <TextBlock Text="{Binding VisitCount}" Style="{StaticResource KpiValue}" FontSize="20" />
                                 </StackPanel>
-                                <StackPanel>
+                                <StackPanel Visibility="{Binding CanSeeSpending, Converter={StaticResource BoolToVis}}">
                                     <TextBlock Text="{l:T Customers.LifetimeSpend}" Style="{StaticResource Caption}" />
                                     <TextBlock Text="{Binding LifetimeSpend, Converter={StaticResource Money}}" Style="{StaticResource KpiValue}" FontSize="20" />
                                 </StackPanel>

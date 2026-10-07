@@ -29,6 +29,9 @@ public enum Permission
 
     /// <summary>Change the store logo (the app icon).</summary>
     ManageBranding,
+
+    /// <summary>See how much a customer has spent in total (cashiers only see individual receipts).</summary>
+    ViewCustomerSpending,
 }
 
 public static class Permissions
@@ -56,6 +59,7 @@ public static class Permissions
         Permission.ChangeExchangeRate,
         Permission.ManageBranding,
         Permission.ManageCashiers,
+        Permission.ViewCustomerSpending,
     ];
 
     public static bool Has(UserRole role, Permission permission) => role switch
