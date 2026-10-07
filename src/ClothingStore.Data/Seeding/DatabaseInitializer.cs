@@ -16,8 +16,11 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
     public async Task InitializeAsync(bool seedDemoData, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        await db.Database.MigrateAsync(ct);
-        await TuneDatabaseAsync(db, ct);
+        // An existing database is tuned first, so it doesn't shut itself down (AUTO_CLOSE) while being upgraded.
+        var existed = await db.Database.CanConnectAsync(ct);
+        if (existed) await TuneDatabaseAsync(db, ct);
+        await MigrateAsync(db, ct);
+        if (!existed) await TuneDatabaseAsync(db, ct);
 
         if (!await db.Settings.AnyAsync(ct)) db.Settings.Add(new StoreSettings());
 
@@ -36,6 +39,39 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
 
         if (seedDemoData && !await db.Products.AnyAsync(ct))
             await DemoDataSeeder.SeedAsync(db, ct);
+    }
+
+    /// <summary>
+    /// Applies pending migrations. EF Core holds a lock on the database while upgrading and releases it at the end; on
+    /// some SQL Server Express setups that release fails ("Cannot release the application lock ... __EFMigrationsLock
+    /// because it is not currently held") after the upgrade itself has finished, which stopped the first start after
+    /// every update. When that happens the upgrade is checked: done means carry on, anything left is applied again.
+    /// </summary>
+    private static async Task MigrateAsync(PosDbContext db, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await db.Database.MigrateAsync(ct);
+                return;
+            }
+            catch (Exception ex) when (IsMigrationLockReleaseError(ex))
+            {
+                await db.Database.CloseConnectionAsync();
+                if (!(await db.Database.GetPendingMigrationsAsync(ct)).Any()) return; // upgraded; only the unlock failed
+                if (attempt >= 2) throw;
+            }
+        }
+    }
+
+    /// <summary>SQL Server error 1223 for EF Core's migration lock: the lock was already gone when EF released it.</summary>
+    internal static bool IsMigrationLockReleaseError(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Microsoft.Data.SqlClient.SqlException sql && (sql.Number == 1223 || sql.Message.Contains("__EFMigrationsLock", StringComparison.Ordinal)))
+                return true;
+        return false;
     }
 
     /// <summary>
