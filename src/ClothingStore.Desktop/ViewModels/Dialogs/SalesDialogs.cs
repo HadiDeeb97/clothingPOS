@@ -168,6 +168,63 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     partial void OnLbpTextChanged(string value) => RefreshCash();
     partial void OnChangeInChanged(ChangeCurrency value) => RefreshCash();
 
+    // ---- Cashier's own split of the change ("I only have $20") -----------------------------
+    // Typing dollars to give back works out the rest in pounds, and the other way round. Empty: change follows "Change in".
+
+    private enum SplitSide { None, Usd, Lbp }
+    private SplitSide _split;
+    private bool _fillingSplit;
+
+    [ObservableProperty]
+    public partial string GiveUsdText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string GiveLbpText { get; set; } = "";
+
+    /// <summary>Why the split typed can't be used (more than the change, cents...); empty when fine.</summary>
+    [ObservableProperty]
+    public partial string SplitError { get; set; } = "";
+
+    /// <summary>Dollars the cashier chose to give back, sent with the sale (null when not splitting).</summary>
+    public decimal? GiveChangeUsd => LbpEnabled && _split == SplitSide.Usd ? ParseOrZero(GiveUsdText) : null;
+
+    /// <summary>Pounds the cashier chose to give back, sent with the sale (null when not splitting).</summary>
+    public decimal? GiveChangeLbp => LbpEnabled && _split == SplitSide.Lbp ? Math.Round(ParseOrZero(GiveLbpText), 0, MidpointRounding.AwayFromZero) : null;
+
+    /// <summary>Greyed hints in the split boxes: the change as it would be given without a split.</summary>
+    public string GiveUsdHint => ChangeUsd.ToString("0", CultureInfo.CurrentCulture);
+    public string GiveLbpHint => ChangeLbp.ToString("N0", CultureInfo.CurrentCulture);
+
+    partial void OnGiveUsdTextChanged(string value) => OnSplitTyped(SplitSide.Usd, value);
+    partial void OnGiveLbpTextChanged(string value) => OnSplitTyped(SplitSide.Lbp, value);
+
+    private void OnSplitTyped(SplitSide side, string value)
+    {
+        if (_fillingSplit) return;
+        if (!string.IsNullOrWhiteSpace(value)) _split = side;
+        else if (_split == side)
+        {
+            _split = SplitSide.None;
+            FillSplit("", ""); // the other box only showed the worked-out amount
+        }
+        RefreshCash();
+    }
+
+    /// <summary>Shows the worked-out side of the split (or clears both boxes) without counting as typing.</summary>
+    private void FillSplit(string usd, string lbp)
+    {
+        _fillingSplit = true;
+        try
+        {
+            GiveUsdText = usd;
+            GiveLbpText = lbp;
+        }
+        finally
+        {
+            _fillingSplit = false;
+        }
+    }
+
     [RelayCommand]
     private void SetUsd(QuickCash option) => UsdText = option.Amount.ToString("0.##", CultureInfo.CurrentCulture);
 
@@ -177,6 +234,8 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
     [RelayCommand]
     private void ClearCash()
     {
+        _split = SplitSide.None;
+        FillSplit("", "");
         UsdText = "";
         LbpText = "";
     }
@@ -266,6 +325,11 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
             Dialogs.Warning(Loc.T("Payment.StillToPay", RemainingText));
             return;
         }
+        if (SplitError.Length > 0)
+        {
+            Dialogs.Warning(SplitError);
+            return;
+        }
         Close(true);
     }
 
@@ -288,14 +352,42 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
 
     private void RefreshCash()
     {
+        var tender = new CashTender(TenderedUsd, LbpEnabled ? TenderedLbp : 0, LbpEnabled ? ChangeIn : ChangeCurrency.Usd);
         try
         {
-            _cash = CashSettlement.Calculate(CashDue, new CashTender(TenderedUsd, LbpEnabled ? TenderedLbp : 0, LbpEnabled ? ChangeIn : ChangeCurrency.Usd), Rate, Rounding);
+            _cash = CashSettlement.Calculate(CashDue, tender, Rate, Rounding);
         }
         catch (BusinessRuleException)
         {
             _cash = new CashSettlement { ShortUsd = CashDue };
         }
+        var plain = _cash;
+
+        // No change to split any more: forget the split typed earlier.
+        if (_split != SplitSide.None && !(LbpEnabled && HasChange))
+        {
+            _split = SplitSide.None;
+            FillSplit("", "");
+        }
+        SplitError = "";
+        if (_split != SplitSide.None)
+        {
+            try
+            {
+                _cash = CashSettlement.Calculate(CashDue, tender with { GiveUsd = GiveChangeUsd, GiveLbp = GiveChangeLbp }, Rate, Rounding);
+                if (_split == SplitSide.Usd) FillSplit(GiveUsdText, _cash.ChangeLbp.ToString("N0", CultureInfo.CurrentCulture));
+                else FillSplit(_cash.ChangeUsd.ToString("0", CultureInfo.CurrentCulture), GiveLbpText);
+            }
+            catch (BusinessRuleException ex)
+            {
+                SplitError = ex.Message;
+                _cash = plain;
+                if (_split == SplitSide.Usd) FillSplit(GiveUsdText, "");
+                else FillSplit("", GiveLbpText);
+            }
+        }
+        OnPropertyChanged(nameof(GiveUsdHint));
+        OnPropertyChanged(nameof(GiveLbpHint));
 
         foreach (var name in new[]
                  {

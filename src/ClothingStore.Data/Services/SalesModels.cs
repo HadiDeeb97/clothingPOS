@@ -27,6 +27,13 @@ public sealed record CheckoutRequest
     public ChangeCurrency ChangeIn { get; init; } = ChangeCurrency.Usd;
 
     /// <summary>
+    /// The cashier's own split of the change, overriding <see cref="ChangeIn"/>: dollars to give back (whole dollars,
+    /// the rest in pounds) or pounds to give back (the rest in dollars). Set at most one; null when not used.
+    /// </summary>
+    public decimal? GiveChangeUsd { get; init; }
+    public decimal? GiveChangeLbp { get; init; }
+
+    /// <summary>
     /// LBP rate the till showed the customer. When pounds are involved and the rate has changed since,
     /// the sale is refused so nobody pays at an old rate.
     /// </summary>
