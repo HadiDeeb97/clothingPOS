@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         WindowAppearance.Apply(this);
+        if (LocalPreferences.Current.FullScreen) SetFullScreen(true);
         PreviewKeyDown += OnPreviewKeyDown;
         Loaded += (_, _) => PreparePagesWhenIdle();
     }
@@ -84,9 +85,40 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---- Full screen -------------------------------------------------------------------------
+    // Hides the title bar and the Windows taskbar so the till shows only the POS. Remembered on this PC.
+
+    private bool _fullScreen;
+
+    private void OnFullScreenClick(object sender, RoutedEventArgs e) => ToggleFullScreen();
+
+    private void ToggleFullScreen()
+    {
+        SetFullScreen(!_fullScreen);
+        LocalPreferences.Current.FullScreen = _fullScreen;
+        LocalPreferences.Current.Save();
+    }
+
+    private void SetFullScreen(bool on)
+    {
+        _fullScreen = on;
+        // Going through Normal makes a borderless maximized window cover the taskbar too.
+        WindowState = WindowState.Normal;
+        WindowStyle = on ? WindowStyle.None : WindowStyle.SingleBorderWindow;
+        ResizeMode = on ? ResizeMode.NoResize : ResizeMode.CanResize;
+        WindowState = WindowState.Maximized;
+        FullScreenButton.Content = on ? "\uE73F" : "\uE740";
+        FullScreenButton.ToolTip = ClothingStore.Core.Localization.Loc.T(on ? "Shell.ExitFullScreen" : "Shell.FullScreen");
+    }
+
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        if (e.Key == Key.F && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            e.Handled = true;
+            ToggleFullScreen();
+        }
+        else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
         {
             e.Handled = SearchField.FocusFirst(PageHost);
         }
