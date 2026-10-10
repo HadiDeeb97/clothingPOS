@@ -38,6 +38,9 @@ public sealed class LocalPreferences
     /// <summary>Delivery company / driver of the last online order taken here, offered for the next one.</summary>
     public string? LastCourier { get; set; }
 
+    /// <summary>This PC runs the POS full screen (no title bar or taskbar); it starts that way next time too.</summary>
+    public bool FullScreen { get; set; }
+
     /// <summary>Day the license expiry warning was last shown here (shown once a day).</summary>
     public DateTime? LicenseWarnedOn { get; set; }
 
