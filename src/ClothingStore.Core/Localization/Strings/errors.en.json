@@ -16,6 +16,8 @@
   "Err.CategoryExists": "A category named '{0}' already exists.",
   "Err.CategoryNameRequired": "Category name is required.",
   "Err.CategoryNotFound": "Category not found.",
+  "Err.ChangeSplitTooMuch": "That is more than the change to give back.",
+  "Err.ChangeWholeDollars": "Dollar change must be in whole dollars.",
   "Err.ChooseCategory": "Please choose a category.",
   "Err.ChooseReturnItem": "Choose at least one item to return.",
   "Err.ChooseSupplier": "Choose a supplier.",

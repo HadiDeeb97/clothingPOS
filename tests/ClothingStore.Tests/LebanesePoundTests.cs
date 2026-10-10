@@ -141,4 +141,34 @@ public class LebanesePoundTests
         var settings = await ctx.Settings.AsNoTracking().SingleAsync();
         Assert.Equal((true, Rate, 1_000), (settings.LbpEnabled, settings.LbpRate, settings.LbpRounding));
     }
+
+    /// <summary>$22 paid with $50 and the cashier only has a $20 note: $20 and the other $8 in pounds go back.</summary>
+    [Fact]
+    public async Task Cashiers_own_change_split_is_recorded_and_counted_in_the_drawer()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var shift = await db.Shifts.OpenShiftAsync(db.Cashier.Id, 100m, 1_000_000m);
+
+        var sale = await db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, ShiftId = shift.Id,
+            Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
+            Payments = [new PaymentInput(PaymentMethod.Cash, 50m)],
+            ChangeIn = ChangeCurrency.Mixed, GiveChangeUsd = 20m, ExchangeRate = Rate,
+        });
+        Assert.Equal((50m, 20m, 0m, 716_000m), (sale.CashTendered, sale.ChangeGiven, sale.CashTenderedLbp, sale.ChangeGivenLbp));
+
+        var summary = await db.Shifts.GetSummaryAsync(shift.Id);
+        Assert.Equal(100m + 50m - 20m, summary.ExpectedCash);
+        Assert.Equal(1_000_000m - 716_000m, summary.ExpectedCashLbp);
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() => db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, ShiftId = shift.Id,
+            Lines = [new CheckoutLine(tee.Variants[1].Id, 1)],
+            Payments = [new PaymentInput(PaymentMethod.Cash, 50m)],
+            GiveChangeUsd = 30m, ExchangeRate = Rate, // more than the $28 change
+        }));
+    }
 }

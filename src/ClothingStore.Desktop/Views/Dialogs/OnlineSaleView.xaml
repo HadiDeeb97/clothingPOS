@@ -62,7 +62,7 @@
         <TextBlock Text="{Binding CourierInfo}" Style="{StaticResource HintText}" Visibility="{Binding CourierInfo, Converter={StaticResource HasValueToVis}}" />
 
         <TextBlock Text="{l:T OnlineSale.DeliveryReference}" Style="{StaticResource FieldLabel}" />
-        <TextBox Text="{Binding DeliveryReference, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource MonoFont}" Tag="{l:T OnlineSale.DeliveryReferenceHint}" />
+        <TextBox x:Name="ReferenceBox" Text="{Binding DeliveryReference, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource MonoFont}" Tag="{l:T OnlineSale.DeliveryReferenceHint}" />
 
         <TextBlock Text="{l:T OnlineSale.DeliveryFee}" Style="{StaticResource FieldLabel}" />
         <TextBox x:Name="FeeBox" Text="{Binding DeliveryFeeText, UpdateSourceTrigger=PropertyChanged}" Width="140" HorizontalAlignment="Left" Tag="$" />

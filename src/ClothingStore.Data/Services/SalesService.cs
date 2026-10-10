@@ -80,7 +80,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             Notes = QueryHelpers.Clean(request.Notes),
             Status = SaleStatus.Completed,
         };
-        ApplyPayments(sale, request.Payments, customer, settings, request.ChangeIn, request.ExchangeRate);
+        ApplyPayments(sale, request.Payments, customer, settings, request.ChangeIn, request.ExchangeRate, request.GiveChangeUsd, request.GiveChangeLbp);
 
         // Lines + stock.
         sale.ReceiptNumber = await NextReceiptNumberAsync(db, settings.ReceiptPrefix, sale.CreatedAt, ct);
@@ -131,8 +131,9 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
 
     internal static void ApplyPayments(
         Sale sale, IReadOnlyList<PaymentInput> payments, Customer? customer, StoreSettings settings,
-        ChangeCurrency changeIn = ChangeCurrency.Usd, decimal shownRate = 0)
+        ChangeCurrency changeIn = ChangeCurrency.Usd, decimal shownRate = 0, decimal? giveUsd = null, decimal? giveLbp = null)
     {
+        if (giveUsd is not null && giveLbp is not null) giveLbp = null; // one side is fixed, the other worked out
         if (payments.Any(p => p.Amount < 0)) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
 
         var nonCash = payments.Where(p => !IsCash(p.Method) && p.Amount > 0).ToList();
@@ -143,11 +144,11 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         var tender = new CashTender(
             Money.Round(payments.Where(p => p.Method == PaymentMethod.Cash).Sum(p => p.Amount)),
             Math.Round(payments.Where(p => p.Method == PaymentMethod.CashLbp).Sum(p => p.Amount), 0, MidpointRounding.AwayFromZero),
-            changeIn);
+            changeIn, giveUsd, giveLbp);
 
         var rate = settings.ActiveLbpRate;
         sale.ExchangeRate = rate;
-        if (tender.Lbp > 0 || changeIn != ChangeCurrency.Usd) EnsureRate(settings, shownRate);
+        if (tender.Lbp > 0 || changeIn != ChangeCurrency.Usd || tender.HasSplit) EnsureRate(settings, shownRate);
 
         var cashDue = sale.Total - nonCashTotal;
         // Cash handed over when other payments already cover the sale would all be "change": refuse it rather than

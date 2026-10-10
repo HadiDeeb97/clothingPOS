@@ -16,6 +16,8 @@
   "Err.CategoryExists": "توجد فئة باسم '{0}' مسبقاً.",
   "Err.CategoryNameRequired": "اسم الفئة مطلوب.",
   "Err.CategoryNotFound": "الفئة غير موجودة.",
+  "Err.ChangeSplitTooMuch": "هذا المبلغ أكبر من الباقي المستحق للزبون.",
+  "Err.ChangeWholeDollars": "يجب أن يكون الباقي بالدولار بدولارات كاملة.",
   "Err.ChooseCategory": "يرجى اختيار فئة.",
   "Err.ChooseReturnItem": "اختر قطعة واحدة على الأقل للإرجاع.",
   "Err.ChooseSupplier": "اختر مورّداً.",

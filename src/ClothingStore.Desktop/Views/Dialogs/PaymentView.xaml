@@ -147,6 +147,23 @@
                             <StackPanel>
                                 <TextBlock Text="{l:T Payment.Change}" Style="{StaticResource Caption}" Foreground="{StaticResource SuccessBrush}" />
                                 <TextBlock Text="{Binding ChangeText}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" TextWrapping="Wrap" />
+
+                                <!-- The cashier's own split: type what you have in one currency, the rest comes in the other -->
+                                <StackPanel Margin="0,10,0,0" Visibility="{Binding LbpEnabled, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{l:T Payment.SplitHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" />
+                                    <UniformGrid Rows="1" Margin="0,4,0,0">
+                                        <StackPanel Margin="0,0,4,0">
+                                            <TextBlock Text="{l:T Payment.GiveUsd}" Style="{StaticResource FieldLabel}" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding GiveUsdText, UpdateSourceTrigger=PropertyChanged}" Tag="{Binding GiveUsdHint}" FontSize="15" />
+                                        </StackPanel>
+                                        <StackPanel Margin="4,0,0,0">
+                                            <TextBlock Text="{l:T Payment.GiveLbp}" Style="{StaticResource FieldLabel}" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding GiveLbpText, UpdateSourceTrigger=PropertyChanged}" Tag="{Binding GiveLbpHint}" FontSize="15" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <TextBlock Text="{Binding SplitError}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                               Visibility="{Binding SplitError, Converter={StaticResource HasValueToVis}}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>

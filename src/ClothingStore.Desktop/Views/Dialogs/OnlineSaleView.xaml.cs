@@ -9,8 +9,9 @@ public partial class OnlineSaleView : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
-            FeeBox.Focus();
-            FeeBox.SelectAll();
+            // Ready to scan the courier's barcode straight away.
+            ReferenceBox.Focus();
+            ReferenceBox.SelectAll();
         };
     }
 }

@@ -40,8 +40,15 @@ public static class Lbp
         $"{lbp:N0} {(language is null ? Loc.T("Currency.Lbp") : Loc.Get(language, "Currency.Lbp"))}";
 }
 
-/// <summary>What the cashier collected in cash, in both currencies.</summary>
-public sealed record CashTender(decimal Usd, decimal Lbp, ChangeCurrency ChangeIn = ChangeCurrency.Usd);
+/// <summary>
+/// What the cashier collected in cash, in both currencies. <paramref name="GiveUsd"/> / <paramref name="GiveLbp"/> are
+/// the cashier's own split of the change ("I only have $20"): one is fixed and the rest is worked out in the other
+/// currency, overriding <paramref name="ChangeIn"/>. Null means no split.
+/// </summary>
+public sealed record CashTender(decimal Usd, decimal Lbp, ChangeCurrency ChangeIn = ChangeCurrency.Usd, decimal? GiveUsd = null, decimal? GiveLbp = null)
+{
+    public bool HasSplit => GiveUsd is not null || GiveLbp is not null;
+}
 
 /// <summary>
 /// Works out whether cash in dollars and pounds covers what is due, and the change in each currency.
@@ -83,7 +90,7 @@ public sealed record CashSettlement
         if (tender.Usd < 0 || tender.Lbp < 0) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
 
         var lbpOn = rate > 0;
-        if (!lbpOn && (tender.Lbp > 0 || tender.ChangeIn != ChangeCurrency.Usd))
+        if (!lbpOn && (tender.Lbp > 0 || tender.ChangeIn != ChangeCurrency.Usd || tender.HasSplit))
             throw new BusinessRuleException(Loc.T("Err.LbpDisabled"));
 
         dueUsd = Math.Max(0, dueUsd);
@@ -110,33 +117,58 @@ public sealed record CashSettlement
         // Pound change goes to the nearest note: owing 895 LBP (one cent at 89,500) the customer gets 1,000 rather
         // than nothing, and the drawer records the 1,000 that actually left it.
         var extra = tendered - due;
-        decimal changeUsd, changeLbp;
-        switch (lbpOn ? tender.ChangeIn : ChangeCurrency.Usd)
+        var (changeUsd, changeLbp) = tender.HasSplit
+            ? Split(extra, r, step, tender.GiveUsd, tender.GiveLbp)
+            : ByChoice(extra, r, step, lbpOn ? tender.ChangeIn : ChangeCurrency.Usd, lbpOn);
+
+        return Settled(dueUsd, tender, rate, step, changeUsd, changeLbp);
+    }
+
+    /// <summary>Change (<paramref name="extra"/> in LBP units) in the currency the cashier picked.</summary>
+    private static (decimal Usd, decimal Lbp) ByChoice(decimal extra, decimal r, int step, ChangeCurrency changeIn, bool lbpOn)
+    {
+        switch (changeIn)
         {
             case ChangeCurrency.Lbp:
-                changeUsd = 0;
-                changeLbp = Lbp.RoundNearest(extra, step);
-                break;
+                return (0, Lbp.RoundNearest(extra, step));
             case ChangeCurrency.Mixed:
-                changeUsd = Math.Floor(extra / r);
-                changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
-                break;
+            case ChangeCurrency.Usd when lbpOn:
+            {
+                // Whole dollars, the rest as the nearest pound note. Also for "dollars" when LBP is on: there are no
+                // dollar coins in circulation, so cents can't be handed out.
+                var dollars = Math.Floor(extra / r);
+                return (dollars, Lbp.RoundNearest(extra - dollars * r, step));
+            }
             default:
-                if (lbpOn)
-                {
-                    // There are no dollar coins in circulation: whole dollars, and any cents as the nearest pound note.
-                    changeUsd = Math.Floor(extra / r);
-                    changeLbp = Lbp.RoundNearest(extra - changeUsd * r, step);
-                }
-                else
-                {
-                    // Cents are kept in the drawer rather than paid out as a fraction.
-                    changeUsd = Math.Floor(extra / r * 100m) / 100m;
-                    changeLbp = 0;
-                }
-                break;
+                // No LBP: cents are kept in the drawer rather than paid out as a fraction.
+                return (Math.Floor(extra / r * 100m) / 100m, 0);
+        }
+    }
+
+    /// <summary>
+    /// The cashier's split of the change (<paramref name="extra"/> in LBP units). Dollars fixed: the rest in pounds.
+    /// Pounds fixed: the rest in whole dollars, any cents left over added to the pounds as the nearest note.
+    /// </summary>
+    private static (decimal Usd, decimal Lbp) Split(decimal extra, decimal rate, int step, decimal? giveUsd, decimal? giveLbp)
+    {
+        if (giveUsd is { } usd)
+        {
+            if (usd < 0) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
+            if (usd != Math.Floor(usd)) throw new BusinessRuleException(Loc.T("Err.ChangeWholeDollars"));
+            if (usd * rate > extra) throw new BusinessRuleException(Loc.T("Err.ChangeSplitTooMuch"));
+            return (usd, Lbp.RoundNearest(extra - usd * rate, step));
         }
 
+        var lbp = Math.Round(giveLbp!.Value, 0, MidpointRounding.AwayFromZero);
+        if (lbp < 0) throw new BusinessRuleException(Loc.T("Err.PaymentNegative"));
+        if (lbp > Lbp.RoundNearest(extra, step)) throw new BusinessRuleException(Loc.T("Err.ChangeSplitTooMuch"));
+        var rest = Math.Max(0, extra - lbp);
+        var dollars = Math.Floor(rest / rate);
+        return (dollars, lbp + Lbp.RoundNearest(rest - dollars * rate, step));
+    }
+
+    private static CashSettlement Settled(decimal dueUsd, CashTender tender, decimal rate, int step, decimal changeUsd, decimal changeLbp)
+    {
         // Dollars stay in the drawer first; the rest of the cash due came from pounds.
         var appliedUsd = Math.Clamp(tender.Usd - changeUsd, 0, dueUsd);
         return new CashSettlement

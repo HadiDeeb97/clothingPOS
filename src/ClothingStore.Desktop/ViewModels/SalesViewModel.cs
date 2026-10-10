@@ -651,6 +651,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
                 CartDiscountValue = CartDiscountValue,
                 Payments = payment.Payments,
                 ChangeIn = payment.EffectiveChangeIn,
+                GiveChangeUsd = payment.GiveChangeUsd,
+                GiveChangeLbp = payment.GiveChangeLbp,
                 ExchangeRate = payment.Rate,
                 ApprovedByUserId = _approvedByUserId,
                 Channel = Channel,
