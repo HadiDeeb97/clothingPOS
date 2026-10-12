@@ -24,6 +24,9 @@ public sealed record SettlementRow(DateTime Date, string? Courier, SettlementMet
     public decimal Difference => Received - Expected;
 }
 
+/// <summary>Units in or out of the period's sales: sold (positive) or returned (negative).</summary>
+internal sealed record ItemFlow(string Product, string? Category, string? Size, int Quantity, decimal Net, decimal Cost);
+
 public sealed record CashMovementRow(DateTime Date, string User, CashMovementType Type, CashCurrency Currency, decimal Amount, string Reason);
 
 public sealed record ShiftCloseRow(
@@ -145,6 +148,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 s.Id, s.Status, s.CreatedAt, s.Subtotal, s.DiscountTotal, s.TaxTotal, s.Total, s.Channel, s.DeliveryFee,
                 Cashier = s.User != null ? s.User.FullName : null,
                 Customer = s.Customer != null ? s.Customer.FirstName + " " + s.Customer.LastName : null,
+                s.CustomerId,
             })
             .ToListAsync(ct);
         var completed = sales.Where(s => s.Status == SaleStatus.Completed).ToList();
@@ -175,6 +179,23 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .ToListAsync(ct))
             .Sum(rl => rl.Quantity * rl.UnitCost);
 
+        // Items sold minus items returned in the period, so category / product / size figures add up to the overall
+        // figures (which take returns off too). Returned units only take their cost back when they went back on the shelf.
+        var returnedItems = await db.ReturnLines.AsNoTracking()
+            .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to)
+            .Select(rl => new
+            {
+                rl.Quantity, Net = rl.RefundAmount - rl.TaxAmount, Cost = rl.Restocked && rl.SaleLine != null ? rl.SaleLine.UnitCost * rl.Quantity : 0m,
+                ProductName = rl.SaleLine != null ? rl.SaleLine.ProductName : "",
+                CategoryName = rl.SaleLine != null ? rl.SaleLine.CategoryName : null,
+                Size = rl.SaleLine != null && rl.SaleLine.ProductVariant != null ? rl.SaleLine.ProductVariant.Size : null,
+            })
+            .ToListAsync(ct);
+        var items = lines
+            .Select(l => new ItemFlow(l.ProductName, l.CategoryName, l.Size, l.Quantity, l.LineTotal - l.TaxAmount, l.UnitCost * l.Quantity))
+            .Concat(returnedItems.Select(r => new ItemFlow(r.ProductName, r.CategoryName, r.Size, -r.Quantity, -r.Net, -r.Cost)))
+            .ToList();
+
         var itemsBySale = lines.GroupBy(l => l.SaleId).ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
         var extra = details ? await DetailsAsync(db, from, to, ct) : null;
         var totalSales = completed.Sum(s => s.Total);
@@ -204,20 +225,21 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .Select(p => new NamedAmount(Loc.EnumText(p.Method), 0, p.Amount, p.Count))
                 .OrderByDescending(x => x.Amount)),
 
-            ByCategory = WithShares(lines
-                .GroupBy(l => l.CategoryName ?? Loc.T("Reports.Uncategorised"))
-                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount), 0, g.Sum(l => l.UnitCost * l.Quantity)))
+            ByCategory = WithShares(items
+                .GroupBy(l => l.Category ?? Loc.T("Reports.Uncategorised"))
+                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.Net), 0, g.Sum(l => l.Cost)))
                 .OrderByDescending(x => x.Amount)),
 
-            TopProducts = lines
-                .GroupBy(l => l.ProductName)
-                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount), 0, g.Sum(l => l.UnitCost * l.Quantity)))
+            TopProducts = items
+                .GroupBy(l => l.Product)
+                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.Net), 0, g.Sum(l => l.Cost)))
+                .Where(x => x.Quantity > 0)
                 .OrderByDescending(x => x.Quantity).ThenByDescending(x => x.Amount)
                 .Take(100).ToList(),
 
-            BySize = WithShares(lines
+            BySize = WithShares(items
                 .GroupBy(l => string.IsNullOrWhiteSpace(l.Size) ? "-" : l.Size)
-                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal - l.TaxAmount)))
+                .Select(g => new NamedAmount(g.Key, g.Sum(l => l.Quantity), g.Sum(l => l.Net)))
                 .OrderByDescending(x => x.Quantity)),
 
             ByCashier = WithShares(completed
@@ -242,10 +264,11 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .Select(g => new HourlySales(g.Key, g.Count(), g.Sum(s => s.Total)))
                 .OrderBy(h => h.Hour).ToList(),
 
+            // By customer, not by name: two customers called the same are two rows.
             TopCustomers = completed
-                .Where(s => s.Customer != null)
-                .GroupBy(s => s.Customer!.Trim())
-                .Select(g => new NamedAmount(g.Key, g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
+                .Where(s => s.CustomerId != null)
+                .GroupBy(s => s.CustomerId)
+                .Select(g => new NamedAmount(g.First().Customer!.Trim(), g.Sum(s => itemsBySale.GetValueOrDefault(s.Id)), g.Sum(s => s.Total), g.Count()))
                 .OrderByDescending(x => x.Amount).Take(50).ToList(),
 
             ReturnsByReason = returns
@@ -326,7 +349,12 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             v.Product, Core.Entities.ProductVariant.DescribeVariant(v.Size, v.Color), v.Sku, v.Stock, v.ReorderLevel,
             v.Stock > 0 ? v.Stock * v.Cost : 0m, lastSold.TryGetValue(v.Id, out var last) ? last : null);
 
-        bool SoldInPeriod(StockLevel v) => lastSold.TryGetValue(v.Id, out var last) && last >= from && last < to;
+        // Sold at any time inside the dates (not just "last sold" inside them: an item sold in the period and again
+        // since would otherwise look unsold for a past period).
+        var soldInPeriod = (await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.Status == SaleStatus.Completed && l.Sale.CreatedAt >= from && l.Sale.CreatedAt < to)
+            .Select(l => l.ProductVariantId).Distinct().ToListAsync(ct)).ToHashSet();
+        bool SoldInPeriod(StockLevel v) => soldInPeriod.Contains(v.Id);
 
         var low = variants.Where(v => v.Stock <= v.ReorderLevel)
             .OrderBy(v => v.Stock).ThenBy(v => v.Product)

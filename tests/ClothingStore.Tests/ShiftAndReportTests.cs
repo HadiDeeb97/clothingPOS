@@ -68,7 +68,9 @@ public class ShiftAndReportTests
         Assert.Equal(16m, report.CostOfGoods);
         Assert.Equal(24m, report.GrossProfit);
         Assert.Equal("Card", Assert.Single(report.ByPaymentMethod).Name);
-        Assert.Equal(3, Assert.Single(report.TopProducts).Quantity);
+        // Product figures are net of returns, so they add up to the overall figures.
+        var top = Assert.Single(report.TopProducts);
+        Assert.Equal((2, 40m, 24m), (top.Quantity, top.Amount, top.Profit));
 
         var valuation = await db.Reports.GetInventoryValuationAsync();
         Assert.Equal(30 - 3 + 1, valuation.Units);

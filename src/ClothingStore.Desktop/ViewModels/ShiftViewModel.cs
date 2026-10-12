@@ -42,7 +42,7 @@ public sealed partial class ShiftViewModel(
     [NotifyPropertyChangedFor(nameof(VariancePreviewLbp))]
     public partial string CountedCashLbpText { get; set; } = "";
 
-    public string VariancePreviewLbp => Summary is not null && TryParse(CountedCashLbpText, out var counted)
+    public string VariancePreviewLbp => Summary is not null && TryParseLbp(CountedCashLbpText, out var counted)
         ? Loc.T("Shift.VariancePreview", CurrencyFormat.Lbp(counted - Summary.ExpectedCashLbp))
         : "";
 
@@ -83,7 +83,7 @@ public sealed partial class ShiftViewModel(
     public partial Shift? ClosingShift { get; set; }
 
     /// <summary>The drawer shown on the left: this user's, or the one being closed.</summary>
-    private Shift? ActiveShift => session.CurrentShift ?? ClosingShift;
+    private Shift? ActiveShift => ClosingShift ?? session.CurrentShift;
 
     public bool ShowOpenForm => !session.HasOpenShift && session.OtherDrawer is null && ClosingShift is null;
     public bool ShowOtherDrawer => !session.HasOpenShift && session.OtherDrawer is not null && ClosingShift is null;
@@ -180,7 +180,7 @@ public sealed partial class ShiftViewModel(
             return;
         }
         var amountLbp = 0m;
-        if (ShowLbp && !string.IsNullOrWhiteSpace(OpeningFloatLbpText) && !TryParse(OpeningFloatLbpText, out amountLbp))
+        if (ShowLbp && !string.IsNullOrWhiteSpace(OpeningFloatLbpText) && !TryParseLbp(OpeningFloatLbpText, out amountLbp))
         {
             Dialogs.Warning(Loc.T("Shift.EnterFloat"));
             return;
@@ -196,7 +196,7 @@ public sealed partial class ShiftViewModel(
     private async Task AddMovementAsync()
     {
         if (session.CurrentShift is not { } shift) return;
-        if (!TryParse(MovementAmountText, out var amount))
+        if (!(MovementCurrency == CashCurrency.Lbp ? TryParseLbp(MovementAmountText, out var amount) : TryParse(MovementAmountText, out amount)))
         {
             Dialogs.Warning(Loc.T("Shift.EnterAmount"));
             return;
@@ -230,7 +230,7 @@ public sealed partial class ShiftViewModel(
         decimal? countedLbp = null;
         if (ShowLbp)
         {
-            if (!TryParse(CountedCashLbpText, out var lbp))
+            if (!TryParseLbp(CountedCashLbpText, out var lbp))
             {
                 Dialogs.Warning(Loc.T("Shift.EnterCountLbp"));
                 return;
@@ -276,20 +276,19 @@ public sealed partial class ShiftViewModel(
         await BackUpAfterCloseAsync();
     }
 
+    /// <summary>
+    /// Runs without blocking the page: the next cashier may want to open their drawer straight away, and a backup can
+    /// take minutes on a big database.
+    /// </summary>
     private async Task BackUpAfterCloseAsync()
     {
         try
         {
-            IsBusy = true;
             await backups.BackupAfterShiftCloseAsync(session.User.Id);
         }
         catch (Exception ex)
         {
             Dialogs.Warning(Loc.T("Shift.BackupFailed", ex.GetBaseException().Message));
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 
@@ -310,4 +309,17 @@ public sealed partial class ShiftViewModel(
     private static bool TryParse(string? text, out decimal value) =>
         decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out value) ||
         decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+
+    /// <summary>
+    /// Pounds are whole numbers: any grouping marks are ignored ("500,000", "500.000", "500 000" are all 500,000), so
+    /// a PC set to a comma-decimal format doesn't read 500,000 as 500. Arabic digits are accepted too.
+    /// </summary>
+    private static bool TryParseLbp(string? text, out decimal value)
+    {
+        value = 0;
+        var t = (text ?? "").Trim();
+        if (t.Length == 0 || t.StartsWith('-')) return false;
+        var digits = new string(t.Select(c => c is >= '٠' and <= '٩' ? (char)('0' + (c - '٠')) : c).Where(char.IsAsciiDigit).ToArray());
+        return digits.Length > 0 && decimal.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+    }
 }

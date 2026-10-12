@@ -39,15 +39,16 @@ public class FullReportTests
 
         var report = await db.Reports.GetSalesReportAsync(DateTime.Today, DateTime.Today.AddDays(1));
 
-        // Sizes and payments are filled, with each row's share of the total.
-        Assert.Equal([("S", 2), ("M", 1)], report.BySize.Select(x => (x.Name, x.Quantity)));
+        // Sizes and payments are filled, with each row's share of the total. Sizes are net of returns (2 S sold, 1 back).
+        Assert.Equal([("S", 1), ("M", 1)], report.BySize.Select(x => (x.Name, x.Quantity)));
         Assert.Equal(100m, report.BySize.Sum(x => x.SharePercent));
         var payments = report.ByPaymentMethod.ToDictionary(x => x.Name);
         Assert.Equal((44m, 66.7m), (payments[Loc.EnumText(PaymentMethod.Card)].Amount, payments[Loc.EnumText(PaymentMethod.Card)].SharePercent));
         Assert.Equal(22m, payments[Loc.EnumText(PaymentMethod.Delivery)].Amount);
 
         var product = Assert.Single(report.TopProducts);
-        Assert.Equal((3, 60m, 24m, 36m), (product.Quantity, product.Amount, product.Cost, product.Profit));
+        // Net of the returned tee (20 net, its cost back as it was restocked), so it matches the overall profit.
+        Assert.Equal((2, 40m, 16m, 24m), (product.Quantity, product.Amount, product.Cost, product.Profit));
         Assert.Equal("Rana Haddad", Assert.Single(report.TopCustomers).Name);
         Assert.Equal(DateTime.Now.Hour, Assert.Single(report.ByHour).Hour);
         Assert.Equal(("Wrong size", 1), (Assert.Single(report.ReturnsByReason).Name, report.ReturnsByReason[0].Count));

@@ -72,10 +72,26 @@ public sealed partial class LicenseManager : ObservableObject
         var evidence = await _clock.GetEvidenceAsync(ct);
         var seenDb = ReadSeen(evidence.LastSeenRecord);
         var seenFile = ReadSeen(TryRead(SeenPath));
-        TrustedToday = LicenseStatus.TrustedToday(DateTime.Now, evidence.ServerNow, evidence.LatestActivity, seenDb, seenFile);
+        // Sales are stamped with each till's own clock: one till set a year ahead by mistake must not make the license
+        // look expired everywhere, so activity far ahead of the server's clock is ignored.
+        var activity = evidence.LatestActivity is { } latest && evidence.ServerNow is { } server && latest > server.AddDays(2)
+            ? null
+            : evidence.LatestActivity;
+        TrustedToday = LicenseStatus.TrustedToday(DateTime.Now, evidence.ServerNow, activity, seenDb, seenFile);
 
         var status = LicenseStatus.Evaluate(TryRead(KeyPath), _publicKey, MachineId, TrustedToday);
-        if (status.State != LicenseState.NotConfigured) await RememberSeenAsync(ct);
+        if (status.State != LicenseState.NotConfigured)
+        {
+            // Likewise the shared "last seen" date is never written beyond the server's own date (a wrong clock on this
+            // PC then only affects this PC, and is undone by correcting it).
+            var seen = evidence.ServerNow is { } serverNow && TrustedToday > DateOnly.FromDateTime(serverNow).AddDays(1)
+                ? DateOnly.FromDateTime(serverNow).AddDays(1)
+                : TrustedToday;
+            // ...and never moves back, so setting the clocks back still doesn't extend the license.
+            foreach (var earlier in new[] { seenDb, seenFile })
+                if (earlier is { } e && DateOnly.FromDateTime(e) > seen) seen = DateOnly.FromDateTime(e);
+            await RememberSeenAsync(seen, ct);
+        }
         Status = status;
         return status;
     }
@@ -91,9 +107,9 @@ public sealed partial class LicenseManager : ObservableObject
         return await CheckAsync(ct);
     }
 
-    private async Task RememberSeenAsync(CancellationToken ct)
+    private async Task RememberSeenAsync(DateOnly seen, CancellationToken ct)
     {
-        var record = SignSeen(TrustedToday);
+        var record = SignSeen(seen);
         try
         {
             Directory.CreateDirectory(Folder);

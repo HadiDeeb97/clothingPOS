@@ -169,16 +169,20 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         var takenSkus = (await db.ProductVariants.Where(v => !ownIds.Contains(v.Id)).Select(v => v.Sku).ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var takenBarcodes = (await db.ProductVariants.Where(v => v.Barcode != null && !ownIds.Contains(v.Id)).Select(v => v.Barcode!).ToListAsync(ct))
-            .ToHashSet();
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var nextBarcode = await NextBarcodeSequenceAsync(db, ct);
 
         // Remove variants the user deleted (or retire them if they have history).
         var incomingIds = product.Variants.Where(v => v.Id != 0).Select(v => v.Id).ToHashSet();
         foreach (var removed in entity.Variants.Where(v => v.Id != 0 && !incomingIds.Contains(v.Id)).ToList())
         {
-            var hasHistory = await db.SaleLines.AnyAsync(l => l.ProductVariantId == removed.Id, ct)
-                             || await db.PurchaseOrderLines.AnyAsync(l => l.ProductVariantId == removed.Id, ct);
-            if (hasHistory) removed.IsActive = false;
+            if (await HasHistoryAsync(db, [removed.Id], ct) || removed.StockQuantity != 0)
+            {
+                // Retired, not deleted: it keeps its SKU and barcode, so a new variant can't take them.
+                removed.IsActive = false;
+                takenSkus.Add(removed.Sku);
+                if (removed.Barcode is not null) takenBarcodes.Add(removed.Barcode);
+            }
             else entity.Variants.Remove(removed);
         }
 
@@ -228,6 +232,11 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         {
             throw new BusinessRuleException(Loc.T("Err.ProductChanged"));
         }
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
+        {
+            // Another PC saved the same new SKU or barcode a moment earlier; saving again picks fresh ones.
+            throw new BusinessRuleException(Loc.T("Err.CodeTakenMeanwhile"));
+        }
 
         return (await GetAsync(entity.Id, ct))!;
     }
@@ -240,9 +249,7 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         if (product is null) return false;
 
         var variantIds = product.Variants.Select(v => v.Id).ToList();
-        var hasHistory = await db.SaleLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct)
-                         || await db.PurchaseOrderLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct);
-        if (hasHistory)
+        if (await HasHistoryAsync(db, variantIds, ct) || product.Variants.Any(v => v.StockQuantity != 0))
         {
             product.IsActive = false;
             await db.SaveChangesAsync(ct);
@@ -253,6 +260,15 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    /// <summary>
+    /// Sold, ordered, or stock moved other than the opening stock (adjustments, write-offs, counts): deleting would
+    /// erase that history, so such variants are deactivated instead.
+    /// </summary>
+    private static async Task<bool> HasHistoryAsync(PosDbContext db, List<int> variantIds, CancellationToken ct) =>
+        await db.SaleLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct)
+        || await db.PurchaseOrderLines.AnyAsync(l => variantIds.Contains(l.ProductVariantId), ct)
+        || await db.StockMovements.AnyAsync(m => variantIds.Contains(m.ProductVariantId) && m.Type != StockMovementType.InitialStock, ct);
 
     private static void Validate(Product product)
     {

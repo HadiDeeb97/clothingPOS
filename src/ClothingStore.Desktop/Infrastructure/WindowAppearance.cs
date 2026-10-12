@@ -9,7 +9,7 @@ public static class WindowAppearance
     public static void Apply(Window window)
     {
         window.FlowDirection = Loc.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
-        window.Language = System.Windows.Markup.XmlLanguage.GetLanguage(Loc.IsRightToLeft ? "ar" : "en-US");
+        window.Language = System.Windows.Markup.XmlLanguage.GetLanguage(Loc.IsRightToLeft ? "ar-LB" : "en-US");
         if (Branding.Instance.Icon is { } icon) window.Icon = icon;
     }
 }

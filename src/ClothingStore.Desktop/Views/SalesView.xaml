@@ -106,7 +106,7 @@
                                         <DockPanel>
                                             <DockPanel DockPanel.Dock="Bottom">
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding TotalStock, StringFormat={l:T Register.InStockFormat}}" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Bottom" />
-                                                <TextBlock Text="{Binding Product.Price, Converter={StaticResource Money}}" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource PrimaryDarkBrush}" />
+                                                <TextBlock Text="{Binding PriceText}" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource PrimaryDarkBrush}" />
                                             </DockPanel>
                                             <TextBlock Text="{Binding Product.Name}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="38" ToolTip="{Binding Product.Name}" />
                                         </DockPanel>

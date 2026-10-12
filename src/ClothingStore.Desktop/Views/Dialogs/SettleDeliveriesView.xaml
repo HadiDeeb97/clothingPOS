@@ -16,7 +16,7 @@
                 <RadioButton Style="{StaticResource SegmentButton}" GroupName="Method" Content="{l:T Enum.SettlementMethod.CashLbp}" IsEnabled="{Binding HasOpenShift}"
                              Visibility="{Binding LbpEnabled, Converter={StaticResource BoolToVis}}"
                              IsChecked="{Binding Method, Converter={StaticResource Equals}, ConverterParameter=CashLbp}" />
-                <RadioButton Style="{StaticResource SegmentButton}" GroupName="Method" Content="{l:T Enum.SettlementMethod.Transfer}"
+                <RadioButton Style="{StaticResource SegmentButton}" GroupName="Method" Content="{l:T Enum.SettlementMethod.Transfer}" IsEnabled="{Binding CanTransfer}"
                              IsChecked="{Binding Method, Converter={StaticResource Equals}, ConverterParameter=Transfer}" />
             </StackPanel>
         </Border>

@@ -2,6 +2,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Localization;
 using ClothingStore.Core.Pricing;
+using ClothingStore.Core.Security;
 using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 
@@ -86,11 +87,13 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             }
         }
 
-        return await query
+        var rows = await query
             .OrderBy(s => s.DeliverySettlementId == null ? 0 : 1).ThenByDescending(s => s.CreatedAt)
             .Take(take)
             .Select(Row(db))
             .ToListAsync(ct);
+        // "Still owed" leaves out orders fully refunded meanwhile (they owe nothing), as the balances do.
+        return paid is false ? rows.Where(r => r.Owed > 0).ToList() : rows;
     }
 
     /// <summary>
@@ -115,7 +118,7 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
         await using var db = await factory.CreateDbContextAsync(ct);
         var rows = await DeliverySales(db).Where(s => s.DeliverySettlementId == null).Select(Row(db)).ToListAsync(ct);
         return rows.Where(r => r.Owed > 0)
-            .GroupBy(r => r.Courier ?? "")
+            .GroupBy(r => r.Courier ?? "", StringComparer.OrdinalIgnoreCase) // same as the database, which ignores case
             .Select(g => new CourierBalance(g.Key, g.Count(), g.Sum(r => r.Owed)))
             .OrderByDescending(b => b.Owed)
             .ToList();
@@ -215,6 +218,17 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
 
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UserId && u.IsActive, ct)
+                   ?? throw new BusinessRuleException(Loc.T("Err.CashierInactive"));
+        // A transfer brings no cash into the drawer, so a cashier marking courier money "transferred" could keep cash
+        // handed over at the counter without the drawer showing it: managers only.
+        if (request.Method == SettlementMethod.Transfer && !Permissions.Has(user.Role, Permission.SettleByTransfer))
+            throw new BusinessRuleException(Loc.T("Err.TransferNeedsManager"));
+
+        // Loaded (and checked) first, so the save is refused if another till settles or voids one of them meanwhile.
+        var sales = await db.Sales.Where(s => ids.Contains(s.Id)).ToListAsync(ct);
+        if (sales.Count != ids.Count || sales.Any(s => s.Status != SaleStatus.Completed || s.DeliverySettlementId is not null))
+            throw new BusinessRuleException(Loc.T("Err.SettleAlreadyPaid"));
         var rows = await DeliverySales(db).Where(s => ids.Contains(s.Id)).Select(Row(db)).ToListAsync(ct);
         if (rows.Count != ids.Count || rows.Any(r => r.IsPaid)) throw new BusinessRuleException(Loc.T("Err.SettleAlreadyPaid"));
 
@@ -251,10 +265,10 @@ public class DeliveryService(IDbContextFactory<PosDbContext> factory)
             // Cash goes into a drawer, so it must be counted at the end of a shift.
             var shift = request.ShiftId is { } shiftId ? await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct) : null;
             if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException(Loc.T("Err.SettleCashNeedsShift"));
+            db.Entry(shift).Property(s => s.Status).IsModified = true; // refused if the drawer is closed meanwhile
             settlement.ShiftId = shift.Id;
         }
 
-        var sales = await db.Sales.Where(s => ids.Contains(s.Id)).ToListAsync(ct);
         foreach (var sale in sales) sale.DeliverySettlement = settlement;
         db.DeliverySettlements.Add(settlement);
         try

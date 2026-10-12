@@ -105,9 +105,9 @@ internal static class DemoDataSeeder
             new Customer { FirstName = "Amira", LastName = "Haddad", Phone = "555-0103", LoyaltyPoints = 1240 });
 
         if (!db.Users.Any(u => u.Username == "manager"))
-            db.Users.Add(new User { Username = "manager", FullName = "Store Manager", Role = UserRole.Manager, PasswordHash = PasswordHasher.Hash("manager123") });
+            db.Users.Add(new User { Username = "manager", FullName = "Store Manager", Role = UserRole.Manager, PasswordHash = PasswordHasher.Hash("manager123"), MustChangePassword = true });
         if (!db.Users.Any(u => u.Username == "cashier"))
-            db.Users.Add(new User { Username = "cashier", FullName = "Front Cashier", Role = UserRole.Cashier, PasswordHash = PasswordHasher.Hash("cashier123") });
+            db.Users.Add(new User { Username = "cashier", FullName = "Front Cashier", Role = UserRole.Cashier, PasswordHash = PasswordHasher.Hash("cashier123"), MustChangePassword = true });
 
         await db.SaveChangesAsync(ct);
     }

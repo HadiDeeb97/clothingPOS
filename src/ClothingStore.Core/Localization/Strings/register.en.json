@@ -39,6 +39,7 @@
   "Register.InStockFormat": "{0} in stock",
   "Register.InStoreSale": "In-store sale",
   "Register.ItemsFormat": "({0} items)",
+  "Register.ItemsUnavailable": "These items are no longer sold and were taken off the sale:\n\n{0}\n\nCheck the total and press Pay again.",
   "Register.LineDiscountButton": "Line discount (F7)",
   "Register.LineDiscountTitle": "Discount: {0}",
   "Register.MakeOnline": "Online order (F11)",

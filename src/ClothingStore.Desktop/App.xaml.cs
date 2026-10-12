@@ -386,7 +386,7 @@ public partial class App : Application
         main.Closing += (_, e) =>
         {
             // Closing the app (not signing out or switching language) with the drawer still open: same choice as signing out.
-            if (next == AfterMain.Exit && !vm.ConfirmLeavingDrawerOpen()) e.Cancel = true;
+            if (next == AfterMain.Exit && (!vm.ConfirmLeavingCart() || !vm.ConfirmLeavingDrawerOpen())) e.Cancel = true;
         };
         main.Closed += (_, _) =>
         {

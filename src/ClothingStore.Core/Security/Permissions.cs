@@ -32,6 +32,9 @@ public enum Permission
 
     /// <summary>See how much a customer has spent in total (cashiers only see individual receipts).</summary>
     ViewCustomerSpending,
+
+    /// <summary>Mark delivery-company money as received by bank transfer (no cash in the drawer).</summary>
+    SettleByTransfer,
 }
 
 public static class Permissions
@@ -60,6 +63,7 @@ public static class Permissions
         Permission.ManageBranding,
         Permission.ManageCashiers,
         Permission.ViewCustomerSpending,
+        Permission.SettleByTransfer,
     ];
 
     public static bool Has(UserRole role, Permission permission) => role switch

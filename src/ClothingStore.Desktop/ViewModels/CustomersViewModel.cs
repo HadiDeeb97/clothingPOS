@@ -134,7 +134,7 @@ public sealed partial class CustomersViewModel(IDialogService dialogs, CustomerS
         var amount = Dialogs.PromptDecimal(Loc.T("Customers.AdjustCredit"),
             Loc.T("Customers.AdjustCreditPrompt", customer.FullName, CurrencyFormat.Format(customer.StoreCredit)));
         if (amount is null or 0) return;
-        if (await RunAsync(() => customers.AdjustStoreCreditAsync(customer.Id, amount.Value)))
+        if (await RunAsync(() => customers.AdjustStoreCreditAsync(customer.Id, amount.Value, session.User.Id)))
         {
             Dialogs.Toast(Loc.T("Customers.CreditAdjusted", customer.FullName));
             await SearchAsync();

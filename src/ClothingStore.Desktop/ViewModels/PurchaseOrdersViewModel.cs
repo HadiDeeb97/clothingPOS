@@ -189,7 +189,8 @@ public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
     {
         var vm = new PurchaseOrderEditorViewModel(dialogs, orders, products, inventory, session, order)
         {
-            Suppliers = await suppliers.GetAllAsync(),
+            // The order's own supplier stays selectable even if deactivated since (otherwise saving switches supplier).
+            Suppliers = (await suppliers.GetAllAsync(includeInactive: true)).Where(s => s.IsActive || s.Id == order?.SupplierId).ToList(),
         };
         vm.SelectedSupplier = vm.Suppliers.FirstOrDefault(s => s.Id == order?.SupplierId) ?? vm.Suppliers.FirstOrDefault();
         return vm;
@@ -352,7 +353,11 @@ public sealed partial class ReceivePurchaseOrderViewModel(IDialogService dialogs
     {
         var quantities = Lines.Where(l => l.ReceiveNow != 0).ToDictionary(l => l.Line.Id, l => l.ReceiveNow);
         if (quantities.Count == 0) throw new BusinessRuleException(Loc.T("Purchasing.EnterQuantities"));
-        var result = await orders.ReceiveAsync(order.Id, quantities, session.User.Id, UpdateCosts);
+        var over = Lines.Where(l => l.ReceiveNow > l.Line.QuantityOutstanding).ToList();
+        if (over.Count > 0 && !Dialogs.Confirm(Loc.T("Purchasing.OverReceiveConfirm",
+                string.Join("\n", over.Select(l => $"{l.Line.ProductVariant?.Product?.Name} {l.Line.ProductVariant?.Description}: {l.ReceiveNow} / {l.Line.QuantityOutstanding}")))))
+            return;
+        var result = await orders.ReceiveAsync(order.Id, quantities, session.User.Id, UpdateCosts, allowOverReceipt: over.Count > 0);
         Dialogs.Toast(Loc.T("Purchasing.Booked", quantities.Values.Sum(), Loc.EnumText(result.Status)));
         Close(true);
     });

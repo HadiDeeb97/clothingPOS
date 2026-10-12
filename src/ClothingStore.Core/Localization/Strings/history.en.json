@@ -1,5 +1,6 @@
 {
   "History.AlreadyVoided": "This sale is already voided.",
+  "History.Capped": "Showing the newest {0:N0} sales only (totals too): narrow the dates or search to see the rest.",
   "History.DeliveryFee": "Delivery fee",
   "History.ExportTitle": "Export sales",
   "History.OnlineSummary": "Online orders: {0} · {1}",

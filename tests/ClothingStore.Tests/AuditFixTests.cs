@@ -50,7 +50,7 @@ public class AuditFixTests
             UserId = db.Cashier.Id, CustomerId = await db.ShopperIdAsync(), Lines = [new CheckoutLine(tee.Variants[0].Id, 1)],
             Channel = SalesChannel.Instagram, Courier = "Toters", Payments = [new PaymentInput(PaymentMethod.Delivery, 22m)],
         });
-        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [sale.Id], UserId = db.Cashier.Id, Method = SettlementMethod.Transfer });
+        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [sale.Id], UserId = db.Manager.Id, Method = SettlementMethod.Transfer });
 
         await Assert.ThrowsAsync<BusinessRuleException>(() => db.Sales.VoidSaleAsync(sale.Id, db.Manager.Id, "mistake"));
     }

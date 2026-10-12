@@ -32,6 +32,7 @@
   "Purchasing.OrderTitle": "Purchase order {0}",
   "Purchasing.Ordered": "Ordered",
   "Purchasing.Outstanding": "Outstanding",
+  "Purchasing.OverReceiveConfirm": "More than still outstanding on these lines:\n\n{0}\n\nDid the supplier really send extra? Receive anyway?",
   "Purchasing.ReceiveAll": "Receive everything outstanding",
   "Purchasing.ReceiveNow": "Receive now",
   "Purchasing.ReceiveStock": "Receive stock",

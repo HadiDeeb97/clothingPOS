@@ -16,14 +16,15 @@ public sealed partial class SettleDeliveriesViewModel : DialogViewModelBase
 {
     private readonly StoreSettings _settings;
 
-    public SettleDeliveriesViewModel(IDialogService dialogs, StoreSettings settings, IReadOnlyList<DeliveryRow> rows, bool hasOpenShift) : base(dialogs)
+    public SettleDeliveriesViewModel(IDialogService dialogs, StoreSettings settings, IReadOnlyList<DeliveryRow> rows, bool hasOpenShift, bool canTransfer = true) : base(dialogs)
     {
+        CanTransfer = canTransfer;
         _settings = settings;
         Orders = rows.Count;
         Expected = rows.Sum(r => r.Owed);
         Couriers = string.Join(", ", rows.Select(r => r.Courier ?? Loc.T("Deliveries.NoCourier")).Distinct());
         HasOpenShift = hasOpenShift;
-        Method = hasOpenShift ? SettlementMethod.Cash : SettlementMethod.Transfer;
+        Method = hasOpenShift || !canTransfer ? SettlementMethod.Cash : SettlementMethod.Transfer;
         ReceivedText = Expected.ToString("0.00", CultureInfo.CurrentCulture);
     }
 
@@ -32,6 +33,9 @@ public sealed partial class SettleDeliveriesViewModel : DialogViewModelBase
     public decimal Expected { get; }
     public string Couriers { get; }
     public bool HasOpenShift { get; }
+
+    /// <summary>Transfers bring no cash into a drawer: managers only.</summary>
+    public bool CanTransfer { get; }
     public decimal Rate => _settings.ActiveLbpRate;
     public bool LbpEnabled => Rate > 0;
     public decimal ExpectedLbp => Lbp.ToPay(Expected, Rate, _settings.LbpRounding);

@@ -51,7 +51,7 @@ public class DeliveryPaymentTests
         }));
 
         // A transfer needs no drawer.
-        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [c.Id], UserId = db.Cashier.Id, Method = SettlementMethod.Transfer });
+        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [c.Id], UserId = db.Manager.Id, Method = SettlementMethod.Transfer });
         Assert.Empty(await db.Deliveries.GetBalancesAsync());
         Assert.Equal(170m, (await db.Shifts.GetSummaryAsync(shift.Id)).ExpectedCash);
     }

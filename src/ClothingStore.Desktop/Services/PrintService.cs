@@ -133,8 +133,12 @@ public sealed class PrintService
         });
         if (dialog is null) return false;
 
-        var document = BuildLabelDocument(labels, options, skip, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight);
-        dialog.PrintDocument(document.DocumentPaginator, "Price labels");
+        // Copies chosen in the print dialog: the ticket was reset to 1, so the set is sent that many times.
+        for (var i = 0; i < Math.Max(1, copies); i++)
+        {
+            var document = BuildLabelDocument(labels, options, skip, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight);
+            dialog.PrintDocument(document.DocumentPaginator, "Price labels");
+        }
         return true;
     }
 

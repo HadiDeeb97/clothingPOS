@@ -42,6 +42,7 @@ public class QuerySmokeTests
             UserId = db.Cashier.Id, ShiftId = shift.Id, CustomerId = customer.Id,
             Lines = [new CheckoutLine(variant.Id, 1)],
             Payments = [new PaymentInput(PaymentMethod.Cash, 500m)],
+            ExchangeRate = 89_500m, // the cents of the change come back in pounds, at the rate shown
         });
 
         var today = DateTime.Today;

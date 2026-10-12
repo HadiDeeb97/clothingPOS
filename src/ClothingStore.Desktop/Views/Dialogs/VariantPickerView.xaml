@@ -5,7 +5,7 @@
              MinWidth="420">
     <StackPanel>
         <DockPanel Margin="0,0,0,4">
-            <TextBlock DockPanel.Dock="Right" Text="{Binding Product.Price, Converter={StaticResource Money}}" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding PriceText}" FontSize="18" FontWeight="SemiBold" />
             <TextBlock Text="{Binding Product.Name}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
         </DockPanel>
         <TextBlock Text="{l:T VariantPicker.Hint}" Style="{StaticResource HintText}" Margin="0,0,0,14" />

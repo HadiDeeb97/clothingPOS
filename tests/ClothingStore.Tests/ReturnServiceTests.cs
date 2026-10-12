@@ -125,7 +125,7 @@ public class ReturnServiceTests
         var db = await TestDatabase.CreateAsync();
         var tee = (await db.CreateTeeAsync(stockEach: 10, price: 10m)).Variants[0];
         var customer = await db.Customers.SaveAsync(new Customer { FirstName = "Tess" });
-        if (storeCredit > 0) await db.Customers.AdjustStoreCreditAsync(customer.Id, storeCredit);
+        if (storeCredit > 0) await db.Customers.AdjustStoreCreditAsync(customer.Id, storeCredit, db.Manager.Id);
         await using (var ctx = await db.Factory.CreateDbContextAsync())
         {
             await ctx.Customers.Where(c => c.Id == customer.Id).ExecuteUpdateAsync(c => c.SetProperty(x => x.LoyaltyPoints, points));

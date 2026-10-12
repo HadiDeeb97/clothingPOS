@@ -330,6 +330,13 @@ public sealed partial class PaymentViewModel : DialogViewModelBase
             Dialogs.Warning(SplitError);
             return;
         }
+        if (CashDue == 0 && (TenderedUsd > 0 || TenderedLbp > 0))
+        {
+            // Card, wallet or delivery already cover everything: this cash would all be "change" and is refused.
+            Dialogs.Warning(Loc.T("Err.CashNotNeeded"));
+            ClearCash();
+            return;
+        }
         Close(true);
     }
 

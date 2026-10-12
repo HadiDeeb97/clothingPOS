@@ -55,13 +55,18 @@ public static class SmartSearch
                 'ة' or 'ه' => "[ةه]",
                 'ى' or 'ي' or 'ئ' => "[ىيئ]",
                 'و' or 'ؤ' => "[وؤ]",
-                // The database compares accents strictly, so let plain and accented Latin vowels match.
-                'a' or 'à' or 'á' or 'â' or 'ä' or 'A' or 'À' or 'Á' or 'Â' or 'Ä' => "[aàáâä]",
-                'e' or 'è' or 'é' or 'ê' or 'ë' or 'E' or 'È' or 'É' or 'Ê' or 'Ë' => "[eèéêë]",
-                'i' or 'ì' or 'í' or 'î' or 'ï' or 'I' or 'Ì' or 'Í' or 'Î' or 'Ï' => "[iìíîï]",
-                'o' or 'ò' or 'ó' or 'ô' or 'ö' or 'O' or 'Ò' or 'Ó' or 'Ô' or 'Ö' => "[oòóôö]",
-                'u' or 'ù' or 'ú' or 'û' or 'ü' or 'U' or 'Ù' or 'Ú' or 'Û' or 'Ü' => "[uùúûü]",
-                'c' or 'ç' or 'C' or 'Ç' => "[cç]",
+                // The database compares accents strictly, so let plain and accented Latin vowels match. Upper and
+                // lower case are both listed so it also works on a database that compares case strictly.
+                'a' or 'à' or 'á' or 'â' or 'ä' or 'A' or 'À' or 'Á' or 'Â' or 'Ä' => "[aàáâäAÀÁÂÄ]",
+                'e' or 'è' or 'é' or 'ê' or 'ë' or 'E' or 'È' or 'É' or 'Ê' or 'Ë' => "[eèéêëEÈÉÊË]",
+                'i' or 'ì' or 'í' or 'î' or 'ï' or 'I' or 'Ì' or 'Í' or 'Î' or 'Ï' => "[iìíîïIÌÍÎÏ]",
+                'o' or 'ò' or 'ó' or 'ô' or 'ö' or 'O' or 'Ò' or 'Ó' or 'Ô' or 'Ö' => "[oòóôöOÒÓÔÖ]",
+                'u' or 'ù' or 'ú' or 'û' or 'ü' or 'U' or 'Ù' or 'Ú' or 'Û' or 'Ü' => "[uùúûüUÙÚÛÜ]",
+                'c' or 'ç' or 'C' or 'Ç' => "[cçCÇ]",
+                >= 'a' and <= 'z' => $"[{c}{char.ToUpperInvariant(c)}]",
+                >= 'A' and <= 'Z' => $"[{char.ToLowerInvariant(c)}{c}]",
+                // Sizes, codes and names may have been typed with Arabic digits; the search term arrives as 0-9.
+                >= '0' and <= '9' => $"[{c}{(char)('٠' + (c - '0'))}{(char)('۰' + (c - '0'))}]",
                 _ => c.ToString(),
             });
         }

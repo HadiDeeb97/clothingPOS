@@ -25,6 +25,7 @@ public sealed partial class VariantPickerViewModel : DialogViewModelBase
         : base(dialogs)
     {
         Product = product;
+        PriceText = ProductRow.PriceRange(variants.Select(v => v.PriceOverride ?? product.Price), product.Price);
         var sizes = variants.Select(v => v.Size).Distinct().ToList();
         SizeHeaders = sizes.Select(s => s.Length == 0 ? None : s).ToList();
         Rows = variants
@@ -41,6 +42,7 @@ public sealed partial class VariantPickerViewModel : DialogViewModelBase
 
     public override string Title => Loc.T("VariantPicker.Title");
     public Product Product { get; }
+    public string PriceText { get; }
     public IReadOnlyList<string> SizeHeaders { get; }
     public IReadOnlyList<VariantRow> Rows { get; }
     public ProductVariant? Chosen { get; private set; }

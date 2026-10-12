@@ -1,3 +1,4 @@
+using ClothingStore.Core.Security;
 using ClothingStore.Core;
 using ClothingStore.Core.Localization;
 using ClothingStore.Data.Services;
@@ -241,7 +242,7 @@ public sealed partial class DeliveriesViewModel(
     {
         var rows = _checked.Values.ToList();
         if (rows.Count == 0) return;
-        var dialog = new SettleDeliveriesViewModel(Dialogs, settings.Current, rows, session.HasOpenShift);
+        var dialog = new SettleDeliveriesViewModel(Dialogs, settings.Current, rows, session.HasOpenShift, session.Can(Permission.SettleByTransfer));
         if (!Dialogs.ShowDialog(dialog)) return;
 
         var ok = await RunAsync(() => deliveries.SettleAsync(new SettleDeliveriesRequest

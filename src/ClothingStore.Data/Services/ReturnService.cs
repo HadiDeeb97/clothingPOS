@@ -62,6 +62,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         {
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
             if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
+            db.Entry(shift).Property(s => s.Status).IsModified = true; // refused if the drawer is closed meanwhile
         }
 
         var priced = PriceLines(state, requested);
@@ -125,7 +126,9 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
                 m => m == PaymentMethod.LoyaltyPoints);
             ret.LoyaltyPointsRemoved = PointsToMove(state, shares, sale.LoyaltyPointsEarned, state.PointsRemovedBefore,
                 SalesService.EarnsPoints);
-            customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints + ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved);
+            // Points already spent can't be taken back: record only what actually came off the balance.
+            ret.LoyaltyPointsRemoved = Math.Min(ret.LoyaltyPointsRemoved, customer.LoyaltyPoints + ret.LoyaltyPointsRestored);
+            customer.LoyaltyPoints += ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved;
         }
 
         db.Returns.Add(ret);

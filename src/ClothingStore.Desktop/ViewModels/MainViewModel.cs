@@ -162,6 +162,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     private int _ticks;
+    private bool _checkingLicense;
 
     private async void OnClockTick(object? sender, EventArgs e)
     {
@@ -185,6 +186,21 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     private async Task RecheckLicenseAsync()
+    {
+        // The clock keeps ticking while the activation window is open: never stack a second one.
+        if (_checkingLicense) return;
+        _checkingLicense = true;
+        try
+        {
+            await CheckLicenseOnceAsync();
+        }
+        finally
+        {
+            _checkingLicense = false;
+        }
+    }
+
+    private async Task CheckLicenseOnceAsync()
     {
         try
         {
@@ -254,6 +270,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         IsUserMenuOpen = false;
         if (Dialogs.Confirm(Loc.T("Shell.ResetLayoutConfirm"))) LayoutResetRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>Closing the app with a sale in progress: ask before its items are lost.</summary>
+    public bool ConfirmLeavingCart() =>
+        !_register.HasItems || Dialogs.Confirm(Loc.T("Shell.CloseConfirmCart", _register.Items.Count));
 
     [RelayCommand]
     private void SignOut()

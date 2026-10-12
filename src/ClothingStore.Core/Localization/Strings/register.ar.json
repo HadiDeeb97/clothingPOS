@@ -39,6 +39,7 @@
   "Register.InStockFormat": "متوفر {0}",
   "Register.InStoreSale": "بيع في المتجر",
   "Register.ItemsFormat": "({0} قطعة)",
+  "Register.ItemsUnavailable": "لم تعد هذه الأصناف معروضة للبيع وأُزيلت من الفاتورة:\n\n{0}\n\nتحقق من المجموع واضغط دفع مجددًا.",
   "Register.LineDiscountButton": "حسم على الصنف (F7)",
   "Register.LineDiscountTitle": "حسم: {0}",
   "Register.MakeOnline": "طلب أونلاين (F11)",

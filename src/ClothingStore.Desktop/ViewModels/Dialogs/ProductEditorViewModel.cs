@@ -73,8 +73,10 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     {
         var vm = new ProductEditorViewModel(dialogs, products, session, product)
         {
-            Categories = await categories.GetAllAsync(),
-            Suppliers = await suppliers.GetAllAsync(),
+            // Active ones, plus the product's own even if it was deactivated since: otherwise saving would quietly move
+            // the product to another category or drop its supplier.
+            Categories = (await categories.GetAllAsync(includeInactive: true)).Where(c => c.IsActive || c.Id == product?.CategoryId).ToList(),
+            Suppliers = (await suppliers.GetAllAsync(includeInactive: true)).Where(s => s.IsActive || s.Id == product?.SupplierId).ToList(),
         };
         vm.SelectedCategory = vm.Categories.FirstOrDefault(c => c.Id == product?.CategoryId) ?? vm.Categories.FirstOrDefault();
         vm.SelectedSupplier = vm.Suppliers.FirstOrDefault(s => s.Id == product?.SupplierId);

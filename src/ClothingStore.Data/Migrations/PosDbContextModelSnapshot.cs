@@ -564,6 +564,7 @@ namespace ClothingStore.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<int>("SupplierId")
@@ -597,6 +598,7 @@ namespace ClothingStore.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("QuantityReceived")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<decimal>("UnitCost")
@@ -784,6 +786,9 @@ namespace ClothingStore.Data.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool?>("PricesIncludeTax")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ReceiptNumber")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -799,6 +804,10 @@ namespace ClothingStore.Data.Migrations
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("TaxRate")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
 
                     b.Property<decimal>("TaxTotal")
                         .HasPrecision(18, 2)
