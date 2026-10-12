@@ -40,7 +40,10 @@ public class DatabaseInitializer(IDbContextFactory<PosDbContext> factory)
         }
         await db.SaveChangesAsync(ct);
 
-        if (seedDemoData && !await db.Products.AnyAsync(ct))
+        // Only into an empty store: an owner who deleted the demo products (keeping categories, customers or sales) must
+        // not get them back on the next start, where they would also clash with the names and phones still there.
+        if (seedDemoData && !await db.Products.AnyAsync(ct) && !await db.Categories.AnyAsync(ct)
+            && !await db.Customers.AnyAsync(ct) && !await db.Sales.AnyAsync(ct))
             await DemoDataSeeder.SeedAsync(db, ct);
     }
 

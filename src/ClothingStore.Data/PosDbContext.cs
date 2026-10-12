@@ -114,6 +114,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.ReceiptNumber).HasMaxLength(32).IsRequired();
             e.HasIndex(x => x.ReceiptNumber).IsUnique();
             e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.TaxRate).HasPrecision(9, 4);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
@@ -166,6 +167,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasIndex(x => x.OrderNumber).IsUnique();
             e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Lines).WithOne(l => l.PurchaseOrder).HasForeignKey(l => l.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
+            // Receiving and cancelling on two PCs at once: the second save is refused instead of overwriting the first.
+            e.Property(x => x.Status).IsConcurrencyToken();
             e.Ignore(x => x.Total);
             e.Ignore(x => x.TotalUnits);
         });
@@ -173,6 +176,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         b.Entity<PurchaseOrderLine>(e =>
         {
             e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.QuantityReceived).IsConcurrencyToken();
             e.Ignore(x => x.LineTotal);
             e.Ignore(x => x.QuantityOutstanding);
         });

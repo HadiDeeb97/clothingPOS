@@ -32,6 +32,7 @@
   "Nav.Users": "المستخدمون",
   "Shell.AppName": "نظام نقاط البيع للألبسة",
   "Shell.ChangePassword": "تغيير كلمة المرور",
+  "Shell.CloseConfirmCart": "هناك عملية بيع جارية تحتوي على {0} صنف/أصناف. هل تريد إغلاق البرنامج ومسحها؟",
   "Shell.CloseDrawerNow": "أغلقه الآن",
   "Shell.DrawerStillOpen": "درجك ما زال مفتوحاً. هل تتركه مفتوحاً للكاشير التالي (يمكنه المتابعة عليه أو عدّه وإغلاقه)، أم تغلقه الآن؟",
   "Shell.ExitFullScreen": "الخروج من ملء الشاشة (Ctrl+Shift+F)",

@@ -79,7 +79,19 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
             });
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.PoChangedMeanwhile"));
+        }
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
+        {
+            // Another PC created an order with the same number a moment earlier; saving again takes the next one.
+            throw new BusinessRuleException(Loc.T("Err.CodeTakenMeanwhile"));
+        }
         return (await GetAsync(entity.Id, ct))!;
     }
 
@@ -90,14 +102,27 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
         if (po.Status != PurchaseOrderStatus.Draft) throw new BusinessRuleException(Loc.T("Err.PoOnlyDraftOrdered"));
         po.Status = PurchaseOrderStatus.Ordered;
         po.OrderedAt = DateTime.Now;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.PoChangedMeanwhile"));
+        }
     }
 
     /// <summary>
     /// Books received quantities into stock. <paramref name="receivedByLineId"/> maps PO line id to units received now.
     /// When <paramref name="updateCosts"/> is set, the variant cost is updated to the PO unit cost.
     /// </summary>
-    public async Task<PurchaseOrder> ReceiveAsync(int id, IReadOnlyDictionary<int, int> receivedByLineId, int userId, bool updateCosts = true, CancellationToken ct = default)
+    /// <summary>
+    /// Books received quantities into stock. More than still outstanding on a line is refused unless
+    /// <paramref name="allowOverReceipt"/> (the supplier really sent extra): it catches typos, and a second PC receiving
+    /// the same delivery from a screen opened before the first PC saved.
+    /// </summary>
+    public async Task<PurchaseOrder> ReceiveAsync(int id, IReadOnlyDictionary<int, int> receivedByLineId, int userId, bool updateCosts = true,
+        bool allowOverReceipt = false, CancellationToken ct = default)
     {
         if (receivedByLineId.Values.Any(q => q < 0)) throw new BusinessRuleException(Loc.T("Err.ReceivedNegative"));
         if (receivedByLineId.Values.All(q => q == 0)) throw new BusinessRuleException(Loc.T("Err.EnterReceived"));
@@ -114,6 +139,9 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
         foreach (var (lineId, qty) in receivedByLineId.Where(kv => kv.Value > 0))
         {
             var line = po.Lines.FirstOrDefault(l => l.Id == lineId) ?? throw new BusinessRuleException(Loc.T("Err.PoLineNotFound"));
+            if (qty > line.QuantityOutstanding && !allowOverReceipt)
+                throw new BusinessRuleException(Loc.T("Err.ReceiveMoreThanOutstanding",
+                    $"{line.ProductVariant!.Product!.Name} {line.ProductVariant.Description}".Trim(), line.QuantityOutstanding, qty));
             line.QuantityReceived += qty;
             var variant = line.ProductVariant!;
             StockLedger.Apply(db, variant, qty, StockMovementType.PurchaseReceipt, userId, po.OrderNumber);
@@ -147,7 +175,14 @@ public class PurchaseOrderService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException(Loc.T("Err.PoClosed"));
         po.Status = po.Status == PurchaseOrderStatus.PartiallyReceived ? PurchaseOrderStatus.Received : PurchaseOrderStatus.Cancelled;
         if (po.Status == PurchaseOrderStatus.Received) po.ReceivedAt = DateTime.Now;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.PoChangedMeanwhile"));
+        }
     }
 
     public async Task DeleteDraftAsync(int id, CancellationToken ct = default)

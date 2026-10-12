@@ -67,8 +67,8 @@ public static class ReceiptBuilder
             Subtotal = sale.Subtotal,
             Discount = sale.DiscountTotal,
             Tax = sale.TaxTotal,
-            TaxRate = s.TaxRate,
-            PricesIncludeTax = s.PricesIncludeTax,
+            TaxRate = sale.TaxRate ?? s.TaxRate,
+            PricesIncludeTax = sale.PricesIncludeTax ?? s.PricesIncludeTax,
             DeliveryFee = sale.DeliveryFee,
             Total = sale.Total,
             SecondaryTotal = secondaryTotal,
@@ -136,7 +136,11 @@ public static class ReceiptBuilder
     {
         const int w = 42;
         string M(decimal v) => Money.Format(v, s.CurrencySymbol);
-        string Row(string l, string r) => l.PadRight(w - r.Length - 1)[..(w - r.Length - 1)] + " " + r;
+        string Row(string l, string r)
+        {
+            if (r.Length > w - 2) r = r[..(w - 2)]; // a very long name must not break the report
+            return l.PadRight(w - r.Length - 1)[..(w - r.Length - 1)] + " " + r;
+        }
         var rule = new string('-', w);
 
         var lines = new List<string>

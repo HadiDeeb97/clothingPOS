@@ -88,7 +88,7 @@ public class SalesServiceTests
         await using var db = await TestDatabase.CreateAsync();
         var tee = await db.CreateTeeAsync();
         var customer = await db.Customers.SaveAsync(new Customer { FirstName = "Ana", Phone = "1" });
-        await db.Customers.AdjustStoreCreditAsync(customer.Id, 10m);
+        await db.Customers.AdjustStoreCreditAsync(customer.Id, 10m, db.Manager.Id);
         await using (var ctx = await db.Factory.CreateDbContextAsync())
         {
             var c = await ctx.Customers.FindAsync(customer.Id);
@@ -129,6 +129,7 @@ public class SalesServiceTests
             UserId = db.Cashier.Id,
             Lines = [new CheckoutLine(tee.Variants[0].Id, 1, DiscountType.Percent, 25m)],
             Payments = [new PaymentInput(PaymentMethod.Cash, 100m)],
+            ExchangeRate = 89_500m,
             ApprovedByUserId = approver,
         };
 
@@ -163,7 +164,7 @@ public class SalesServiceTests
         await using var db = await TestDatabase.CreateAsync();
         var tee = await db.CreateTeeAsync(stockEach: 5);
         var customer = await db.Customers.SaveAsync(new Customer { FirstName = "Ben" });
-        await db.Customers.AdjustStoreCreditAsync(customer.Id, 5m);
+        await db.Customers.AdjustStoreCreditAsync(customer.Id, 5m, db.Manager.Id);
         var shift = await db.OpenShiftAsync();
 
         var sale = await db.Sales.CompleteSaleAsync(new CheckoutRequest

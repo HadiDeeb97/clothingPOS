@@ -3,6 +3,7 @@ using ClothingStore.Core.Entities;
 using ClothingStore.Core.Text;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
+using ClothingStore.Core.Security;
 
 namespace ClothingStore.Data.Services;
 
@@ -116,12 +117,16 @@ public class CustomerService(IDbContextFactory<PosDbContext> factory)
     }
 
     /// <summary>Manually add (positive) or remove (negative) store credit, e.g. goodwill gestures.</summary>
-    public async Task<Customer> AdjustStoreCreditAsync(int customerId, decimal amount, CancellationToken ct = default)
+    public async Task<Customer> AdjustStoreCreditAsync(int customerId, decimal amount, int userId, CancellationToken ct = default)
     {
         amount = Money.Round(amount);
         if (amount == 0) throw new BusinessRuleException(Loc.T("Err.AmountZero"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
+        // Checked here too, not only by hiding the button: store credit is money.
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, ct);
+        if (user is null || !Permissions.Has(user.Role, Permission.AdjustStoreCredit))
+            throw new BusinessRuleException(Loc.T("Err.NoPermission"));
         var customer = await db.Customers.FindAsync([customerId], ct) ?? throw new BusinessRuleException(Loc.T("Err.CustomerNotFound"));
         if (customer.StoreCredit + amount < 0)
             throw new BusinessRuleException(Loc.T("Err.CustomerCreditOnly", customer.StoreCredit));
@@ -151,6 +156,11 @@ public class CustomerService(IDbContextFactory<PosDbContext> factory)
         catch (DbUpdateConcurrencyException)
         {
             throw new BusinessRuleException(Loc.T("Err.CustomerChanged"));
+        }
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
+        {
+            // Another till saved a customer with the same phone a moment earlier.
+            throw new BusinessRuleException(Loc.T("Err.PhoneUsedMeanwhile"));
         }
     }
 }

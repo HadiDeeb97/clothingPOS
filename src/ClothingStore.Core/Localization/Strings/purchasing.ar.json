@@ -32,6 +32,7 @@
   "Purchasing.OrderTitle": "طلب الشراء {0}",
   "Purchasing.Ordered": "المطلوب",
   "Purchasing.Outstanding": "المتبقي",
+  "Purchasing.OverReceiveConfirm": "كميات أكبر من المتبقي في هذه البنود:\n\n{0}\n\nهل أرسل المورد كمية إضافية فعلًا؟ استلام على أي حال؟",
   "Purchasing.ReceiveAll": "استلام كل المتبقي",
   "Purchasing.ReceiveNow": "استلام الآن",
   "Purchasing.ReceiveStock": "استلام البضاعة",

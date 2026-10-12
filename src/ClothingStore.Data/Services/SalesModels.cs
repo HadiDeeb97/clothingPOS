@@ -89,6 +89,13 @@ public sealed record ReturnRequest
 
     /// <summary>LBP rate the till showed; checked like <see cref="CheckoutRequest.ExchangeRate"/>.</summary>
     public decimal ExchangeRate { get; init; }
+
+    /// <summary>
+    /// For an order paid through a delivery company that hasn't paid the store yet: the customer already paid the
+    /// courier, so the customer is refunded at the counter and the courier still owes the full amount. False: the
+    /// money never left the courier, so it is just owed less.
+    /// </summary>
+    public bool CustomerPaidCourier { get; init; }
 }
 
 /// <summary>What a return would refund and how, before it is processed.</summary>

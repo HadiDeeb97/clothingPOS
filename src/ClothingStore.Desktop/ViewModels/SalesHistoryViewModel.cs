@@ -44,8 +44,12 @@ public sealed partial class SalesHistoryViewModel(
     public partial SaleSourceFilter Source { get; set; } = SaleSourceFilter.All;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalSales), nameof(SaleCount), nameof(OnlineSummary))]
+    [NotifyPropertyChangedFor(nameof(TotalSales), nameof(SaleCount), nameof(OnlineSummary), nameof(IsCapped))]
     public partial List<Sale> Sales { get; set; } = [];
+
+    /// <summary>Only the newest sales are listed (and counted in the totals): the dates or search should be narrowed.</summary>
+    public bool IsCapped => Sales.Count >= SalesService.HistoryLimit;
+    public string CappedText => Loc.T("History.Capped", SalesService.HistoryLimit);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReprintCommand), nameof(VoidCommand), nameof(ReturnCommand))]

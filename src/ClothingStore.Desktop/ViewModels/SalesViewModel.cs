@@ -295,9 +295,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     private void AddVariant(ProductVariant variant)
     {
+        if (IsBusy) return; // the sale is being saved: anything added now would be cleared with it
         var existing = Items.FirstOrDefault(i => i.VariantId == variant.Id && i.DiscountType == DiscountType.None);
         var newQty = (existing?.Quantity ?? 0) + 1;
-        if (!CheckStock(variant.StockQuantity, newQty, variant.DisplayName)) return;
+        if (!CheckStock(variant.Id, variant.StockQuantity, newQty, existing, variant.DisplayName)) return;
 
         if (existing is not null)
         {
@@ -316,8 +317,13 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private bool CheckStock(int onHand, int wanted, string name)
+    /// <summary>
+    /// <paramref name="wanted"/> is the quantity for <paramref name="line"/> (null: a new line); the same item on other
+    /// lines (e.g. one with a discount) counts too, since they all come out of the same stock.
+    /// </summary>
+    private bool CheckStock(int variantId, int onHand, int wanted, CartItemViewModel? line, string name)
     {
+        wanted += Items.Where(i => i.VariantId == variantId && !ReferenceEquals(i, line)).Sum(i => i.Quantity);
         if (wanted <= onHand || _settings.Current.AllowNegativeStock) return true;
         Dialogs.Warning(onHand <= 0 ? Loc.T("Register.OutOfStock", name) : Loc.T("Register.OnlyInStock", onHand, name));
         return false;
@@ -329,7 +335,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void Increase(CartItemViewModel? item)
     {
         item ??= SelectedItem;
-        if (item is null || !CheckStock(item.StockOnHand, item.Quantity + 1, item.ProductName)) return;
+        if (IsBusy || item is null || !CheckStock(item.VariantId, item.StockOnHand, item.Quantity + 1, item, item.ProductName)) return;
         item.Quantity++;
     }
 
@@ -337,7 +343,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void Decrease(CartItemViewModel? item)
     {
         item ??= SelectedItem;
-        if (item is null) return;
+        if (IsBusy || item is null) return;
         if (item.Quantity > 1) item.Quantity--;
         else Items.Remove(item);
     }
@@ -346,7 +352,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private void RemoveItem(CartItemViewModel? item)
     {
         item ??= SelectedItem;
-        if (item is null) return;
+        if (IsBusy || item is null) return;
         var index = Items.IndexOf(item);
         Items.Remove(item);
         SelectedItem = Items.Count == 0 ? null : Items[Math.Min(index, Items.Count - 1)];
@@ -356,7 +362,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void SetQuantity()
     {
-        if (SelectedItem is not { } item) return;
+        if (IsBusy || SelectedItem is not { } item) return;
         var qty = Dialogs.PromptInt(Loc.T("Common.Qty"), Loc.T("Register.QuantityFor", item.ProductName, item.VariantDescription), item.Quantity);
         if (qty is null) return;
         if (qty <= 0)
@@ -364,7 +370,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             Items.Remove(item);
             return;
         }
-        if (CheckStock(item.StockOnHand, qty.Value, item.ProductName)) item.Quantity = qty.Value;
+        if (CheckStock(item.VariantId, item.StockOnHand, qty.Value, item, item.ProductName)) item.Quantity = qty.Value;
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -492,7 +498,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         var missing = 0;
         foreach (var line in cart.Lines)
         {
-            if (!variants.TryGetValue(line.VariantId, out var v) || !v.IsActive)
+            if (!variants.TryGetValue(line.VariantId, out var v) || !v.IsActive || v.Product is { IsActive: false })
             {
                 missing++;
                 continue;
@@ -621,14 +627,25 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         // The sale is priced on the server from current prices and tax: catch up with changes made at another till
         // (or in Products) since the items were scanned, so the total and change shown are what is charged.
         var repriced = 0;
+        List<CartItemViewModel> unavailable = [];
         if (!await RunAsync(async () =>
             {
                 await _settings.GetAsync();
                 var variants = (await _products.GetVariantsAsync(Items.Select(i => i.VariantId).Distinct())).ToDictionary(v => v.Id);
                 foreach (var item in Items)
-                    if (variants.TryGetValue(item.VariantId, out var v) && item.Reprice(v.EffectivePrice)) repriced++;
+                {
+                    if (!variants.TryGetValue(item.VariantId, out var v) || !v.IsActive || v.Product is { IsActive: false }) unavailable.Add(item);
+                    else if (item.Reprice(v.EffectivePrice)) repriced++;
+                }
                 Recalculate();
             })) return;
+        if (unavailable.Count > 0)
+        {
+            // Switched off (or deleted) since it was scanned: the sale would be refused after the money is taken.
+            foreach (var item in unavailable) Items.Remove(item);
+            Dialogs.Warning(Loc.T("Register.ItemsUnavailable", string.Join("\n", unavailable.Select(i => $"{i.ProductName} {i.VariantDescription}"))));
+            return;
+        }
         if (repriced > 0)
         {
             Dialogs.Warning(Loc.T("Register.PricesChanged", repriced));

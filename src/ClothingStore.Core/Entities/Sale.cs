@@ -21,6 +21,13 @@ public class Sale : Entity
     public decimal TaxTotal { get; set; }
     public decimal Total { get; set; }
 
+    /// <summary>
+    /// Tax rate and pricing mode the sale was made with, so a reprint after the settings change still adds up.
+    /// Null on sales made before these were kept (the current settings are used then).
+    /// </summary>
+    public decimal? TaxRate { get; set; }
+    public bool? PricesIncludeTax { get; set; }
+
     public DiscountType CartDiscountType { get; set; }
     public decimal CartDiscountValue { get; set; }
 

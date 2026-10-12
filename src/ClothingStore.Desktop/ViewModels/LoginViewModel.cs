@@ -66,8 +66,9 @@ public sealed partial class LoginViewModel(IDialogService dialogs, UserService u
             return;
         }
 
-        session.CurrentUser = user;
+        // Signed in only once the drawer is known: if that lookup fails, nobody is left half signed in.
         var till = await shifts.GetTillShiftAsync(user.Id, session.TillId, session.TillName);
+        session.CurrentUser = user;
         session.CurrentShift = till.IsMine ? till.Shift : null;
         session.OtherDrawer = till.IsOtherCashiers ? till.Shift : null;
         SignedIn?.Invoke(this, EventArgs.Empty);

@@ -1,5 +1,6 @@
 {
   "History.AlreadyVoided": "هذه العملية ملغاة مسبقاً.",
+  "History.Capped": "يتم عرض أحدث {0:N0} عملية بيع فقط (والمجاميع كذلك): ضيّق التواريخ أو البحث لرؤية الباقي.",
   "History.DeliveryFee": "رسم التوصيل",
   "History.ExportTitle": "تصدير المبيعات",
   "History.OnlineSummary": "طلبات أونلاين: {0} · {1}",

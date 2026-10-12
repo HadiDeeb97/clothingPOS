@@ -53,6 +53,8 @@
                             <TextBlock Text="{l:T History.SaleCount}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0" />
                             <TextBlock Text="{Binding SaleCount}" FontSize="18" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding OnlineSummary}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="18,0,0,0" />
+                            <TextBlock Text="{Binding CappedText}" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="18,0,0,0"
+                                       TextWrapping="Wrap" Visibility="{Binding IsCapped, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>

@@ -51,7 +51,7 @@ public class DeliveryPaymentTests
         }));
 
         // A transfer needs no drawer.
-        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [c.Id], UserId = db.Cashier.Id, Method = SettlementMethod.Transfer });
+        await db.Deliveries.SettleAsync(new SettleDeliveriesRequest { SaleIds = [c.Id], UserId = db.Manager.Id, Method = SettlementMethod.Transfer });
         Assert.Empty(await db.Deliveries.GetBalancesAsync());
         Assert.Equal(170m, (await db.Shifts.GetSummaryAsync(shift.Id)).ExpectedCash);
     }
@@ -116,6 +116,29 @@ public class DeliveryPaymentTests
         });
         Assert.Equal(RefundMethod.Cash, second.Refunds.Single().Method);
         Assert.Equal(100m + 22m - 22m, (await db.Shifts.GetSummaryAsync(shift.Id)).ExpectedCash);
+    }
+
+    /// <summary>The customer paid the courier and brings the item back to the shop: refunded here, the courier still owes it all.</summary>
+    [Fact]
+    public async Task A_customer_who_already_paid_the_courier_is_refunded_at_the_counter()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var shift = await db.OpenShiftAsync();
+        var sale = await SellAsync(db, tee.Variants[0].Id, 2, "Toters", fee: 0m); // owes 44
+
+        var plan = await db.Returns.PlanAsync(sale.Id, [new ReturnLineRequest(sale.Lines[0].Id, 1)], RefundDestination.OriginalPayment,
+            customerPaidCourier: true);
+        Assert.Equal((22m, 0m), (plan.CashOut, plan.OffDelivery));
+
+        var ret = await db.Returns.ProcessReturnAsync(new ReturnRequest
+        {
+            SaleId = sale.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, CustomerPaidCourier = true,
+            Lines = [new ReturnLineRequest(sale.Lines[0].Id, 1)],
+        });
+        Assert.Equal((RefundMethod.Cash, 22m), (ret.Refunds.Single().Method, ret.Refunds.Single().Amount));
+        Assert.Equal(44m, (await db.Deliveries.GetAsync(paid: false)).Single().Owed);         // courier still owes all of it
+        Assert.Equal(100m - 22m, (await db.Shifts.GetSummaryAsync(shift.Id)).ExpectedCash); // paid out of the drawer
     }
 
     [Fact]

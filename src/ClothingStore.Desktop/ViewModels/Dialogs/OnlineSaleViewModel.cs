@@ -63,10 +63,13 @@ public sealed partial class OnlineSaleViewModel : DialogViewModelBase
             .Where(x => !string.IsNullOrWhiteSpace(x)))
         : null;
 
-    partial void OnSelectedPartnerChanged(DeliveryPartner? value)
+    partial void OnSelectedPartnerChanged(DeliveryPartner? oldValue, DeliveryPartner? newValue)
     {
-        // Picking a partner fills in its usual fee (not while the window is opening with the order's own fee).
-        if (_ready && value?.DefaultFee is { } fee)
+        // Picking a partner fills in its usual fee (not while the window is opening with the order's own fee, and not
+        // when the same partner is picked again after the list reloads, which would wipe a fee the cashier typed).
+        var samePartner = oldValue is not null && newValue is not null
+                          && string.Equals(oldValue.Name, newValue.Name, StringComparison.OrdinalIgnoreCase);
+        if (_ready && !samePartner && newValue?.DefaultFee is { } fee)
             DeliveryFeeText = fee == 0 ? "" : fee.ToString("0.##", CultureInfo.CurrentCulture);
     }
 

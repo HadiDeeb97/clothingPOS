@@ -19,6 +19,17 @@ public sealed record ProductRow(Product Product)
     public string Sizes => string.Join(", ", Product.Variants.Where(v => v.IsActive).Select(v => v.Size).Where(s => s.Length > 0).Distinct());
     public string Colors => string.Join(", ", Product.Variants.Where(v => v.IsActive).Select(v => v.Color).Where(s => s.Length > 0).Distinct());
     public bool HasLowStock => Product.Variants.Any(v => v.IsActive && v.IsLowStock);
+
+    /// <summary>The price, or "from – to" when some sizes/colours have their own price.</summary>
+    public string PriceText => PriceRange(Product.Variants.Where(v => v.IsActive).Select(v => v.PriceOverride ?? Product.Price), Product.Price);
+
+    public static string PriceRange(IEnumerable<decimal> prices, decimal fallback)
+    {
+        var list = prices.ToList();
+        if (list.Count == 0) return Converters.CurrencyFormat.Format(fallback);
+        var (min, max) = (list.Min(), list.Max());
+        return min == max ? Converters.CurrencyFormat.Format(min) : $"{Converters.CurrencyFormat.Format(min)} – {Converters.CurrencyFormat.Format(max)}";
+    }
 }
 
 public sealed partial class ProductsViewModel(

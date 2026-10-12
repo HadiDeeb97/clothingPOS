@@ -107,6 +107,15 @@
                             <RadioButton Content="{l:T Returns.ToCash}" GroupName="Refund" IsEnabled="{Binding CanRefundInCash}"
                                          IsChecked="{Binding RefundTo, Converter={StaticResource Equals}, ConverterParameter=Cash}" />
                             <TextBlock Text="{l:T Returns.StoreFundsHint}" Style="{StaticResource HintText}" />
+                            <!-- Delivery order the company hasn't paid for yet: who has the customer's money? -->
+                            <Border Style="{StaticResource InfoBanner}" Margin="0,10,0,0" Visibility="{Binding HasUnpaidDelivery, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <CheckBox IsChecked="{Binding CustomerPaidCourier}">
+                                        <TextBlock Text="{l:T Returns.CustomerPaidCourier}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                    </CheckBox>
+                                    <TextBlock Text="{l:T Returns.CustomerPaidCourierHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                             <StackPanel Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="{l:T Returns.CashIn}" Style="{StaticResource FieldLabel}" />
                                 <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">

@@ -20,10 +20,11 @@ public class SmartSearchTests
     [Fact]
     public void Patterns_escape_wildcards_and_let_spelling_variants_match()
     {
-        Assert.Equal("%50\\%\\_x%", SmartSearch.LikePattern("50%_x").Replace("[xX]", "x"));
+        Assert.Equal("%[5٥۵][0٠۰]\\%\\_[xX]%", SmartSearch.LikePattern("50%_x"));
         Assert.Contains("[اأإآٱ]", SmartSearch.LikePattern("أحمد"));
         Assert.Contains("[ةه]", SmartSearch.LikePattern("فاطمة"));
-        Assert.Contains("[eèéêë]", SmartSearch.LikePattern("é"));
+        Assert.Contains("[eèéêëEÈÉÊË]", SmartSearch.LikePattern("é"));
+        Assert.Equal("%[oòóôöOÒÓÔÖ][xX][fF]%", SmartSearch.LikePattern("Oxf")); // case-sensitive databases too
     }
 
     [Fact]

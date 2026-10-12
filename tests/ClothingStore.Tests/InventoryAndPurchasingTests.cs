@@ -53,15 +53,16 @@ public class InventoryAndPurchasingTests
 
         tee.Price = 25m;
         tee.Variants.Remove(tee.Variants.Single(v => v.Id == small.Id));          // sold -> deactivated
-        tee.Variants.Remove(tee.Variants.Single(v => v.Size == "L"));              // never sold -> deleted
+        tee.Variants.Remove(tee.Variants.Single(v => v.Size == "L"));              // never sold but 3 in stock -> deactivated, not lost
         tee.Variants.Add(new ProductVariant { Size = "XL", Color = "Black", StockQuantity = 2 });
         tee.Variants.Single(v => v.Size == "M").StockQuantity = 999;               // ignored for existing variants
 
         var saved = await db.Products.SaveAsync(tee, db.Admin.Id);
 
         Assert.Equal(25m, saved.Price);
-        Assert.Equal(3, saved.Variants.Count);
+        Assert.Equal(4, saved.Variants.Count);
         Assert.False(saved.Variants.Single(v => v.Size == "S").IsActive);
+        Assert.False(saved.Variants.Single(v => v.Size == "L").IsActive);
         Assert.Equal(3, saved.Variants.Single(v => v.Size == "M").StockQuantity);
         Assert.Equal(2, saved.Variants.Single(v => v.Size == "XL").StockQuantity);
     }

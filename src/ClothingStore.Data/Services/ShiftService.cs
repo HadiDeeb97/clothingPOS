@@ -193,13 +193,21 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
         await using var db = await factory.CreateDbContextAsync(ct);
         var shift = await db.Shifts.FindAsync([shiftId], ct) ?? throw new BusinessRuleException(Loc.T("Err.ShiftNotFound"));
         if (shift.Status != ShiftStatus.Open) throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
+        db.Entry(shift).Property(s => s.Status).IsModified = true; // refused if the drawer is closed meanwhile
 
         var movement = new CashMovement
         {
             ShiftId = shiftId, Type = type, Amount = amount, Currency = currency, Reason = reason.Trim(), UserId = userId, CreatedAt = DateTime.Now,
         };
         db.CashMovements.Add(movement);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
+        }
         return movement;
     }
 

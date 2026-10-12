@@ -16,26 +16,29 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Works out what returning these items would refund and how, without changing anything.</summary>
     public async Task<RefundPlan> PlanAsync(
         int saleId, IReadOnlyList<ReturnLineRequest> lines, RefundDestination refundTo, CashCurrency? cashCurrency = null,
-        CancellationToken ct = default)
+        bool customerPaidCourier = false, CancellationToken ct = default)
     {
         var requested = Selected(lines);
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var state = await LoadAsync(db, saleId, ct);
         var total = PriceLines(state, requested).Sum(l => l.Refund);
-        var shares = Shares(total, state, refundTo, cashCurrency, settings);
+        var shares = Shares(total, state, refundTo, cashCurrency, settings, customerPaidCourier);
         return new RefundPlan(total, shares, settings.ActiveLbpRate, settings.LbpRounding);
     }
 
     /// <summary>
-    /// Allocates the refund; delivery-company money already received is paid back in cash (otherwise it is just owed
-    /// less); then the cash parts are paid in the chosen currency (dollars when LBP is off).
+    /// Allocates the refund; then the cash parts are paid in the chosen currency (dollars when LBP is off).
+    /// The delivery-company part is only "owed less" when the courier hasn't collected the money: if the company
+    /// already paid the store, or the customer already paid the courier (who still owes the store all of it), the
+    /// customer gets it back in cash at the counter.
     /// </summary>
     private static IReadOnlyList<RefundShare> Shares(
-        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings)
+        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings,
+        bool customerPaidCourier)
     {
         var shares = RefundAllocator.Allocate(total, state.Remaining(), refundTo);
-        if (state.Sale.DeliverySettlementId is not null)
+        if (state.Sale.DeliverySettlementId is not null || customerPaidCourier)
             shares = shares.Select(s => s.Method == RefundMethod.Delivery ? s with { Method = RefundMethod.Cash } : s).ToList();
         return RefundAllocator.InCurrency(shares, settings.ActiveLbpRate > 0 ? cashCurrency : CashCurrency.Usd);
     }
@@ -62,11 +65,12 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
         {
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
             if (shift is not { Status: ShiftStatus.Open }) throw new BusinessRuleException(Loc.T("Err.ShiftClosed"));
+            db.Entry(shift).Property(s => s.Status).IsModified = true; // refused if the drawer is closed meanwhile
         }
 
         var priced = PriceLines(state, requested);
         var total = priced.Sum(l => l.Refund);
-        var shares = Shares(total, state, request.RefundTo, request.CashCurrency, settings);
+        var shares = Shares(total, state, request.RefundTo, request.CashCurrency, settings, request.CustomerPaidCourier);
         var paysLbp = shares.Any(s => s.Method == RefundMethod.CashLbp);
         if (paysLbp) SalesService.EnsureRate(settings, request.ExchangeRate);
 
@@ -125,7 +129,9 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
                 m => m == PaymentMethod.LoyaltyPoints);
             ret.LoyaltyPointsRemoved = PointsToMove(state, shares, sale.LoyaltyPointsEarned, state.PointsRemovedBefore,
                 SalesService.EarnsPoints);
-            customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints + ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved);
+            // Points already spent can't be taken back: record only what actually came off the balance.
+            ret.LoyaltyPointsRemoved = Math.Min(ret.LoyaltyPointsRemoved, customer.LoyaltyPoints + ret.LoyaltyPointsRestored);
+            customer.LoyaltyPoints += ret.LoyaltyPointsRestored - ret.LoyaltyPointsRemoved;
         }
 
         db.Returns.Add(ret);

@@ -32,6 +32,7 @@
   "Nav.Users": "Users",
   "Shell.AppName": "Clothing Store POS",
   "Shell.ChangePassword": "Change password",
+  "Shell.CloseConfirmCart": "There is a sale in progress with {0} item(s). Close the app and clear it?",
   "Shell.CloseDrawerNow": "Close it now",
   "Shell.DrawerStillOpen": "Your cash drawer is still open. Leave it open for the next cashier (they can continue it or count and close it), or close it now?",
   "Shell.ExitFullScreen": "Exit full screen (Ctrl+Shift+F)",

@@ -11,6 +11,9 @@ namespace ClothingStore.Data.Services;
 
 public class SalesService(IDbContextFactory<PosDbContext> factory)
 {
+    /// <summary>Most sales the history screen lists at once (newest first).</summary>
+    public const int HistoryLimit = 1000;
+
     public async Task<Sale> CompleteSaleAsync(CheckoutRequest request, CancellationToken ct = default)
     {
         if (request.Lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.CartEmpty"));
@@ -34,6 +37,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             shift = await db.Shifts.FirstOrDefaultAsync(s => s.Id == shiftId, ct);
             if (shift is null || shift.Status != ShiftStatus.Open)
                 throw new BusinessRuleException(Loc.T("Err.ShiftClosedSell"));
+            // Saved with the sale, so a drawer closed meanwhile (its Z report already counted) refuses this sale.
+            db.Entry(shift).Property(s => s.Status).IsModified = true;
         }
 
         Customer? customer = null;
@@ -67,6 +72,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             UserId = user.Id,
             CustomerId = customer?.Id,
             ShiftId = shift?.Id,
+            TaxRate = settings.TaxRate,
+            PricesIncludeTax = settings.PricesIncludeTax,
             Subtotal = totals.Subtotal,
             DiscountTotal = totals.DiscountTotal,
             TaxTotal = totals.TaxTotal,
@@ -158,6 +165,8 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         var cash = CashSettlement.Calculate(cashDue, tender, rate, settings.LbpRounding);
         if (!cash.IsCovered)
             throw new BusinessRuleException(Loc.T("Err.PaymentShort", cash.ShortUsd));
+        // Pounds handed back (also the cents of dollar change) must be at the rate the cashier was shown.
+        if (cash.ChangeLbp > 0) EnsureRate(settings, shownRate);
 
         foreach (var p in nonCash)
         {
@@ -174,14 +183,21 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
                 case PaymentMethod.LoyaltyPoints:
                     if (customer is null) throw new BusinessRuleException(Loc.T("Err.PointsNeedCustomer"));
                     if (settings.LoyaltyPointValue <= 0) throw new BusinessRuleException(Loc.T("Err.LoyaltyDisabled"));
-                    var points = (int)Math.Ceiling(amount / settings.LoyaltyPointValue);
-                    if (customer.LoyaltyPoints < points)
-                        throw new BusinessRuleException(Loc.T("Err.CustomerPointsOnly", customer.LoyaltyPoints));
-                    customer.LoyaltyPoints -= points;
-                    sale.LoyaltyPointsRedeemed += points;
                     break;
             }
             sale.Payments.Add(new Payment { Method = p.Method, Amount = amount, Reference = QueryHelpers.Clean(p.Reference) });
+        }
+
+        // Points are worked out once over all points payments: rounding each one up separately could need more
+        // points than the customer has (two payments of $0.01 at 3 cents a point would take 2 points, not 1).
+        var pointsValue = nonCash.Where(p => p.Method == PaymentMethod.LoyaltyPoints).Sum(p => Money.Round(p.Amount));
+        if (pointsValue > 0 && customer is not null)
+        {
+            var points = (int)Math.Ceiling(pointsValue / settings.LoyaltyPointValue);
+            if (customer.LoyaltyPoints < points)
+                throw new BusinessRuleException(Loc.T("Err.CustomerPointsOnly", customer.LoyaltyPoints));
+            customer.LoyaltyPoints -= points;
+            sale.LoyaltyPointsRedeemed += points;
         }
 
         if (cash.AppliedUsd > 0)
@@ -284,7 +300,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             }
         }
 
-        return await query.OrderByDescending(s => s.CreatedAt).Take(1000).ToListAsync(ct);
+        return await query.OrderByDescending(s => s.CreatedAt).Take(HistoryLimit).ToListAsync(ct);
     }
 
     /// <summary>Voids a sale that has no returns: restocks items and reverses credit/points.</summary>
@@ -293,7 +309,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException(Loc.T("Err.VoidReasonRequired"));
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, ct);
         if (user is null || !Permissions.Has(user.Role, Permission.VoidSales))
             throw new BusinessRuleException(Loc.T("Err.OnlyManagersVoid"));
 
@@ -376,7 +392,14 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         var held = await db.HeldSales.FindAsync([heldSaleId], ct) ?? throw new BusinessRuleException(Loc.T("Err.HeldNotFound"));
         var cart = JsonSerializer.Deserialize<HeldCart>(held.Payload) ?? throw new BusinessRuleException(Loc.T("Err.HeldCorrupt"));
         db.HeldSales.Remove(held);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessRuleException(Loc.T("Err.HeldNotFound")); // another till resumed it a moment earlier
+        }
         return cart;
     }
 
