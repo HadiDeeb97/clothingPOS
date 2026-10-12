@@ -25,6 +25,7 @@
   "Deliveries.Record": "تسجيل الدفعة",
   "Deliveries.Recorded": "تم تسجيل الدفعة لـ {0} طلب.",
   "Deliveries.Reference": "مرجع / ملاحظات (اختياري)",
+  "Deliveries.Return": "إرجاع…",
   "Deliveries.ScanAdded": "✓ {0} · {1} · {2} محدد",
   "Deliveries.ScanAlreadyPaid": "تم دفع {0} مسبقاً في {1}.",
   "Deliveries.ScanHint": "امسح أو اكتب رقم فاتورة التوصيل (أو رقم الإيصال) ثم Enter",
