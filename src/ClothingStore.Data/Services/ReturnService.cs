@@ -16,26 +16,29 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Works out what returning these items would refund and how, without changing anything.</summary>
     public async Task<RefundPlan> PlanAsync(
         int saleId, IReadOnlyList<ReturnLineRequest> lines, RefundDestination refundTo, CashCurrency? cashCurrency = null,
-        CancellationToken ct = default)
+        bool customerPaidCourier = false, CancellationToken ct = default)
     {
         var requested = Selected(lines);
         await using var db = await factory.CreateDbContextAsync(ct);
         var settings = await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct) ?? new StoreSettings();
         var state = await LoadAsync(db, saleId, ct);
         var total = PriceLines(state, requested).Sum(l => l.Refund);
-        var shares = Shares(total, state, refundTo, cashCurrency, settings);
+        var shares = Shares(total, state, refundTo, cashCurrency, settings, customerPaidCourier);
         return new RefundPlan(total, shares, settings.ActiveLbpRate, settings.LbpRounding);
     }
 
     /// <summary>
-    /// Allocates the refund; delivery-company money already received is paid back in cash (otherwise it is just owed
-    /// less); then the cash parts are paid in the chosen currency (dollars when LBP is off).
+    /// Allocates the refund; then the cash parts are paid in the chosen currency (dollars when LBP is off).
+    /// The delivery-company part is only "owed less" when the courier hasn't collected the money: if the company
+    /// already paid the store, or the customer already paid the courier (who still owes the store all of it), the
+    /// customer gets it back in cash at the counter.
     /// </summary>
     private static IReadOnlyList<RefundShare> Shares(
-        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings)
+        decimal total, SaleState state, RefundDestination refundTo, CashCurrency? cashCurrency, StoreSettings settings,
+        bool customerPaidCourier)
     {
         var shares = RefundAllocator.Allocate(total, state.Remaining(), refundTo);
-        if (state.Sale.DeliverySettlementId is not null)
+        if (state.Sale.DeliverySettlementId is not null || customerPaidCourier)
             shares = shares.Select(s => s.Method == RefundMethod.Delivery ? s with { Method = RefundMethod.Cash } : s).ToList();
         return RefundAllocator.InCurrency(shares, settings.ActiveLbpRate > 0 ? cashCurrency : CashCurrency.Usd);
     }
@@ -67,7 +70,7 @@ public class ReturnService(IDbContextFactory<PosDbContext> factory)
 
         var priced = PriceLines(state, requested);
         var total = priced.Sum(l => l.Refund);
-        var shares = Shares(total, state, request.RefundTo, request.CashCurrency, settings);
+        var shares = Shares(total, state, request.RefundTo, request.CashCurrency, settings, request.CustomerPaidCourier);
         var paysLbp = shares.Any(s => s.Method == RefundMethod.CashLbp);
         if (paysLbp) SalesService.EnsureRate(settings, request.ExchangeRate);
 

@@ -59,8 +59,18 @@ public sealed partial class ReturnsViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSale), nameof(CanRefundToCredit), nameof(IsOutsideWindow), nameof(WindowMessage),
-        nameof(PaidWith), nameof(CanRefundInCash))]
+        nameof(PaidWith), nameof(CanRefundInCash), nameof(HasUnpaidDelivery))]
     public partial Sale? Sale { get; set; }
+
+    /// <summary>Paid through a delivery company that hasn't paid the store yet: ask who has the money.</summary>
+    public bool HasUnpaidDelivery => Sale is { DeliverySettlementId: null } s && s.Payments.Any(p => p.Method == PaymentMethod.Delivery);
+
+    /// <summary>
+    /// The customer already paid the courier: refunded at the counter, the courier still owes it all. Off: the order
+    /// came back unpaid, so the courier just owes less.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool CustomerPaidCourier { get; set; }
 
     public ObservableCollection<ReturnLineViewModel> Lines { get; } = [];
 
@@ -162,6 +172,7 @@ public sealed partial class ReturnsViewModel(
         }
         RefundTo = RefundDestination.OriginalPayment;
         RefundCashIn = RefundCashChoice.AsPaid;
+        CustomerPaidCourier = false;
         OnPropertyChanged(nameof(ShowLbp));
         Reason = null;
         UpdateTotal();
@@ -205,7 +216,7 @@ public sealed partial class ReturnsViewModel(
 
         var lines = selected.Select(l => new ReturnLineRequest(l.Line.Id, l.ReturnQuantity, l.Restock)).ToList();
         RefundPlan? plan = null;
-        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo, RefundCurrency)) || plan is null) return;
+        if (!await RunAsync(async () => plan = await returns.PlanAsync(sale.Id, lines, RefundTo, RefundCurrency, HasUnpaidDelivery && CustomerPaidCourier)) || plan is null) return;
 
         if ((plan.CashOut > 0 || plan.CashOutLbp > 0) && !session.HasOpenShift)
         {
@@ -250,6 +261,7 @@ public sealed partial class ReturnsViewModel(
                 Lines = lines,
                 CashCurrency = RefundCurrency,
                 ExchangeRate = plan.Rate,
+                CustomerPaidCourier = HasUnpaidDelivery && CustomerPaidCourier,
             });
         });
         if (!ok || result is null)
