@@ -40,7 +40,8 @@ public sealed partial class DeliveryItemViewModel(DeliveryRow row, bool isChecke
 /// company's slip; ticks are kept while filtering or searching.
 /// </summary>
 public sealed partial class DeliveriesViewModel(
-    IDialogService dialogs, DeliveryService deliveries, SettingsService settings, Session session) : ViewModelBase(dialogs), IPageViewModel
+    IDialogService dialogs, DeliveryService deliveries, SettingsService settings, Session session, INavigationService navigation)
+    : ViewModelBase(dialogs), IPageViewModel
 {
     private readonly LatestSearch _search = new();
 
@@ -98,6 +99,15 @@ public sealed partial class DeliveriesViewModel(
     // Parameterless on purpose: a command with a bool parameter is disabled when the button passes none.
     [RelayCommand]
     private Task RefreshAsync() => LoadAsync();
+
+    public bool CanReturn => session.Can(Permission.ProcessReturns);
+
+    /// <summary>Opens Returns with this order loaded (for an order that came back, or a customer returning items).</summary>
+    [RelayCommand]
+    private Task ReturnAsync(DeliveryItemViewModel? item) =>
+        item is null || !CanReturn
+            ? Task.CompletedTask
+            : navigation.NavigateToAsync<ReturnsViewModel>(vm => vm.LoadReceiptAsync(item.Row.ReceiptNumber));
 
     /// <summary>Delivery companies and drivers with their details.</summary>
     [RelayCommand]

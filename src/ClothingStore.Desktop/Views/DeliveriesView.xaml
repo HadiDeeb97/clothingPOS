@@ -109,6 +109,15 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="Auto" MinWidth="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{l:T Deliveries.Return}" Style="{StaticResource LinkButton}" Margin="8,0" VerticalAlignment="Center"
+                                                    Command="{Binding DataContext.ReturnCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                    Visibility="{Binding DataContext.CanReturn, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                         <TextBlock Text="{l:T Deliveries.Empty}" Style="{StaticResource HintText}" HorizontalAlignment="Center" VerticalAlignment="Center"

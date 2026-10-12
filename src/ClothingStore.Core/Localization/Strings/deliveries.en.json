@@ -25,6 +25,7 @@
   "Deliveries.Record": "Record payment",
   "Deliveries.Recorded": "Payment recorded for {0} order(s).",
   "Deliveries.Reference": "Reference / notes (optional)",
+  "Deliveries.Return": "Return…",
   "Deliveries.ScanAdded": "✓ {0} · {1} · {2} ticked",
   "Deliveries.ScanAlreadyPaid": "{0} was already paid on {1}.",
   "Deliveries.ScanHint": "Scan or type the delivery invoice number (or receipt number), then Enter",
