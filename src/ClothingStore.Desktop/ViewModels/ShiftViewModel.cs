@@ -309,9 +309,12 @@ public sealed partial class ShiftViewModel(
             ? Loc.T("Shift.Balances")
             : Loc.T(variance > 0 ? "Shift.Over" : "Shift.Short", format(Math.Abs(variance)));
 
+    /// <summary>Cash in the drawer (float, count, pay in/out) is never negative: a minus sign is refused, as for pounds.</summary>
+    private const NumberStyles CashStyle = NumberStyles.Number & ~NumberStyles.AllowLeadingSign & ~NumberStyles.AllowTrailingSign;
+
     private static bool TryParse(string? text, out decimal value) =>
-        decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out value) ||
-        decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+        decimal.TryParse(text, CashStyle, CultureInfo.CurrentCulture, out value) ||
+        decimal.TryParse(text, CashStyle, CultureInfo.InvariantCulture, out value);
 
     /// <summary>
     /// Pounds are whole numbers: any grouping marks are ignored ("500,000", "500.000", "500 000" are all 500,000), so
