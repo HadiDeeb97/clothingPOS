@@ -699,7 +699,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         var title = change is not null
             ? Loc.T("Register.ChangeDue", change)
             : Loc.T("Register.SaleComplete", sale.ReceiptNumber);
-        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale"), LocalPreferences.Current.ReceiptCopies));
+        Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, _print, title, receipt, Loc.T("Register.NewSale"), LocalPreferences.Current.ReceiptCopies,
+            ReceiptLogo.For(_settings.Current)));
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
     }
 

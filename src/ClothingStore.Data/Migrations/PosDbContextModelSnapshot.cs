@@ -1282,6 +1282,9 @@ namespace ClothingStore.Data.Migrations
                     b.Property<bool>("PricesIncludeTax")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("PrintLogoOnReceipt")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ReceiptFooter")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

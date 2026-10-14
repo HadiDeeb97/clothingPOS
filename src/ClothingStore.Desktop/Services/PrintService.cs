@@ -22,7 +22,8 @@ public sealed class PrintService
     /// Prints receipt-width text. With a default receipt printer set on this PC (Settings → Printers) it goes straight
     /// there; otherwise, or with <paramref name="choosePrinter"/>, the Windows print dialog asks which printer.
     /// </summary>
-    public bool PrintText(IReadOnlyList<string> lines, string jobName, int copies = 1, bool choosePrinter = false)
+    /// <param name="logo">Store logo (PNG) printed centred above the text, or null.</param>
+    public bool PrintText(IReadOnlyList<string> lines, string jobName, int copies = 1, bool choosePrinter = false, byte[]? logo = null)
     {
         var dialog = OpenPrinter(choosePrinter ? null : LocalPreferences.Current.ReceiptPrinter, ref copies);
         if (dialog is null) return false;
@@ -37,6 +38,7 @@ public sealed class PrintService
         for (var i = 0; i < copies; i++)
         {
             var doc = BuildTextDocument(lines, fontSize);
+            if (logo is { Length: > 0 } && LogoBlock(logo, width - padding * 2) is { } block) doc.Blocks.InsertBefore(doc.Blocks.FirstBlock, block);
             doc.PageWidth = width;
             doc.PageHeight = dialog.PrintableAreaHeight;
             doc.ColumnWidth = width;
@@ -101,6 +103,28 @@ public sealed class PrintService
         }
         dialog.PrintTicket.CopyCount = 1;
         return dialog;
+    }
+
+    /// <summary>The logo centred, about half the paper wide (and never taller than ~1.5 cm on an 80 mm roll).</summary>
+    private static BlockUIContainer? LogoBlock(byte[] logo, double paperWidth)
+    {
+        try
+        {
+            var image = new Image
+            {
+                Source = Branding.Decode(logo),
+                MaxWidth = Math.Min(paperWidth * 0.5, 180),
+                MaxHeight = 110,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return new BlockUIContainer(image) { Margin = new Thickness(0, 0, 0, 6) };
+        }
+        catch (Exception ex) when (ex is NotSupportedException or System.IO.IOException or ArgumentException)
+        {
+            return null; // an unreadable logo never stops a receipt
+        }
     }
 
     public static FlowDocument BuildTextDocument(IEnumerable<string> lines, double fontSize = 12)

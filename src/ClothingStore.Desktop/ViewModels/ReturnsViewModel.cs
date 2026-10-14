@@ -272,7 +272,8 @@ public sealed partial class ReturnsViewModel(
 
         var doc = ReceiptBuilder.FromReturn(result, sale, settings.Current, session.User.FullName);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Returns.RefundTitle", result.ReturnNumber),
-            ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth), copies: LocalPreferences.Current.ReceiptCopies));
+            ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth), copies: LocalPreferences.Current.ReceiptCopies,
+            logo: ReceiptLogo.For(settings.Current)));
 
         if (result.Refunds.Any(r => r.Method == RefundMethod.StoreCredit))
             Dialogs.Toast(Loc.T("Returns.CreditAdded"));

@@ -29,6 +29,8 @@
   "Settings.PointsPerUnit": "Points per 1.00 spent",
   "Settings.PricesIncludeTax": "Shelf prices include tax (VAT-style)",
   "Settings.PricingTax": "Pricing and tax",
+  "Settings.PrintLogoOnReceipt": "Print the store logo at the top of receipts",
+  "Settings.PrintLogoOnReceiptHint": "Sale and return receipts. Uses the logo set under Store logo; a simple black-and-white logo prints best on receipt printers.",
   "Settings.ReceiptLanguage": "Receipt language",
   "Settings.ReceiptPrefix": "Receipt number prefix",
   "Settings.ReceiptWidth": "Receipt width (characters)",

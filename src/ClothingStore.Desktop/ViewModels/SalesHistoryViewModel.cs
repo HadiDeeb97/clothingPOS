@@ -135,7 +135,7 @@ public sealed partial class SalesHistoryViewModel(
         if (SelectedSale is not { } sale) return;
         var doc = ReceiptBuilder.FromSale(sale, settings.Current, isCopy: true);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("History.ReceiptTitle", sale.ReceiptNumber),
-            ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth)));
+            ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth), logo: ReceiptLogo.For(settings.Current)));
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]

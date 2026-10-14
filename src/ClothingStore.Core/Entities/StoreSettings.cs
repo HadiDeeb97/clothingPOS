@@ -19,6 +19,9 @@ public class StoreSettings : Entity
     public string ReceiptFooter { get; set; } = "Thank you for shopping with us!\nExchanges within 30 days with receipt.";
     public int ReceiptWidth { get; set; } = 42;
 
+    /// <summary>Print the store logo at the top of sale and return receipts.</summary>
+    public bool PrintLogoOnReceipt { get; set; }
+
     /// <summary>Points earned per 1 currency unit paid (cash/card/wallet).</summary>
     public decimal LoyaltyPointsPerUnit { get; set; } = 1m;
 

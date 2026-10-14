@@ -110,6 +110,10 @@
                             </UniformGrid>
                             <TextBlock Text="{l:T Settings.Footer}" Style="{StaticResource Label}" />
                             <TextBox Text="{Binding Settings.ReceiptFooter}" Style="{StaticResource MultilineBox}" Margin="0,0,16,0" />
+                            <CheckBox IsChecked="{Binding Settings.PrintLogoOnReceipt}" Margin="0,14,0,0">
+                                <TextBlock Text="{l:T Settings.PrintLogoOnReceipt}" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <TextBlock Text="{l:T Settings.PrintLogoOnReceiptHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="24,2,16,0" />
                         </StackPanel>
                     </Border>
 
