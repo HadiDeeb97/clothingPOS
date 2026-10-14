@@ -117,6 +117,15 @@ public sealed class InitialsConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
+/// <summary>"D:\\Backups\\ClothingStorePOS_20261014-180000.bak" -> just the file name (the full path goes in a tooltip).</summary>
+public sealed class FileNameConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is string path && path.Length > 0 ? System.IO.Path.GetFileName(path) : "";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
 /// <summary>Negative numbers -> red-ish brush key name used for variance display.</summary>
 public sealed class SignToBrushConverter : IValueConverter
 {

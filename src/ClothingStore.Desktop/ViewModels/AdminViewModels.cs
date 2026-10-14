@@ -177,11 +177,40 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial StoreSettings Settings { get; set; } = new();
 
+    /// <summary>How many backups the Settings page lists (newest first, in a scrolling table).</summary>
+    private const int BackupsShown = 50;
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoBackups))]
+    [NotifyPropertyChangedFor(nameof(HasNoBackups), nameof(BackupSummary), nameof(HasFailedBackups))]
     public partial List<BackupRecord> Backups { get; set; } = [];
 
     public bool HasNoBackups => Backups.Count == 0;
+    public bool HasFailedBackups => Backups.Any(b => !b.Succeeded);
+
+    /// <summary>"Last good backup: 14 Oct 2026 18:20 · 2 failed in the last 50".</summary>
+    public string BackupSummary
+    {
+        get
+        {
+            var last = Backups.FirstOrDefault(b => b.Succeeded);
+            var text = last is null ? Loc.T("Settings.NoGoodBackup") : Loc.T("Settings.LastGoodBackup", last.StartedAt.ToString("dd MMM yyyy HH:mm"));
+            var failed = Backups.Count(b => !b.Succeeded);
+            return failed == 0 ? text : text + "  ·  " + Loc.T("Settings.FailedBackups", failed, Backups.Count);
+        }
+    }
+
+    /// <summary>Opens the backup folder in Explorer (it is a folder on the PC that runs SQL Server).</summary>
+    [RelayCommand]
+    private void OpenBackupFolder()
+    {
+        var folder = Settings.BackupFolder;
+        if (string.IsNullOrWhiteSpace(folder) || !System.IO.Directory.Exists(folder))
+        {
+            Dialogs.Warning(Loc.T("Settings.BackupFolderNotHere", folder ?? ""));
+            return;
+        }
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+    }
 
     /// <summary>LBP rounding steps offered (amounts collected round up to it, change and refunds round down).</summary>
     public int[] LbpRoundings { get; } = [1, 100, 250, 500, 1_000, 5_000, 10_000];
@@ -297,7 +326,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     {
         RefreshPrinters();
         Settings = (await settings.GetAsync()).Clone();
-        Backups = await backup.GetRecentAsync();
+        Backups = await backup.GetRecentAsync(BackupsShown);
     });
 
     [RelayCommand]
@@ -328,7 +357,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     {
         BackupRecord? record = null;
         var ok = await RunAsync(async () => record = await backup.BackupAsync(BackupKind.Manual, session.User.Id));
-        Backups = await backup.GetRecentAsync(); // shows failures too
+        Backups = await backup.GetRecentAsync(BackupsShown); // shows failures too
         if (ok)
             Dialogs.Info(Loc.T("Settings.BackupDone", record!.FilePath));
     }
