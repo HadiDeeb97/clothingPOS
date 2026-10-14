@@ -113,6 +113,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         {
             e.Property(x => x.ReceiptNumber).HasMaxLength(32).IsRequired();
             e.HasIndex(x => x.ReceiptNumber).IsUnique();
+            e.Ignore(x => x.RefundedTotal);
             e.HasIndex(x => x.CreatedAt);
             e.Property(x => x.TaxRate).HasPrecision(9, 4);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);

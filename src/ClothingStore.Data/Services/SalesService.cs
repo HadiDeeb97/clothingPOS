@@ -260,18 +260,66 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
 
     /// <param name="online">null = all sales, true = online orders only, false = in-store only.</param>
     public async Task<List<Sale>> SearchAsync(
-        DateTime from, DateTime to, string? text = null, bool includeVoided = true, bool? online = null, CancellationToken ct = default)
+        DateTime from, DateTime to, string? text = null, bool includeVoided = true, bool? online = null,
+        SaleListFilter filter = SaleListFilter.All, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.Sales.AsNoTracking()
+        var query = Filtered(db, from, to, text, online)
             .Include(s => s.User)
             .Include(s => s.Customer)
             .Include(s => s.Lines)
             .Include(s => s.Payments)
-            .AsSplitQuery()
-            .Where(s => s.CreatedAt >= from && s.CreatedAt < to);
+            .AsSplitQuery();
 
-        if (!includeVoided) query = query.Where(s => s.Status == SaleStatus.Completed);
+        if (!includeVoided && filter == SaleListFilter.All) filter = SaleListFilter.Completed;
+        query = filter switch
+        {
+            SaleListFilter.Completed => query.Where(s => s.Status == SaleStatus.Completed),
+            SaleListFilter.WithReturns => query.Where(s => s.Status == SaleStatus.Completed && db.Returns.Any(r => r.SaleId == s.Id)),
+            SaleListFilter.Voided => query.Where(s => s.Status == SaleStatus.Voided),
+            _ => query,
+        };
+
+        var list = await query.OrderByDescending(s => s.CreatedAt).Take(HistoryLimit).ToListAsync(ct);
+
+        // What came back on each listed sale, so the list can show it and what the sale is worth after it.
+        var ids = list.Select(s => s.Id).ToList();
+        var refunded = await db.Returns.AsNoTracking()
+            .Where(r => ids.Contains(r.SaleId))
+            .GroupBy(r => r.SaleId)
+            .Select(g => new { g.Key, Amount = g.Sum(r => r.TotalRefund) })
+            .ToDictionaryAsync(x => x.Key, x => x.Amount, ct);
+        foreach (var sale in list) sale.RefundedTotal = refunded.GetValueOrDefault(sale.Id);
+        return list;
+    }
+
+    /// <summary>
+    /// Totals for the history screen's summary over the same dates, search and source as the list (every status, and
+    /// not limited to the sales listed).
+    /// </summary>
+    public async Task<SalesSummary> GetSummaryAsync(DateTime from, DateTime to, string? text = null, bool? online = null, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var query = Filtered(db, from, to, text, online);
+        var byStatus = await query
+            .GroupBy(s => s.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count(), Total = g.Sum(s => s.Total) })
+            .ToListAsync(ct);
+        var completed = query.Where(s => s.Status == SaleStatus.Completed);
+        var returned = await completed.CountAsync(s => db.Returns.Any(r => r.SaleId == s.Id), ct);
+        var refunded = await db.Returns.Where(r => completed.Any(s => s.Id == r.SaleId)).SumAsync(r => (decimal?)r.TotalRefund, ct) ?? 0;
+
+        var voided = byStatus.FirstOrDefault(x => x.Status == SaleStatus.Voided);
+        return new SalesSummary(
+            byStatus.Sum(x => x.Count), byStatus.Sum(x => x.Total),
+            voided?.Count ?? 0, voided?.Total ?? 0,
+            returned, refunded);
+    }
+
+    /// <summary>Sales in the dates, from the chosen source, matching the search text (any status).</summary>
+    private static IQueryable<Sale> Filtered(PosDbContext db, DateTime from, DateTime to, string? text, bool? online)
+    {
+        var query = db.Sales.AsNoTracking().Where(s => s.CreatedAt >= from && s.CreatedAt < to);
         if (online is true) query = query.Where(s => s.Channel != SalesChannel.InStore);
         else if (online is false) query = query.Where(s => s.Channel == SalesChannel.InStore);
         if (SmartSearch.PhoneDigits(text) is { } digits)
@@ -299,8 +347,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
                     s.Lines.Any(l => EF.Functions.Like(l.ProductName, pattern, "\\") || EF.Functions.Like(l.Sku, pattern, "\\")));
             }
         }
-
-        return await query.OrderByDescending(s => s.CreatedAt).Take(HistoryLimit).ToListAsync(ct);
+        return query;
     }
 
     /// <summary>Voids a sale that has no returns: restocks items and reverses credit/points.</summary>

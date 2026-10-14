@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
-             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
+             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure"
+             xmlns:data="clr-namespace:ClothingStore.Data.Services;assembly=ClothingStore.Data">
     <DockPanel>
         <!-- Filters -->
         <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
@@ -31,7 +32,18 @@
                                      IsChecked="{Binding Source, Converter={StaticResource Equals}, ConverterParameter=Online}" />
                     </StackPanel>
                 </Border>
-                <CheckBox Content="{l:T History.ShowVoided}" IsChecked="{Binding IncludeVoided}" />
+                <Border Style="{StaticResource SegmentGroup}">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Status" Content="{l:T History.FilterAll}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Status" Content="{l:T History.FilterCompleted}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Completed}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Status" Content="{l:T History.FilterWithReturns}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=WithReturns}" />
+                        <RadioButton Style="{StaticResource SegmentButton}" GroupName="Status" Content="{l:T History.FilterVoided}"
+                                     IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Voided}" />
+                    </StackPanel>
+                </Border>
             </WrapPanel>
         </DockPanel>
 
@@ -43,16 +55,64 @@
             </Grid.ColumnDefinitions>
 
             <DockPanel>
-                <Border DockPanel.Dock="Bottom" Style="{StaticResource KpiCard}" Margin="0,12,0,0">
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <TextBlock Text="{l:T History.SalesTotal}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                            <TextBlock Text="{Binding TotalSales, Converter={StaticResource Money}}" FontSize="18" FontWeight="SemiBold" />
+                <!-- Summary: every sale in the dates, voided, returns, and what is left. Clicking a box lists just those. -->
+                <UniformGrid DockPanel.Dock="Top" Rows="1" Margin="0,0,-10,12">
+                    <UniformGrid.Resources>
+                        <Style x:Key="SummaryBox" TargetType="Button">
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Margin" Value="0,0,10,0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Box" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                CornerRadius="10" Padding="14,10">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </UniformGrid.Resources>
+                    <Button Style="{StaticResource SummaryBox}" Command="{Binding ShowOnlyCommand}" CommandParameter="{x:Static data:SaleListFilter.All}">
+                        <StackPanel>
+                            <TextBlock Text="{l:T History.SummarySales}" Style="{StaticResource Caption}" />
+                            <TextBlock Text="{Binding Summary.Total, Converter={StaticResource Money}}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Summary.Count, StringFormat={l:T History.SummaryCount}}" Style="{StaticResource MutedText}" />
                         </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SummaryBox}" Command="{Binding ShowOnlyCommand}" CommandParameter="{x:Static data:SaleListFilter.Voided}">
+                        <StackPanel>
+                            <TextBlock Text="{l:T History.SummaryVoided}" Style="{StaticResource Caption}" Foreground="{StaticResource DangerBrush}" />
+                            <TextBlock Text="{Binding Summary.VoidedTotal, Converter={StaticResource Money}, StringFormat='-{0}'}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+                            <TextBlock Text="{Binding Summary.VoidedCount, StringFormat={l:T History.SummaryCount}}" Style="{StaticResource MutedText}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SummaryBox}" Command="{Binding ShowOnlyCommand}" CommandParameter="{x:Static data:SaleListFilter.WithReturns}">
+                        <StackPanel>
+                            <TextBlock Text="{l:T History.SummaryReturns}" Style="{StaticResource Caption}" Foreground="{StaticResource WarningBrush}" />
+                            <TextBlock Text="{Binding Summary.Refunded, Converter={StaticResource Money}, StringFormat='-{0}'}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" />
+                            <TextBlock Text="{Binding Summary.ReturnedCount, StringFormat={l:T History.SummaryCount}}" Style="{StaticResource MutedText}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SummaryBox}" Command="{Binding ShowOnlyCommand}" CommandParameter="{x:Static data:SaleListFilter.Completed}">
+                        <StackPanel>
+                            <TextBlock Text="{l:T History.SummaryNet}" Style="{StaticResource Caption}" Foreground="{StaticResource SuccessBrush}" />
+                            <TextBlock Text="{Binding Summary.Net, Converter={StaticResource Money}}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
+                            <TextBlock Text="{l:T History.SummaryNetHint}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Button>
+                </UniformGrid>
+                <Border DockPanel.Dock="Bottom" Style="{StaticResource KpiCard}" Margin="0,12,0,0"
+                        Visibility="{Binding HasFooter, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{l:T History.SaleCount}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                            <TextBlock Text="{Binding SaleCount}" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding OnlineSummary}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="18,0,0,0" />
+                            <TextBlock Text="{Binding OnlineSummary}" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding CappedText}" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="18,0,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding IsCapped, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
@@ -92,13 +152,29 @@
                             <DataGridTextColumn Header="{l:T Common.Cashier}" Binding="{Binding User.FullName}" Width="*" MinWidth="140" />
                             <DataGridTextColumn Header="{l:T Common.Customer}" Binding="{Binding Customer.FullName}" Width="*" MinWidth="140" />
                             <DataGridTextColumn Header="{l:T Common.Items}" Binding="{Binding ItemCount}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource RightCell}" />
-                            <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Total, Converter={StaticResource Money}}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource StrongRightCell}" />
-                            <DataGridTemplateColumn Header="{l:T Common.Status}" Width="Auto" MinWidth="100">
+                            <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding Total, Converter={StaticResource Money}}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource RightCell}" />
+                            <DataGridTemplateColumn Header="{l:T History.ReturnedAmount}" Width="Auto" MinWidth="95" SortMemberPath="RefundedTotal">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border x:Name="Pill" Style="{StaticResource Chip}" Background="{StaticResource SuccessLightBrush}">
-                                            <TextBlock x:Name="PillText" Text="{Binding Status, Converter={StaticResource EnumDisplay}}" FontSize="11.5" FontWeight="SemiBold" Foreground="#166534" />
-                                        </Border>
+                                        <TextBlock Text="{Binding RefundedTotal, Converter={StaticResource Money}, StringFormat='-{0}'}" Foreground="{StaticResource WarningBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0"
+                                                   Visibility="{Binding HasReturns, Converter={StaticResource BoolToVis}}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="{l:T History.Net}" Binding="{Binding NetTotal, Converter={StaticResource Money}}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource StrongRightCell}" />
+                            <DataGridTemplateColumn Header="{l:T Common.Status}" Width="Auto" MinWidth="170">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border x:Name="Pill" Style="{StaticResource Chip}" Background="{StaticResource SuccessLightBrush}">
+                                                <TextBlock x:Name="PillText" Text="{Binding Status, Converter={StaticResource EnumDisplay}}" FontSize="11.5" FontWeight="SemiBold" Foreground="#166534" />
+                                            </Border>
+                                            <Border Style="{StaticResource Chip}" Background="{StaticResource WarningLightBrush}" Margin="4,0,0,0"
+                                                    Visibility="{Binding HasReturns, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="{l:T History.Returned}" FontSize="11.5" FontWeight="SemiBold" Foreground="#92400E" />
+                                            </Border>
+                                        </StackPanel>
                                         <DataTemplate.Triggers>
                                             <DataTrigger Binding="{Binding Status}" Value="Voided">
                                                 <Setter TargetName="Pill" Property="Background" Value="{StaticResource DangerLightBrush}" />

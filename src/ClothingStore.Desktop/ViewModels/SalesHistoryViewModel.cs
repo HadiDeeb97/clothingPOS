@@ -37,26 +37,31 @@ public sealed partial class SalesHistoryViewModel(
     [ObservableProperty]
     public partial string SearchText { get; set; } = "";
 
+    /// <summary>All, completed only, those with returns, or voided only (the summary boxes set it too).</summary>
     [ObservableProperty]
-    public partial bool IncludeVoided { get; set; } = true;
+    public partial SaleListFilter Filter { get; set; } = SaleListFilter.All;
+
+    /// <summary>Totals for the dates, search and source: sales, voided, returns and what's left (whatever the filter).</summary>
+    [ObservableProperty]
+    public partial SalesSummary Summary { get; set; } = new(0, 0, 0, 0, 0, 0);
 
     [ObservableProperty]
     public partial SaleSourceFilter Source { get; set; } = SaleSourceFilter.All;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalSales), nameof(SaleCount), nameof(OnlineSummary), nameof(IsCapped))]
+    [NotifyPropertyChangedFor(nameof(OnlineSummary), nameof(IsCapped), nameof(HasFooter))]
     public partial List<Sale> Sales { get; set; } = [];
 
     /// <summary>Only the newest sales are listed (and counted in the totals): the dates or search should be narrowed.</summary>
     public bool IsCapped => Sales.Count >= SalesService.HistoryLimit;
+
+    /// <summary>The note under the list: online orders and/or "only the newest are shown".</summary>
+    public bool HasFooter => IsCapped || OnlineSummary.Length > 0;
     public string CappedText => Loc.T("History.Capped", SalesService.HistoryLimit);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReprintCommand), nameof(VoidCommand), nameof(ReturnCommand))]
     public partial Sale? SelectedSale { get; set; }
-
-    public decimal TotalSales => Sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total);
-    public int SaleCount => Sales.Count(s => s.Status == SaleStatus.Completed);
 
     /// <summary>"Online orders: 3 · $120.00" under the totals (empty when there are none).</summary>
     public string OnlineSummary
@@ -73,7 +78,10 @@ public sealed partial class SalesHistoryViewModel(
     public Task OnNavigatedToAsync() => SearchAsync();
 
     partial void OnSearchTextChanged(string value) => _ = LoadAsync(immediately: false);
-    partial void OnIncludeVoidedChanged(bool value) => _ = SearchAsync();
+    partial void OnFilterChanged(SaleListFilter value) => _ = SearchAsync();
+
+    [RelayCommand]
+    private void ShowOnly(SaleListFilter filter) => Filter = filter;
     partial void OnSourceChanged(SaleSourceFilter value) => _ = SearchAsync();
     partial void OnFromChanged(DateTime value) => _ = LoadAsync(immediately: false);
     partial void OnToChanged(DateTime value) => _ = LoadAsync(immediately: false);
@@ -85,14 +93,17 @@ public sealed partial class SalesHistoryViewModel(
     {
         var (from, to) = From <= To ? (From.Date, To.Date) : (To.Date, From.Date);
         var text = SearchText;
-        var includeVoided = IncludeVoided;
+        var filter = Filter;
         bool? online = Source switch { SaleSourceFilter.Online => true, SaleSourceFilter.InStore => false, _ => null };
         try
         {
-            Func<CancellationToken, Task<List<Sale>>> load = ct => sales.SearchAsync(from, to.AddDays(1), text, includeVoided, online, ct);
-            Action<List<Sale>> apply = found =>
+            Func<CancellationToken, Task<(List<Sale> Found, SalesSummary Summary)>> load = async ct =>
+                (await sales.SearchAsync(from, to.AddDays(1), text, online: online, filter: filter, ct: ct),
+                 await sales.GetSummaryAsync(from, to.AddDays(1), text, online, ct));
+            Action<(List<Sale> Found, SalesSummary Summary)> apply = result =>
             {
-                Sales = found;
+                Sales = result.Found;
+                Summary = result.Summary;
                 SelectedSale = Sales.FirstOrDefault();
             };
             await (immediately ? _search.RunNowAsync(load, apply) : _search.RunAsync(load, apply));
@@ -168,11 +179,11 @@ public sealed partial class SalesHistoryViewModel(
             CsvExporter.Write(path,
                 [Loc.T("Common.Receipt"), Loc.T("Common.Date"), Loc.T("Common.Status"), Loc.T("History.Source"), Loc.T("Common.Cashier"), Loc.T("Common.Customer"),
                     Loc.T("Common.Items"), Loc.T("Common.Subtotal"), Loc.T("Common.Discount"), Loc.T("Common.Tax"), Loc.T("History.DeliveryFee"), Loc.T("Common.Total"),
-                    Loc.T("Common.Payments")],
+                    Loc.T("History.ReturnedAmount"), Loc.T("History.Net"), Loc.T("Common.Payments")],
                 Sales.Select(s => new object?[]
                 {
                     s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), Loc.EnumText(s.Channel), s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
-                    s.Subtotal, s.DiscountTotal, s.TaxTotal, s.DeliveryFee, s.Total,
+                    s.Subtotal, s.DiscountTotal, s.TaxTotal, s.DeliveryFee, s.Total, s.RefundedTotal, s.NetTotal,
                     string.Join(" + ", s.Payments.Select(p => $"{Loc.EnumText(p.Method)} {p.Amount:0.00}")),
                 }));
             Dialogs.Toast(Loc.T("Common.Exported", Sales.Count));

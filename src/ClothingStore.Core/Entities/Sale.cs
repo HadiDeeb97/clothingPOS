@@ -21,6 +21,14 @@ public class Sale : Entity
     public decimal TaxTotal { get; set; }
     public decimal Total { get; set; }
 
+    /// <summary>Refunded so far by returns (filled in by lists that need it; not stored).</summary>
+    public decimal RefundedTotal { get; set; }
+
+    /// <summary>What the sale is worth after returns (nothing once voided).</summary>
+    public decimal NetTotal => Status == SaleStatus.Voided ? 0 : Total - RefundedTotal;
+
+    public bool HasReturns => RefundedTotal > 0;
+
     /// <summary>
     /// Tax rate and pricing mode the sale was made with, so a reprint after the settings change still adds up.
     /// Null on sales made before these were kept (the current settings are used then).

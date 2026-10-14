@@ -112,3 +112,21 @@ public sealed record RefundPlan(decimal Total, IReadOnlyList<RefundShare> Shares
     public bool NeedsCashOverride => Shares.Any(s => s.IsCashOverride);
     public bool AddsStoreCredit => Shares.Any(s => s.Method == RefundMethod.StoreCredit);
 }
+
+/// <summary>Which sales the history lists.</summary>
+public enum SaleListFilter
+{
+    All,
+    Completed,
+    WithReturns,
+    Voided,
+}
+
+/// <summary>
+/// The history screen's summary: every sale in the dates (voided ones included), the voided ones, the sales items came
+/// back from and what was refunded, and what is left after taking voided sales and refunds off.
+/// </summary>
+public sealed record SalesSummary(int Count, decimal Total, int VoidedCount, decimal VoidedTotal, int ReturnedCount, decimal Refunded)
+{
+    public decimal Net => Total - VoidedTotal - Refunded;
+}
