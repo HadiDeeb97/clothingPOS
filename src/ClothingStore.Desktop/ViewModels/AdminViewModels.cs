@@ -212,6 +212,24 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
     }
 
+    /// <summary>Double-click on a backup: shows its file selected in Explorer (or, for a failed one, why it failed).</summary>
+    [RelayCommand]
+    private void ShowBackupFile(BackupRecord? record)
+    {
+        if (record is null) return;
+        if (!record.Succeeded)
+        {
+            Dialogs.Warning(record.Error ?? Loc.T("Settings.Failed"), Loc.T("Settings.Failed"));
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(record.FilePath) || !System.IO.File.Exists(record.FilePath))
+        {
+            Dialogs.Warning(Loc.T("Settings.BackupFileNotHere", record.FilePath ?? ""));
+            return;
+        }
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{record.FilePath}\"") { UseShellExecute = true });
+    }
+
     /// <summary>LBP rounding steps offered (amounts collected round up to it, change and refunds round down).</summary>
     public int[] LbpRoundings { get; } = [1, 100, 250, 500, 1_000, 5_000, 10_000];
 
