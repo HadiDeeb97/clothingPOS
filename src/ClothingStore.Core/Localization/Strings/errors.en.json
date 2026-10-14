@@ -40,6 +40,7 @@
   "Err.DeliveryPaymentInStore": "Delivery company payment is only for online orders.",
   "Err.DiscountLimitRange": "Discount limit must be between 0 and 100.",
   "Err.DiscountNeedsApproval": "Discounts above {0:0.##}% need manager approval.",
+  "Err.DisplayMessageLength": "The welcome message can be at most 200 characters.",
   "Err.EmailInvalid": "Email address looks invalid.",
   "Err.EnterReason": "Please enter a reason.",
   "Err.EnterReceived": "Enter the quantities received.",

@@ -40,6 +40,7 @@
   "Err.DeliveryPaymentInStore": "الدفع عبر شركة التوصيل للطلبات أونلاين فقط.",
   "Err.DiscountLimitRange": "يجب أن يكون حد الحسم بين 0 و100.",
   "Err.DiscountNeedsApproval": "الحسومات التي تتجاوز {0:0.##}% تتطلب موافقة المدير.",
+  "Err.DisplayMessageLength": "رسالة الترحيب يجب ألا تتجاوز 200 حرف.",
   "Err.EmailInvalid": "يبدو أن البريد الإلكتروني غير صالح.",
   "Err.EnterReason": "يرجى إدخال السبب.",
   "Err.EnterReceived": "أدخل الكميات المستلمة.",

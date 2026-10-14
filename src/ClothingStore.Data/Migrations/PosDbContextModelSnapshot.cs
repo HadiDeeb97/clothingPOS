@@ -1262,6 +1262,10 @@ namespace ClothingStore.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CustomerDisplayMessage")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 

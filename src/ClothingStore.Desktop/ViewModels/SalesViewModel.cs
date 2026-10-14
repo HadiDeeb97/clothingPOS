@@ -66,6 +66,15 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     /// <summary>Asks the view to put the cursor back in the scan box.</summary>
     public event EventHandler? FocusSearchRequested;
 
+    /// <summary>The payment window opened (the customer display shows what is paid as it is typed).</summary>
+    public event EventHandler<PaymentViewModel>? PaymentStarted;
+
+    /// <summary>The payment window closed without a sale (cancelled, or the sale was refused).</summary>
+    public event EventHandler? PaymentEnded;
+
+    /// <summary>A sale was saved; the text is the change given ("$5.00 + 100,000 LBP"), or null when there was none.</summary>
+    public event EventHandler<string?>? SaleCompleted;
+
     public ObservableCollection<CartItemViewModel> Items { get; } = [];
 
     [ObservableProperty]
@@ -683,7 +692,12 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         }
 
         var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
-        if (!Dialogs.ShowDialog(payment)) return;
+        PaymentStarted?.Invoke(this, payment);
+        if (!Dialogs.ShowDialog(payment))
+        {
+            PaymentEnded?.Invoke(this, EventArgs.Empty);
+            return;
+        }
 
         Sale? sale = null;
         var ok = await RunAsync(async () =>
@@ -711,6 +725,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         });
         if (!ok || sale is null)
         {
+            PaymentEnded?.Invoke(this, EventArgs.Empty);
             // Most likely the rate changed on another till: pick it up so the next attempt shows the new amounts.
             try { await _settings.RefreshCurrencyAsync(); } catch { /* checked again at checkout */ }
             return;
@@ -718,9 +733,6 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         // Cash changed hands: open the drawer (when this PC has one) before the receipt prints.
         if (sale.CashTendered > 0 || sale.CashTenderedLbp > 0) CashDrawer.OpenFor(DrawerReason.CashSale);
-        ResetSale();
-        _ = LoadBrowseProductsAsync(); // stock on the tiles changed
-        var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);
         var change = (sale.ChangeGiven, sale.ChangeGivenLbp) switch
         {
             ( > 0, > 0) => $"{CurrencyFormat.Format(sale.ChangeGiven)} + {CurrencyFormat.Lbp(sale.ChangeGivenLbp)}",
@@ -728,6 +740,10 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             ( > 0, _) => CurrencyFormat.Format(sale.ChangeGiven),
             _ => null,
         };
+        SaleCompleted?.Invoke(this, change); // before the cart is cleared, so the display thanks instead of going idle
+        ResetSale();
+        _ = LoadBrowseProductsAsync(); // stock on the tiles changed
+        var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);
         var title = change is not null
             ? Loc.T("Register.ChangeDue", change)
             : Loc.T("Register.SaleComplete", sale.ReceiptNumber);

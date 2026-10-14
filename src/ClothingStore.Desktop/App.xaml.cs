@@ -311,6 +311,7 @@ public partial class App : Application
 
         // The register keeps its cart while you visit other screens.
         services.AddSingleton<SalesViewModel>();
+        services.AddSingleton<CustomerDisplayViewModel>();
         services.AddTransient<ReturnsViewModel>();
         services.AddTransient<DeliveriesViewModel>();
         services.AddTransient<SalesHistoryViewModel>();
@@ -427,6 +428,7 @@ public partial class App : Application
         };
         MainWindow = main;
         main.Show();
+        CustomerDisplay.Apply(rebuild: true); // drawn again in case the language changed
         _ = vm.StartAsync(startPage);
     }
 
@@ -451,7 +453,7 @@ public partial class App : Application
 
         // Failing during start-up or while switching windows would otherwise leave a process running with no window
         // (the app only shuts down explicitly), so a second start would look like it does nothing.
-        if (!Windows.OfType<Window>().Any(w => w.IsVisible && w is not SplashWindow))
+        if (!Windows.OfType<Window>().Any(w => w.IsVisible && w is not SplashWindow && !CustomerDisplay.IsDisplayWindow(w)))
         {
             _splash?.Close();
             Shutdown(1);

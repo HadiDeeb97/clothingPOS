@@ -257,6 +257,56 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial bool DrawerOnShift { get; set; }
 
+    // ---- Customer display on a second screen (this PC) ----
+
+    [ObservableProperty]
+    public partial bool ShowCustomerDisplay { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSecondScreen))]
+    public partial List<ScreenInfo> DisplayScreens { get; set; } = [];
+
+    [ObservableProperty]
+    public partial string? DisplayScreen { get; set; }
+
+    public bool HasSecondScreen => DisplayScreens.Count > 0;
+
+    private bool _loadingScreens;
+
+    [RelayCommand]
+    private void RefreshScreens()
+    {
+        _loadingScreens = true;
+        try
+        {
+            ShowCustomerDisplay = LocalPreferences.Current.CustomerDisplay;
+            DisplayScreens = Screens.All().Where(s => !s.IsPrimary).ToList();
+            DisplayScreen = Screens.ForCustomerDisplay(LocalPreferences.Current.CustomerDisplayScreen)?.DeviceName;
+        }
+        finally
+        {
+            _loadingScreens = false;
+        }
+        Infrastructure.CustomerDisplay.Apply();
+    }
+
+    // Takes effect at once (no need to save), so it can be checked on the customer's screen while setting it up.
+    partial void OnShowCustomerDisplayChanged(bool value) => ApplyDisplay();
+    partial void OnDisplayScreenChanged(string? value) => ApplyDisplay();
+
+    private void ApplyDisplay()
+    {
+        if (_loadingScreens) return;
+        var prefs = LocalPreferences.Current;
+        prefs.CustomerDisplay = ShowCustomerDisplay;
+        if (DisplayScreen is not null) prefs.CustomerDisplayScreen = DisplayScreen; // an unplugged choice is kept for when it's back
+        prefs.Save();
+        Infrastructure.CustomerDisplay.Apply();
+    }
+
+    [RelayCommand]
+    private void IdentifyScreens() => Infrastructure.CustomerDisplay.Identify();
+
     [RelayCommand]
     private void TestDrawer()
     {
@@ -286,6 +336,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         DrawerOnCashRefund = prefs.DrawerOnCashRefund;
         DrawerOnCashMovement = prefs.DrawerOnCashMovement;
         DrawerOnShift = prefs.DrawerOnShift;
+        RefreshScreens();
     }
 
     private void SavePrinters()

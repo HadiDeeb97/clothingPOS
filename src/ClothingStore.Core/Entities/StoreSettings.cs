@@ -22,6 +22,9 @@ public class StoreSettings : Entity
     /// <summary>Print the store logo at the top of sale and return receipts.</summary>
     public bool PrintLogoOnReceipt { get; set; }
 
+    /// <summary>Line shown under the logo on the customer display while no sale is going on (null = "Welcome").</summary>
+    public string? CustomerDisplayMessage { get; set; }
+
     /// <summary>Points earned per 1 currency unit paid (cash/card/wallet).</summary>
     public decimal LoyaltyPointsPerUnit { get; set; } = 1m;
 
