@@ -89,6 +89,7 @@
   "ProductEditor.UnitCost": "Unit cost",
   "ProductEditor.VariantsAdded": "{0} variants added.",
   "ProductEditor.VariantsHint": "Leave SKU/barcode blank to generate them. Stock of existing variants is changed on the Inventory screen.",
+  "Products.Capped": "Showing the first {0:N0} products (A to Z): search or pick a category to find the others.",
   "Products.Colours": "Colours",
   "Products.Deactivated": "The product has sales or purchase history, so it was deactivated instead.",
   "Products.DefaultPrice": "(default)",

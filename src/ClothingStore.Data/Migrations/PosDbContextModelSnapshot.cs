@@ -459,6 +459,10 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("IsActive");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive"), new[] { "Name", "Brand", "StyleCode", "CategoryId" });
+
                     b.HasIndex("Name");
 
                     b.HasIndex("SupplierId");
@@ -528,6 +532,10 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("Sku")
                         .IsUnique();
+
+                    b.HasIndex("IsActive", "ProductId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive", "ProductId"), new[] { "Sku", "Color", "Size", "Barcode" });
 
                     b.ToTable("ProductVariants");
                 });

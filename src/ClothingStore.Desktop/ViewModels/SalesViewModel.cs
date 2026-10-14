@@ -182,7 +182,7 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         try
         {
             await _browse.RunNowAsync(
-                ct => _products.SearchAsync(null, categoryId, includeInactive: false, ct),
+                ct => _products.SearchAsync(null, categoryId, includeInactive: false, ct, max: MaxTiles + 50),
                 found => BrowseProducts = found.Where(p => p.Variants.Any(v => v.IsActive)).Take(MaxTiles).Select(p => new ProductRow(p)).ToList());
         }
         catch (Exception ex)
@@ -229,7 +229,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     {
         try
         {
-            await _search.RunAsync(ct => _products.SearchVariantsAsync(text, ct: ct), results => ShowResults(text, results));
+            await _search.RunAsync(
+                ct => SearchTiming.TimeAsync("Register (typing)", text, () => _products.SearchVariantsAsync(text, ct: ct), _products, r => r.Count),
+                results => ShowResults(text, results));
         }
         catch (Exception ex)
         {
@@ -249,7 +251,9 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         try
         {
             await _search.RunNowAsync(
-                async ct => await _products.FindByCodeAsync(text, ct) is { } exact ? [exact] : await _products.SearchVariantsAsync(text, ct: ct),
+                ct => SearchTiming.TimeAsync("Register (Enter/scan)", text,
+                    async () => await _products.FindByCodeAsync(text, ct) is { } exact ? [exact] : await _products.SearchVariantsAsync(text, ct: ct),
+                    _products, r => r.Count),
                 results =>
                 {
                     if (results.Count == 1) AddVariant(results[0]);

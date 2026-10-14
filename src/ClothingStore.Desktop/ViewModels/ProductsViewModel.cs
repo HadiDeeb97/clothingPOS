@@ -58,7 +58,12 @@ public sealed partial class ProductsViewModel(
     public partial bool IncludeInactive { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCapped))]
     public partial List<ProductRow> Products { get; set; } = [];
+
+    /// <summary>Only the first products (A to Z) are listed: a search or category narrows it.</summary>
+    public bool IsCapped => Products.Count >= ProductService.ProductListLimit;
+    public string CappedText => Loc.T("Products.Capped", ProductService.ProductListLimit);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditCommand), nameof(DeleteCommand), nameof(PrintLabelsCommand))]
@@ -87,7 +92,8 @@ public sealed partial class ProductsViewModel(
         var includeInactive = IncludeInactive;
         try
         {
-            Func<CancellationToken, Task<List<Product>>> load = ct => products.SearchAsync(text, categoryId, includeInactive, ct);
+            Func<CancellationToken, Task<List<Product>>> load = ct =>
+                SearchTiming.TimeAsync("Products page", text ?? "", () => products.SearchAsync(text, categoryId, includeInactive, ct), products, r => r.Count);
             Action<List<Product>> apply = found =>
             {
                 Products = found.Select(p => new ProductRow(p)).ToList();

@@ -28,6 +28,9 @@
             </Grid.RowDefinitions>
 
             <Border Style="{StaticResource TableCard}">
+                <DockPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding CappedText}" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" Margin="12,8"
+                           TextWrapping="Wrap" Visibility="{Binding IsCapped, Converter={StaticResource BoolToVis}}" />
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
                           SelectionMode="Extended" infra:GridSelection.Items="{Binding Selection}"
                           MouseDoubleClick="OnDoubleClick" infra:LayoutMemory.Key="Products.List">
@@ -68,6 +71,7 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </DockPanel>
             </Border>
 
             <GridSplitter Grid.Row="1" Style="{StaticResource RowSplitter}" />
