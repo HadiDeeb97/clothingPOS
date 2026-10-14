@@ -5,9 +5,10 @@
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
              Width="880">
     <UserControl.Resources>
-        <!-- Quick amount buttons under each cash box -->
+        <!-- Quick amount buttons under each cash box: each as wide as its amount (10,000,000 LBP needs more room than
+             $50), wrapping onto the next line when they don't fit -->
         <ItemsPanelTemplate x:Key="QuickPanel">
-            <UniformGrid Columns="3" />
+            <WrapPanel />
         </ItemsPanelTemplate>
     </UserControl.Resources>
 
@@ -29,7 +30,7 @@
                     <ItemsControl ItemsSource="{Binding QuickUsd}" ItemsPanel="{StaticResource QuickPanel}" Margin="0,8,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Content="{Binding Label}" Margin="0,0,6,6" MinHeight="40"
+                                <Button Content="{Binding Label}" Margin="0,0,6,6" MinHeight="40" MinWidth="96" Padding="14,0"
                                         Command="{Binding DataContext.SetUsdCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -44,7 +45,7 @@
                     <ItemsControl ItemsSource="{Binding QuickLbp}" ItemsPanel="{StaticResource QuickPanel}" Margin="0,4,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Content="{Binding Label}" Margin="0,0,6,6" MinHeight="40"
+                                <Button Content="{Binding Label}" Margin="0,0,6,6" MinHeight="40" MinWidth="96" Padding="14,0"
                                         Command="{Binding DataContext.SetLbpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
