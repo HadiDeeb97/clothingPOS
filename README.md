@@ -276,7 +276,14 @@ next to the payment in Sales history.
   window (**Test** prints a short slip). **Choose printer…** in the print window prints elsewhere once. *Ask every time*
   brings the Windows print window back. If a chosen printer is removed, the Windows print window is shown instead.
 * **Labels**: 3-across A4/Letter label sheets (labels about 33 mm tall), or one label per page on a label printer. Labels use Code 128.
-* Cash drawers that open from the receipt printer work through the printer driver's "open drawer" setting.
+* **Cash drawer (per PC)**: a drawer plugged into the receipt printer opens on cash sales, refunds, pay-ins/outs and
+  shift open/close (each can be switched off), or with the register's *Open drawer* button. Set it up in
+  *Settings → Printers* (**Test** opens it).
+* **Customer display (per PC)**: a second monitor facing the customer. Set Windows to *Extend these displays*
+  (Windows + P), then in *Settings → Customer display* tick the box and pick the screen (**Identify screens** shows each
+  screen's number on it). The customer sees the items and total (dollars and pounds), what they handed over and their
+  change while paying, then a thank-you; between sales the logo, store name and a welcome message (set for all tills).
+  It opens by itself when the app starts and is skipped if that screen is unplugged.
 
 ## Development
 

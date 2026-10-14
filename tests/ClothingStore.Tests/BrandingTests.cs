@@ -35,4 +35,22 @@ public class BrandingTests
         await Assert.ThrowsAsync<BusinessRuleException>(() =>
             db.Branding.SetLogoAsync(new byte[ClothingStore.Data.Services.StoreLogoLimits.MaxBytes + 1], db.Admin.Id));
     }
+
+    [Fact]
+    public async Task Customer_display_message_is_trimmed_emptied_and_limited()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var settings = await db.Settings.GetAsync();
+
+        settings.CustomerDisplayMessage = "  New collection in store  ";
+        await db.Settings.SaveAsync(settings);
+        Assert.Equal("New collection in store", (await db.Settings.GetAsync()).CustomerDisplayMessage);
+
+        settings.CustomerDisplayMessage = "   ";
+        await db.Settings.SaveAsync(settings);
+        Assert.Null((await db.Settings.GetAsync()).CustomerDisplayMessage); // the display then says "Welcome!"
+
+        settings.CustomerDisplayMessage = new string('x', 201);
+        await Assert.ThrowsAsync<BusinessRuleException>(() => db.Settings.SaveAsync(settings));
+    }
 }

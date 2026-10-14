@@ -177,11 +177,40 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial StoreSettings Settings { get; set; } = new();
 
+    /// <summary>How many backups the Settings page lists (newest first, in a scrolling table).</summary>
+    private const int BackupsShown = 50;
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoBackups))]
+    [NotifyPropertyChangedFor(nameof(HasNoBackups), nameof(BackupSummary), nameof(HasFailedBackups))]
     public partial List<BackupRecord> Backups { get; set; } = [];
 
     public bool HasNoBackups => Backups.Count == 0;
+    public bool HasFailedBackups => Backups.Any(b => !b.Succeeded);
+
+    /// <summary>"Last good backup: 14 Oct 2026 18:20 · 2 failed in the last 50".</summary>
+    public string BackupSummary
+    {
+        get
+        {
+            var last = Backups.FirstOrDefault(b => b.Succeeded);
+            var text = last is null ? Loc.T("Settings.NoGoodBackup") : Loc.T("Settings.LastGoodBackup", last.StartedAt.ToString("dd MMM yyyy HH:mm"));
+            var failed = Backups.Count(b => !b.Succeeded);
+            return failed == 0 ? text : text + "  ·  " + Loc.T("Settings.FailedBackups", failed, Backups.Count);
+        }
+    }
+
+    /// <summary>Opens the backup folder in Explorer (it is a folder on the PC that runs SQL Server).</summary>
+    [RelayCommand]
+    private void OpenBackupFolder()
+    {
+        var folder = Settings.BackupFolder;
+        if (string.IsNullOrWhiteSpace(folder) || !System.IO.Directory.Exists(folder))
+        {
+            Dialogs.Warning(Loc.T("Settings.BackupFolderNotHere", folder ?? ""));
+            return;
+        }
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+    }
 
     /// <summary>LBP rounding steps offered (amounts collected round up to it, change and refunds round down).</summary>
     public int[] LbpRoundings { get; } = [1, 100, 250, 500, 1_000, 5_000, 10_000];
@@ -228,6 +257,56 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial bool DrawerOnShift { get; set; }
 
+    // ---- Customer display on a second screen (this PC) ----
+
+    [ObservableProperty]
+    public partial bool ShowCustomerDisplay { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSecondScreen))]
+    public partial List<ScreenInfo> DisplayScreens { get; set; } = [];
+
+    [ObservableProperty]
+    public partial string? DisplayScreen { get; set; }
+
+    public bool HasSecondScreen => DisplayScreens.Count > 0;
+
+    private bool _loadingScreens;
+
+    [RelayCommand]
+    private void RefreshScreens()
+    {
+        _loadingScreens = true;
+        try
+        {
+            ShowCustomerDisplay = LocalPreferences.Current.CustomerDisplay;
+            DisplayScreens = Screens.All().Where(s => !s.IsPrimary).ToList();
+            DisplayScreen = Screens.ForCustomerDisplay(LocalPreferences.Current.CustomerDisplayScreen)?.DeviceName;
+        }
+        finally
+        {
+            _loadingScreens = false;
+        }
+        Infrastructure.CustomerDisplay.Apply();
+    }
+
+    // Takes effect at once (no need to save), so it can be checked on the customer's screen while setting it up.
+    partial void OnShowCustomerDisplayChanged(bool value) => ApplyDisplay();
+    partial void OnDisplayScreenChanged(string? value) => ApplyDisplay();
+
+    private void ApplyDisplay()
+    {
+        if (_loadingScreens) return;
+        var prefs = LocalPreferences.Current;
+        prefs.CustomerDisplay = ShowCustomerDisplay;
+        if (DisplayScreen is not null) prefs.CustomerDisplayScreen = DisplayScreen; // an unplugged choice is kept for when it's back
+        prefs.Save();
+        Infrastructure.CustomerDisplay.Apply();
+    }
+
+    [RelayCommand]
+    private void IdentifyScreens() => Infrastructure.CustomerDisplay.Identify();
+
     [RelayCommand]
     private void TestDrawer()
     {
@@ -257,6 +336,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         DrawerOnCashRefund = prefs.DrawerOnCashRefund;
         DrawerOnCashMovement = prefs.DrawerOnCashMovement;
         DrawerOnShift = prefs.DrawerOnShift;
+        RefreshScreens();
     }
 
     private void SavePrinters()
@@ -297,7 +377,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     {
         RefreshPrinters();
         Settings = (await settings.GetAsync()).Clone();
-        Backups = await backup.GetRecentAsync();
+        Backups = await backup.GetRecentAsync(BackupsShown);
     });
 
     [RelayCommand]
@@ -328,7 +408,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     {
         BackupRecord? record = null;
         var ok = await RunAsync(async () => record = await backup.BackupAsync(BackupKind.Manual, session.User.Id));
-        Backups = await backup.GetRecentAsync(); // shows failures too
+        Backups = await backup.GetRecentAsync(BackupsShown); // shows failures too
         if (ok)
             Dialogs.Info(Loc.T("Settings.BackupDone", record!.FilePath));
     }

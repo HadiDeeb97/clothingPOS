@@ -18,6 +18,7 @@
             <conv:EnumDisplayConverter x:Key="EnumDisplay" />
             <conv:SignToBrushConverter x:Key="SignBrush" />
             <conv:InitialsConverter x:Key="Initials" />
+            <conv:FileNameConverter x:Key="FileName" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

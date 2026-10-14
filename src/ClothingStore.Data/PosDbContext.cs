@@ -227,6 +227,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.LoyaltyPointsPerUnit).HasPrecision(18, 4);
             e.Property(x => x.LoyaltyPointValue).HasPrecision(18, 4);
             e.Property(x => x.ReceiptLanguage).HasMaxLength(10);
+            e.Property(x => x.CustomerDisplayMessage).HasMaxLength(200);
             e.Ignore(x => x.ActiveLbpRate);
         });
 

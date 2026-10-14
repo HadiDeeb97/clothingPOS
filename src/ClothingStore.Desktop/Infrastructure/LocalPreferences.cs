@@ -40,6 +40,12 @@ public sealed class LocalPreferences
     public bool DrawerOnCashMovement { get; set; } = true;
     public bool DrawerOnShift { get; set; } = true;
 
+    /// <summary>A second screen facing the customer shows the cart, totals and change (Settings → Customer display).</summary>
+    public bool CustomerDisplay { get; set; }
+
+    /// <summary>Windows name of that screen (e.g. \\.\DISPLAY2); null or unplugged = the first screen that isn't the main one.</summary>
+    public string? CustomerDisplayScreen { get; set; }
+
     /// <summary>Copies of a receipt printed by default on this PC.</summary>
     public int ReceiptCopies { get; set; } = 1;
 

@@ -33,6 +33,8 @@ public class SettingsService(IDbContextFactory<PosDbContext> factory)
             throw new BusinessRuleException(Loc.T("Err.ReceiptPrefixLength"));
         settings.ReceiptWidth = Math.Clamp(settings.ReceiptWidth, 24, 80);
         settings.BackupFolder = QueryHelpers.Clean(settings.BackupFolder);
+        settings.CustomerDisplayMessage = QueryHelpers.Clean(settings.CustomerDisplayMessage);
+        if (settings.CustomerDisplayMessage?.Length > 200) throw new BusinessRuleException(Loc.T("Err.DisplayMessageLength"));
         settings.ReceiptLanguage = Loc.Normalize(settings.ReceiptLanguage);
         if (settings.AutoBackupIntervalHours is < 1 or > 168)
             throw new BusinessRuleException(Loc.T("Err.BackupInterval"));
