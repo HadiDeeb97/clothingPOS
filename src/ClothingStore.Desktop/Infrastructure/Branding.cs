@@ -19,6 +19,9 @@ public sealed partial class Branding : ObservableObject
 
     public bool HasLogo => Icon is not null;
 
+    /// <summary>The logo as stored (PNG), for the shortcut icons; null when there is none.</summary>
+    public byte[]? LogoImage { get; private set; }
+
     /// <summary>When the shown logo was saved; compared with the database to pick up a change made on another till.</summary>
     public DateTime? Version { get; private set; }
 
@@ -90,6 +93,7 @@ public sealed partial class Branding : ObservableObject
     public void SetLogo(byte[]? image)
     {
         Icon = image is { Length: > 0 } ? Decode(image) : null;
+        LogoImage = Icon is null ? null : image;
         foreach (System.Windows.Window window in System.Windows.Application.Current.Windows)
             window.Icon = Icon;
     }

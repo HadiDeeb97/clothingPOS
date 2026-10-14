@@ -38,6 +38,9 @@ public sealed class LocalPreferences
     /// <summary>Delivery company / driver of the last online order taken here, offered for the next one.</summary>
     public string? LastCourier { get; set; }
 
+    /// <summary>The installed program put its shortcut on the desktop already (it isn't made again once deleted).</summary>
+    public bool DesktopShortcutMade { get; set; }
+
     /// <summary>This PC runs the POS full screen (no title bar or taskbar); it starts that way next time too.</summary>
     public bool FullScreen { get; set; }
 

@@ -141,6 +141,7 @@ public partial class App : Application
                 CurrencyFormat.Symbol = (await Services.GetRequiredService<SettingsService>().GetAsync()).CurrencySymbol;
                 try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
                 catch { /* no logo is fine */ }
+                WatchLogoForShortcuts();
                 return true;
             }
             catch (Exception ex) when (attempt < StartupAttempts && DbErrors.IsTransient(ex))
@@ -158,6 +159,20 @@ public partial class App : Application
                 SqlConnection.ClearAllPools();
             }
         }
+    }
+
+    private bool _watchingLogo;
+
+    /// <summary>Puts the store logo (or the program's icon) on this PC's shortcuts now and whenever the logo changes.</summary>
+    private void WatchLogoForShortcuts()
+    {
+        if (_watchingLogo) return;
+        _watchingLogo = true;
+        ShortcutIcons.Update(Branding.Instance.LogoImage, Loc.T("Shell.AppName"));
+        Branding.Instance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Branding.Icon)) ShortcutIcons.Update(Branding.Instance.LogoImage, Loc.T("Shell.AppName"));
+        };
     }
 
     /// <summary>Shows a start-up failure with "Try again?"; on No the app closes.</summary>
