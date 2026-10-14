@@ -32,13 +32,16 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     private int? _approvedByUserId;
     private decimal _approvedDiscountPercent;
 
+    private readonly ShiftService _shifts;
+
     public SalesViewModel(
         IDialogService dialogs, ProductService products, SalesService sales, CustomerService customers,
         SettingsService settings, UserService users, CategoryService categories, Session session, PrintService print,
-        INavigationService navigation, DeliveryService deliveries)
+        INavigationService navigation, DeliveryService deliveries, ShiftService shifts)
         : base(dialogs)
     {
         _deliveries = deliveries;
+        _shifts = shifts;
         _products = products;
         _sales = sales;
         _customers = customers;
@@ -121,6 +124,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
     public async Task OnNavigatedToAsync()
     {
+        OnPropertyChanged(nameof(HasCashDrawer)); // may have been switched on in Settings since
+
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
         await RefreshHeldCountAsync();
         // The register keeps its state between visits: show the product list at once and refresh it in the background.
@@ -609,6 +614,27 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
     public decimal TotalLbp => Lbp.ToPay(GrandTotal, _settings.Current.ActiveLbpRate, _settings.Current.LbpRounding);
     public string RateText => Loc.T("Rate.Short", _settings.Current.LbpRate.ToString("N0"));
 
+    /// <summary>Shown when this PC has a cash drawer on its receipt printer (Settings → Printers).</summary>
+    public bool HasCashDrawer => LocalPreferences.Current.CashDrawer;
+
+    /// <summary>Opens the drawer without a sale (change for a customer, a float check). Counted on the Z report.</summary>
+    [RelayCommand]
+    private async Task OpenDrawerAsync()
+    {
+        if (Session.CurrentShift is not { } shift)
+        {
+            Dialogs.Warning(Loc.T("Drawer.NeedsShift"));
+            return;
+        }
+        if (!CashDrawer.Open(out var error))
+        {
+            Dialogs.Warning(Loc.T("Drawer.Failed", error ?? ""));
+            return;
+        }
+        await RunAsync(() => _shifts.RecordNoSaleOpeningAsync(shift.Id));
+        FocusSearchRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     [RelayCommand]
     private async Task PayAsync()
     {
@@ -690,6 +716,8 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
             return;
         }
 
+        // Cash changed hands: open the drawer (when this PC has one) before the receipt prints.
+        if (sale.CashTendered > 0 || sale.CashTenderedLbp > 0) CashDrawer.OpenFor(DrawerReason.CashSale);
         ResetSale();
         _ = LoadBrowseProductsAsync(); // stock on the tiles changed
         var receipt = Core.Receipts.ReceiptFormatter.Format(ReceiptBuilder.FromSale(sale, _settings.Current), _settings.Current.ReceiptWidth);

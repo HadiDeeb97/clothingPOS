@@ -205,6 +205,37 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     [ObservableProperty]
     public partial int ReceiptCopies { get; set; } = 1;
 
+    // ---- Cash drawer on this PC's receipt printer ----
+
+    [ObservableProperty]
+    public partial bool CashDrawer { get; set; }
+
+    [ObservableProperty]
+    public partial CashDrawerSignal DrawerSignal { get; set; }
+
+    public IReadOnlyList<KeyValuePair<CashDrawerSignal, string>> DrawerSignals { get; } =
+        Enum.GetValues<CashDrawerSignal>().Select(s => new KeyValuePair<CashDrawerSignal, string>(s, Loc.T($"Drawer.Signal.{s}"))).ToList();
+
+    [ObservableProperty]
+    public partial bool DrawerOnCashSale { get; set; }
+
+    [ObservableProperty]
+    public partial bool DrawerOnCashRefund { get; set; }
+
+    [ObservableProperty]
+    public partial bool DrawerOnCashMovement { get; set; }
+
+    [ObservableProperty]
+    public partial bool DrawerOnShift { get; set; }
+
+    [RelayCommand]
+    private void TestDrawer()
+    {
+        SavePrinters();
+        if (Infrastructure.CashDrawer.Open(out var error)) Dialogs.Toast(Loc.T("Drawer.TestSent"));
+        else Dialogs.Warning(Loc.T("Drawer.Failed", error ?? ""));
+    }
+
     [RelayCommand]
     private void RefreshPrinters()
     {
@@ -219,6 +250,13 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         ReceiptPrinter = LocalPreferences.Current.ReceiptPrinter ?? "";
         LabelPrinter = LocalPreferences.Current.LabelPrinter ?? "";
         ReceiptCopies = Math.Clamp(LocalPreferences.Current.ReceiptCopies, 1, 99);
+        var prefs = LocalPreferences.Current;
+        CashDrawer = prefs.CashDrawer;
+        DrawerSignal = prefs.DrawerSignal;
+        DrawerOnCashSale = prefs.DrawerOnCashSale;
+        DrawerOnCashRefund = prefs.DrawerOnCashRefund;
+        DrawerOnCashMovement = prefs.DrawerOnCashMovement;
+        DrawerOnShift = prefs.DrawerOnShift;
     }
 
     private void SavePrinters()
@@ -227,6 +265,12 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         prefs.ReceiptPrinter = string.IsNullOrEmpty(ReceiptPrinter) ? null : ReceiptPrinter;
         prefs.LabelPrinter = string.IsNullOrEmpty(LabelPrinter) ? null : LabelPrinter;
         prefs.ReceiptCopies = Math.Clamp(ReceiptCopies, 1, 99);
+        prefs.CashDrawer = CashDrawer;
+        prefs.DrawerSignal = DrawerSignal;
+        prefs.DrawerOnCashSale = DrawerOnCashSale;
+        prefs.DrawerOnCashRefund = DrawerOnCashRefund;
+        prefs.DrawerOnCashMovement = DrawerOnCashMovement;
+        prefs.DrawerOnShift = DrawerOnShift;
         prefs.Save();
     }
 

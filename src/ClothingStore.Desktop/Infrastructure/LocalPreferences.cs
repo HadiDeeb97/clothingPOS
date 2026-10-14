@@ -29,6 +29,17 @@ public sealed class LocalPreferences
     /// <summary>Printer price labels go to without asking (null = show the Windows print dialog).</summary>
     public string? LabelPrinter { get; set; }
 
+    /// <summary>A cash drawer is plugged into this PC's receipt printer (opened by a signal sent to the printer).</summary>
+    public bool CashDrawer { get; set; }
+
+    /// <summary>Which signal opens it: almost every printer takes the standard one.</summary>
+    public CashDrawerSignal DrawerSignal { get; set; } = CashDrawerSignal.Standard;
+
+    public bool DrawerOnCashSale { get; set; } = true;
+    public bool DrawerOnCashRefund { get; set; } = true;
+    public bool DrawerOnCashMovement { get; set; } = true;
+    public bool DrawerOnShift { get; set; } = true;
+
     /// <summary>Copies of a receipt printed by default on this PC.</summary>
     public int ReceiptCopies { get; set; } = 1;
 

@@ -270,6 +270,7 @@ public sealed partial class DeliveriesViewModel(
             try { await settings.RefreshCurrencyAsync(); } catch { /* checked again next time */ }
             return;
         }
+        if (dialog.Method != SettlementMethod.Transfer) CashDrawer.OpenFor(DrawerReason.CashMovement); // courier cash goes in
         _checked.Clear();
         ScanMessage = null;
         OnPropertyChanged(nameof(SelectionText));

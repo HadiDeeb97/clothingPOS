@@ -153,6 +153,13 @@
             <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
                 <Button DockPanel.Dock="Right" Content="{l:T Register.ClearSale}" Style="{StaticResource GhostButton}" Foreground="{StaticResource DangerBrush}"
                         Command="{Binding ClearCartCommand}" Margin="0" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding OpenDrawerCommand}" Margin="0,0,8,0"
+                        ToolTip="{l:T Drawer.OpenTip}" Visibility="{Binding HasCashDrawer, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8C7;" Style="{StaticResource Icon}" Margin="0,0,6,0" />
+                        <TextBlock Text="{l:T Drawer.Open}" />
+                    </StackPanel>
+                </Button>
                 <StackPanel Orientation="Horizontal">
                     <Button Content="{l:T Register.QuantityButton}" Command="{Binding SetQuantityCommand}" />
                     <Button Content="{l:T Register.LineDiscountButton}" Command="{Binding LineDiscountCommand}" />

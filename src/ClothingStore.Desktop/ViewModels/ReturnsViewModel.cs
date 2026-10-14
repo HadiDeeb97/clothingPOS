@@ -270,6 +270,7 @@ public sealed partial class ReturnsViewModel(
             return;
         }
 
+        if (result.Refunds.Any(r => r.Method is RefundMethod.Cash or RefundMethod.CashLbp)) CashDrawer.OpenFor(DrawerReason.CashRefund);
         var doc = ReceiptBuilder.FromReturn(result, sale, settings.Current, session.User.FullName);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("Returns.RefundTitle", result.ReturnNumber),
             ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth), copies: LocalPreferences.Current.ReceiptCopies,
