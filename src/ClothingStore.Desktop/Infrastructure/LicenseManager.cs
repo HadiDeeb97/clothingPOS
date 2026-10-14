@@ -235,18 +235,32 @@ public sealed partial class LicenseManager : ObservableObject
         }
     }
 
+    private static string? ReadResource()
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ClothingStore.Desktop.licensing.json");
+        if (stream is null) return null;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     private static LicensingConfig LoadConfig()
     {
+        string? text = null;
         try
         {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ClothingStore.Desktop.licensing.json");
-            if (stream is null) return new LicensingConfig(null, null, null, null);
-            return JsonSerializer.Deserialize<LicensingConfig>(stream, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            text = ReadResource();
+            if (text is null) return new LicensingConfig(null, null, null, null);
+            // Comments and trailing commas are allowed: a note left in the file must not switch licensing off.
+            return JsonSerializer.Deserialize<LicensingConfig>(text, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                       { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
                    ?? new LicensingConfig(null, null, null, null);
         }
         catch (JsonException)
         {
-            return new LicensingConfig(null, null, null, null);
+            // Still broken: keep licensing on if the public key itself is there, rather than silently running unlicensed.
+            var match = text is null ? null : System.Text.RegularExpressions.Regex.Match(text, @"-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+            return new LicensingConfig(match is { Success: true } ? match.Value.Replace("\\n", "\n") : null, null, null, null);
         }
     }
 }
