@@ -10,6 +10,12 @@ public enum LicenseState
     Valid,
     ExpiringSoon,
     Expired,
+
+    /// <summary>No key yet, within the free trial that starts on the first run.</summary>
+    Trial,
+
+    /// <summary>No key, and the free trial is over.</summary>
+    TrialEnded,
 }
 
 public sealed record LicenseStatus(LicenseState State, LicenseData? License = null, int DaysLeft = 0)
@@ -17,7 +23,17 @@ public sealed record LicenseStatus(LicenseState State, LicenseData? License = nu
     /// <summary>Days before expiry when the warning starts.</summary>
     public const int WarningDays = 30;
 
-    public bool CanRun => State is LicenseState.Valid or LicenseState.ExpiringSoon or LicenseState.NotConfigured;
+    /// <summary>Days the app runs without a key, counted from the first start (that day included).</summary>
+    public const int TrialDays = 7;
+
+    public bool CanRun => State is LicenseState.Valid or LicenseState.ExpiringSoon or LicenseState.NotConfigured or LicenseState.Trial;
+
+    /// <summary>The free trial on a PC without a key: <see cref="TrialDays"/> days from <paramref name="trialStart"/>.</summary>
+    public static LicenseStatus Trial(DateOnly trialStart, DateOnly today)
+    {
+        var daysLeft = trialStart.AddDays(TrialDays - 1).DayNumber - today.DayNumber;
+        return new LicenseStatus(daysLeft < 0 ? LicenseState.TrialEnded : LicenseState.Trial, null, daysLeft);
+    }
 
     /// <summary>
     /// Checks a key for this PC. <paramref name="today"/> should be the latest trustworthy date known (see

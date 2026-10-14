@@ -22,6 +22,8 @@ public sealed partial class ActivationViewModel(IDialogService dialogs, LicenseM
     public string Reason => license.Status.State switch
     {
         LicenseState.Missing => Loc.T("License.Reason.Missing"),
+        LicenseState.TrialEnded => Loc.T("License.Reason.TrialEnded", LicenseStatus.TrialDays),
+        LicenseState.Trial => Loc.T("License.TrialDaysLeft", license.Status.DaysLeft + 1, Contact),
         LicenseState.Invalid => Loc.T("License.Reason.Invalid"),
         LicenseState.WrongMachine => Loc.T("License.Reason.WrongMachine"),
         LicenseState.Expired => Loc.T("License.Reason.Expired", license.Status.License!.ExpiresOn.ToString("d", CultureInfo.CurrentCulture)),

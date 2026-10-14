@@ -109,4 +109,18 @@ public class LicensingTests
     }
 
     private static string Pad(string s) => s.PadRight(s.Length + (4 - s.Length % 4) % 4, '=');
+
+    [Fact]
+    public void The_free_trial_runs_seven_days_from_the_first_start_then_stops()
+    {
+        var start = Today;
+        var first = LicenseStatus.Trial(start, Today);
+        Assert.Equal((LicenseState.Trial, 6, true), (first.State, first.DaysLeft, first.CanRun));
+
+        var lastDay = LicenseStatus.Trial(start, Today.AddDays(6));
+        Assert.Equal((LicenseState.Trial, 0, true), (lastDay.State, lastDay.DaysLeft, lastDay.CanRun));
+
+        var over = LicenseStatus.Trial(start, Today.AddDays(7));
+        Assert.Equal((LicenseState.TrialEnded, false), (over.State, over.CanRun));
+    }
 }
