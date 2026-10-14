@@ -42,6 +42,7 @@
   "Report.Date": "التاريخ:  {0:yyyy-MM-dd}",
   "Report.Expected": "متوقع:    {0:yyyy-MM-dd}",
   "Report.HandedOver": "سُلِّم إلى {0}",
+  "Report.NoSaleOpenings": "فُتح دون عملية بيع",
   "Report.Notes": "ملاحظات: {0}",
   "Report.Opened": "الفتح",
   "Report.OverShort": "زيادة / (نقص)",

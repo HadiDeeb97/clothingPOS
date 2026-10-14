@@ -71,6 +71,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
         {
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.HasIndex(x => x.Name);
+            // Narrow copy of what product searches look at, so a search reads this instead of whole product rows.
+            e.HasIndex(x => x.IsActive).IncludeProperties(x => new { x.Name, x.Brand, x.StyleCode, x.CategoryId });
             e.HasOne(x => x.Category).WithMany(c => c.Products).HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Variants).WithOne(v => v.Product).HasForeignKey(v => v.ProductId).OnDelete(DeleteBehavior.Cascade);
@@ -82,6 +84,8 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.HasIndex(x => x.Sku).IsUnique();
             e.Property(x => x.Barcode).HasMaxLength(64);
             e.HasIndex(x => x.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
+            // Likewise for variants: active ones with the columns a search matches on.
+            e.HasIndex(x => new { x.IsActive, x.ProductId }).IncludeProperties(x => new { x.Sku, x.Color, x.Size, x.Barcode });
             e.Property(x => x.Size).HasMaxLength(20);
             e.Property(x => x.Color).HasMaxLength(40);
             e.Property(x => x.Version).IsConcurrencyToken();

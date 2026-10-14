@@ -30,7 +30,11 @@
         <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="22" MaxHeight="560"
                 FlowDirection="LeftToRight">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                <TextBlock Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="13" />
+                <StackPanel>
+                    <Image Source="{Binding Logo}" MaxHeight="90" MaxWidth="180" HorizontalAlignment="Center" Margin="0,0,0,8"
+                           Visibility="{Binding Logo, Converter={StaticResource HasValueToVis}}" RenderOptions.BitmapScalingMode="HighQuality" />
+                    <TextBlock Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="13" />
+                </StackPanel>
             </ScrollViewer>
         </Border>
     </DockPanel>

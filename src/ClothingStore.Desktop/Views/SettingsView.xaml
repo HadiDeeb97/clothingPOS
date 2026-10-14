@@ -110,6 +110,10 @@
                             </UniformGrid>
                             <TextBlock Text="{l:T Settings.Footer}" Style="{StaticResource Label}" />
                             <TextBox Text="{Binding Settings.ReceiptFooter}" Style="{StaticResource MultilineBox}" Margin="0,0,16,0" />
+                            <CheckBox IsChecked="{Binding Settings.PrintLogoOnReceipt}" Margin="0,14,0,0">
+                                <TextBlock Text="{l:T Settings.PrintLogoOnReceipt}" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <TextBlock Text="{l:T Settings.PrintLogoOnReceiptHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="24,2,16,0" />
                         </StackPanel>
                     </Border>
 
@@ -212,6 +216,27 @@
                                 </StackPanel>
                             </UniformGrid>
                             <TextBlock Text="{l:T Print.Hint}" Style="{StaticResource HintText}" TextWrapping="Wrap" />
+
+                            <!-- Cash drawer plugged into the receipt printer (this PC only) -->
+                            <Separator Margin="0,16,16,12" />
+                            <CheckBox IsChecked="{Binding CashDrawer}">
+                                <TextBlock Text="{l:T Drawer.Connected}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                            </CheckBox>
+                            <StackPanel Margin="24,8,16,0" Visibility="{Binding CashDrawer, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{l:T Drawer.OpenWhen}" Style="{StaticResource Label}" />
+                                <WrapPanel>
+                                    <CheckBox IsChecked="{Binding DrawerOnCashSale}" Content="{l:T Drawer.OnCashSale}" Margin="0,0,16,6" />
+                                    <CheckBox IsChecked="{Binding DrawerOnCashRefund}" Content="{l:T Drawer.OnCashRefund}" Margin="0,0,16,6" />
+                                    <CheckBox IsChecked="{Binding DrawerOnCashMovement}" Content="{l:T Drawer.OnCashMovement}" Margin="0,0,16,6" />
+                                    <CheckBox IsChecked="{Binding DrawerOnShift}" Content="{l:T Drawer.OnShift}" Margin="0,0,16,6" />
+                                </WrapPanel>
+                                <TextBlock Text="{l:T Drawer.Signal}" Style="{StaticResource Label}" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="{l:T Drawer.Test}" Command="{Binding TestDrawerCommand}" Margin="8,0,0,0" />
+                                    <ComboBox ItemsSource="{Binding DrawerSignals}" SelectedValuePath="Key" DisplayMemberPath="Value" SelectedValue="{Binding DrawerSignal}" />
+                                </DockPanel>
+                                <TextBlock Text="{l:T Drawer.Hint}" Style="{StaticResource HintText}" TextWrapping="Wrap" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

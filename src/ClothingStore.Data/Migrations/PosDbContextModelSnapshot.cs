@@ -459,6 +459,10 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("IsActive");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive"), new[] { "Name", "Brand", "StyleCode", "CategoryId" });
+
                     b.HasIndex("Name");
 
                     b.HasIndex("SupplierId");
@@ -528,6 +532,10 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("Sku")
                         .IsUnique();
+
+                    b.HasIndex("IsActive", "ProductId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive", "ProductId"), new[] { "Sku", "Color", "Size", "Barcode" });
 
                     b.ToTable("ProductVariants");
                 });
@@ -1084,6 +1092,9 @@ namespace ClothingStore.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("NoSaleOpenings")
+                        .HasColumnType("int");
+
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
@@ -1280,6 +1291,9 @@ namespace ClothingStore.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("PricesIncludeTax")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PrintLogoOnReceipt")
                         .HasColumnType("bit");
 
                     b.Property<string>("ReceiptFooter")

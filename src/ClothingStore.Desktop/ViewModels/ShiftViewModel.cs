@@ -188,6 +188,7 @@ public sealed partial class ShiftViewModel(
         if (await RunAsync(() => shifts.OpenShiftAsync(session.User.Id, amount, amountLbp, session.TillId, session.TillName)))
         {
             Dialogs.Toast(Loc.T("Shift.Opened"));
+            CashDrawer.OpenFor(DrawerReason.Shift); // to put the float in
             await RefreshAsync();
         }
     }
@@ -203,6 +204,7 @@ public sealed partial class ShiftViewModel(
         }
         if (await RunAsync(() => shifts.AddCashMovementAsync(shift.Id, MovementType, amount, MovementReason ?? "", session.User.Id, MovementCurrency)))
         {
+            CashDrawer.OpenFor(DrawerReason.CashMovement);
             MovementAmountText = "";
             MovementReason = null;
             await RefreshAsync();
@@ -264,6 +266,7 @@ public sealed partial class ShiftViewModel(
         {
             session.CurrentShift = null;
         }
+        CashDrawer.OpenFor(DrawerReason.Shift); // to take the counted cash out
         CountedCashText = "";
         CountedCashLbpText = "";
         CloseNotes = null;

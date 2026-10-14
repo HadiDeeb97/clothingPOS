@@ -89,6 +89,7 @@
   "ProductEditor.UnitCost": "كلفة القطعة",
   "ProductEditor.VariantsAdded": "تمت إضافة {0} خيارات.",
   "ProductEditor.VariantsHint": "اترك الرمز والباركود فارغين لإنشائهما تلقائياً. يُعدَّل مخزون الخيارات الموجودة من شاشة المخزون.",
+  "Products.Capped": "يتم عرض أول {0:N0} منتج (أبجديًا): ابحث أو اختر فئة للعثور على البقية.",
   "Products.Colours": "الألوان",
   "Products.Deactivated": "للمنتج سجل مبيعات أو مشتريات، لذلك تم إيقافه بدلاً من حذفه.",
   "Products.DefaultPrice": "(افتراضي)",

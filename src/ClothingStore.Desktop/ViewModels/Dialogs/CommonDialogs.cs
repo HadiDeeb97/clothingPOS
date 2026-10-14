@@ -114,9 +114,12 @@ public sealed partial class ManagerApprovalViewModel(IDialogService dialogs, Use
 /// PC's default receipt printer when one is set; "Choose printer" always asks.
 /// </summary>
 public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintService print, string title, IReadOnlyList<string> lines,
-    string? closeText = null, int copies = 1) : DialogViewModelBase(dialogs)
+    string? closeText = null, int copies = 1, byte[]? logo = null) : DialogViewModelBase(dialogs)
 {
     public override string Title { get; } = title;
+
+    /// <summary>Store logo shown (and printed) above the receipt, when the setting is on; null otherwise.</summary>
+    public System.Windows.Media.ImageSource? Logo { get; } = logo is { Length: > 0 } ? Branding.Decode(logo) : null;
     public string Text { get; } = string.Join(Environment.NewLine, lines);
     public string CloseText { get; } = closeText ?? Loc.T("Common.Close");
 
@@ -153,7 +156,7 @@ public sealed partial class TextPreviewViewModel(IDialogService dialogs, PrintSe
     {
         try
         {
-            if (print.PrintText(lines, Title, Copies, choosePrinter))
+            if (print.PrintText(lines, Title, Copies, choosePrinter, logo))
                 Dialogs.Toast(Loc.T("Print.Sent", Copies));
         }
         catch (Exception ex)

@@ -42,6 +42,7 @@
   "Report.Date": "Date:     {0:yyyy-MM-dd}",
   "Report.Expected": "Expected: {0:yyyy-MM-dd}",
   "Report.HandedOver": "Handed over to {0}",
+  "Report.NoSaleOpenings": "Opened without a sale",
   "Report.Notes": "Notes: {0}",
   "Report.Opened": "Opened",
   "Report.OverShort": "Over / (short)",

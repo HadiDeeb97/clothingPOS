@@ -50,6 +50,9 @@ public class Shift : Entity
 
     public string? Notes { get; set; }
 
+    /// <summary>Times the drawer was opened with the "Open drawer" button (no sale), shown on the Z report.</summary>
+    public int NoSaleOpenings { get; set; }
+
     public List<CashMovement> CashMovements { get; set; } = [];
 }
 

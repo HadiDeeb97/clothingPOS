@@ -9,15 +9,14 @@ namespace ClothingStore.Data.Services;
 
 public class ProductService(IDbContextFactory<PosDbContext> factory)
 {
-    public async Task<List<Product>> SearchAsync(string? text = null, int? categoryId = null, bool includeInactive = false, CancellationToken ct = default)
+    /// <summary>Most products a list shows at once (alphabetical); a search or category narrows it.</summary>
+    public const int ProductListLimit = 500;
+
+    public async Task<List<Product>> SearchAsync(string? text = null, int? categoryId = null, bool includeInactive = false,
+        CancellationToken ct = default, int max = ProductListLimit)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.Products.AsNoTracking()
-            .Include(p => p.Category)
-            .Include(p => p.Supplier)
-            .Include(p => p.Variants)
-            .AsSplitQuery()
-            .Where(p => includeInactive || p.IsActive);
+        var query = db.Products.AsNoTracking().Where(p => includeInactive || p.IsActive);
 
         if (categoryId is not null) query = query.Where(p => p.CategoryId == categoryId);
         foreach (var term in SmartSearch.Terms(text))
@@ -30,10 +29,20 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
                 EF.Functions.Like(p.Category!.Name, pattern, "\\") ||
                 EF.Functions.Like(p.Supplier!.Name, pattern, "\\") ||
                 p.Variants.Any(v => EF.Functions.Like(v.Sku, pattern, "\\") || EF.Functions.Like(v.Color, pattern, "\\") ||
-                                    v.Size == term || v.Barcode == term));
+                                    v.Size == term || (v.Barcode != null && v.Barcode == term)));
         }
 
-        return await query.OrderBy(p => p.Name).ToListAsync(ct);
+        // Ids first, then the details of just those (with every variant): see SearchVariantsAsync.
+        var ids = await query.OrderBy(p => p.Name).ThenBy(p => p.Id).Select(p => p.Id).Take(max).ToListAsync(ct);
+        if (ids.Count == 0) return [];
+        var found = await db.Products.AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .Include(p => p.Variants)
+            .AsSplitQuery()
+            .Where(p => ids.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
+        return ids.Where(found.ContainsKey).Select(id => found[id]).ToList();
     }
 
     public async Task<Product?> GetAsync(int id, CancellationToken ct = default)
@@ -55,8 +64,19 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         await using var db = await factory.CreateDbContextAsync(ct);
         return await db.ProductVariants.AsNoTracking()
             .Include(v => v.Product).ThenInclude(p => p!.Category)
-            .Where(v => v.IsActive && v.Product!.IsActive && (v.Barcode == code || v.Sku == code))
+            // "Barcode != null" lets SQL Server use the barcode index (it only holds rows that have one), so a scan is
+            // a quick lookup instead of reading every variant.
+            .Where(v => v.IsActive && v.Product!.IsActive && ((v.Barcode != null && v.Barcode == code) || v.Sku == code))
             .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>A trivial round trip to the database, to tell a slow server/PC apart from a slow search.</summary>
+    public async Task<TimeSpan> PingAsync(CancellationToken ct = default)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT 1", ct);
+        return watch.Elapsed;
     }
 
     public async Task<List<ProductVariant>> GetVariantsAsync(IEnumerable<int> ids, CancellationToken ct = default)
@@ -74,7 +94,6 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var query = db.ProductVariants.AsNoTracking()
-            .Include(v => v.Product).ThenInclude(p => p!.Category)
             .Where(v => v.IsActive && v.Product!.IsActive);
 
         // Every word must match something, in any order, so "blue oxford m" narrows nicely.
@@ -91,18 +110,27 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
                 EF.Functions.Like(v.Sku, pattern, "\\") ||
                 EF.Functions.Like(v.Color, pattern, "\\") ||
                 v.Size == term ||
-                v.Barcode == term);
+                (v.Barcode != null && v.Barcode == term));
         }
 
         // Best matches first: an exact code, then names starting with the first word.
         var whole = text.Trim();
         var startsWith = SmartSearch.LikePattern(terms[0])[1..];
-        return await query
+        // First only the ids of the best matches (sorting narrow rows is quick), then the full details of just those:
+        // loading products and categories for every match before keeping the first 100 made searches several times slower.
+        var ids = await query
             .OrderByDescending(v => v.Barcode == whole || v.Sku == whole)
             .ThenByDescending(v => EF.Functions.Like(v.Product!.Name, startsWith, "\\"))
             .ThenBy(v => v.Product!.Name).ThenBy(v => v.Color).ThenBy(v => v.Id)
+            .Select(v => v.Id)
             .Take(max)
             .ToListAsync(ct);
+        if (ids.Count == 0) return [];
+        var found = await db.ProductVariants.AsNoTracking()
+            .Include(v => v.Product).ThenInclude(p => p!.Category)
+            .Where(v => ids.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id, ct);
+        return ids.Where(found.ContainsKey).Select(id => found[id]).ToList();
     }
 
     public async Task<List<string>> GenerateBarcodesAsync(int count, CancellationToken ct = default)

@@ -36,6 +36,9 @@ public sealed record ShiftSummary
     public decimal TotalRefunds { get; init; }
     public decimal PayIns { get; init; }
     public decimal PayOuts { get; init; }
+
+    /// <summary>Drawer opened with the "Open drawer" button, without a sale.</summary>
+    public int NoSaleOpenings { get; init; }
     public decimal ExpectedCash { get; init; }
     public decimal? CountedCash { get; init; }
     public decimal? Variance => CountedCash - ExpectedCash;
@@ -182,6 +185,14 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
         return shift;
     }
 
+    /// <summary>Counts an "Open drawer" (no sale) on the open shift; false when the shift isn't open.</summary>
+    public async Task<bool> RecordNoSaleOpeningAsync(int shiftId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Shifts.Where(s => s.Id == shiftId && s.Status == ShiftStatus.Open)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.NoSaleOpenings, x => x.NoSaleOpenings + 1), ct) == 1;
+    }
+
     public async Task<CashMovement> AddCashMovementAsync(
         int shiftId, CashMovementType type, decimal amount, string reason, int userId, CashCurrency currency = CashCurrency.Usd,
         CancellationToken ct = default)
@@ -321,6 +332,7 @@ public class ShiftService(IDbContextFactory<PosDbContext> factory)
             OpenedAt = shift.OpenedAt,
             ClosedAt = shift.ClosedAt,
             OpeningFloat = shift.OpeningFloat,
+            NoSaleOpenings = shift.NoSaleOpenings,
             SalesCount = completed.Count,
             VoidedCount = sales.Count - completed.Count,
             ItemsSold = completed.Sum(s => s.Lines.Sum(l => l.Quantity)),

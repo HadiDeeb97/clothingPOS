@@ -189,6 +189,7 @@ public static class ReceiptBuilder
         lines.Add(Row("  " + Loc.T("Shift.PayOuts"), M(-sum.PayOuts)));
         lines.Add(Row("  " + Loc.T("Shift.CashRefunds"), M(-sum.CashRefunds)));
         lines.Add(Row("  " + Loc.T("Shift.Expected"), M(sum.ExpectedCash)));
+        if (sum.NoSaleOpenings > 0) lines.Add(Row("  " + Loc.T("Report.NoSaleOpenings"), sum.NoSaleOpenings.ToString()));
         if (sum.CountedCash is { } counted)
         {
             lines.Add(Row("  " + Loc.T("Report.Counted"), M(counted)));

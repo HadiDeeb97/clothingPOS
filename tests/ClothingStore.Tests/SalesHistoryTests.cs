@@ -45,3 +45,19 @@ public class SalesHistoryTests
         Assert.Equal(2, (await db.Sales.SearchAsync(from, to, filter: SaleListFilter.Completed)).Count);
     }
 }
+
+public class CashDrawerTests
+{
+    [Fact]
+    public async Task Opening_the_drawer_without_a_sale_is_counted_on_the_open_shift_only()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var shift = await db.OpenShiftAsync();
+        Assert.True(await db.Shifts.RecordNoSaleOpeningAsync(shift.Id));
+        Assert.True(await db.Shifts.RecordNoSaleOpeningAsync(shift.Id));
+        Assert.Equal(2, (await db.Shifts.GetSummaryAsync(shift.Id)).NoSaleOpenings);
+
+        await db.Shifts.CloseShiftAsync(shift.Id, 100m, null);
+        Assert.False(await db.Shifts.RecordNoSaleOpeningAsync(shift.Id));
+    }
+}
