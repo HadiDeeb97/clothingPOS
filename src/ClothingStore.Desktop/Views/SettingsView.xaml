@@ -319,7 +319,8 @@
                                 </TextBlock>
                                 <!-- A fixed-height table that scrolls, however many backups there are -->
                                 <Border Style="{StaticResource TableCard}" MaxHeight="300">
-                                    <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Backups}" infra:LayoutMemory.Key="Settings.Backups">
+                                    <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Backups}" infra:LayoutMemory.Key="Settings.Backups"
+                                              MouseDoubleClick="OnBackupDoubleClick">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding StartedAt, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="Auto" MinWidth="130" />
                                             <DataGridTextColumn Header="{l:T Settings.BackupType}" Binding="{Binding Kind, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="110" />
@@ -357,6 +358,7 @@
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
+                                <TextBlock Text="{l:T Settings.BackupDoubleClick}" Style="{StaticResource HintText}" Margin="0,6,0,0" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
