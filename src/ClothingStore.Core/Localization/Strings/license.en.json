@@ -19,8 +19,11 @@
   "License.Reason.Expired": "The license expired on {0}. Enter a renewed license key to continue.",
   "License.Reason.Invalid": "This license key isn't valid. Check that it was copied completely.",
   "License.Reason.Missing": "This PC has no license yet. Enter the license key from your supplier.",
+  "License.Reason.TrialEnded": "The {0}-day free trial has ended. Send this PC's ID to your supplier to get a license key.",
   "License.Reason.Valid": "Licensed to {0} until {1}.",
   "License.Reason.ValidLifetime": "Licensed to {0}, with no expiry date.",
   "License.Reason.WrongMachine": "This license is for a different PC. Send this PC's ID to your supplier to get a license for it.",
-  "License.Title": "License"
+  "License.Title": "License",
+  "License.TrialDaysLeft": "Free trial: {0} day(s) left, including today. To keep using the app after that, ask your supplier for a license key. {1}",
+  "License.TrialLastDay": "Last day of the free trial. Ask your supplier for a license key to keep using the app tomorrow. {0}"
 }

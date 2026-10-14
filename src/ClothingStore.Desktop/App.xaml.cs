@@ -199,7 +199,7 @@ public partial class App : Application
                 if (!AskTryAgain(Loc.T("Startup.CannotConnect", DatabaseName, ex.GetBaseException().Message), StartupLog.Write(ex))) return false;
             }
         }
-        if (status.State == LicenseState.ExpiringSoon && LocalPreferences.Current.LicenseWarnedOn != DateTime.Today)
+        if (status.State is LicenseState.ExpiringSoon or LicenseState.Trial && LocalPreferences.Current.LicenseWarnedOn != DateTime.Today)
         {
             // Besides the banner, say it once a day in a box nobody can miss.
             Services.GetRequiredService<IDialogService>().Warning(license.BannerText, Loc.T("License.Title"));

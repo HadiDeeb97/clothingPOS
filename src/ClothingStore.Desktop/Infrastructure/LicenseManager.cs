@@ -27,6 +27,7 @@ public sealed partial class LicenseManager : ObservableObject
     private static readonly string Folder = PickFolder();
     private static readonly string KeyPath = Path.Combine(Folder, "license.key");
     private static readonly string SeenPath = Path.Combine(Folder, "state.dat");
+    private static readonly string TrialPath = Path.Combine(Folder, "trial.dat");
 
     private readonly LicenseClockService _clock;
     private readonly ECDsa? _publicKey;
@@ -54,9 +55,9 @@ public sealed partial class LicenseManager : ObservableObject
 
     public DateOnly TrustedToday { get; private set; } = DateOnly.FromDateTime(DateTime.Today);
 
-    /// <summary>A strip at the top of the main window: expiry warning, or "licensing not configured" in developer builds.</summary>
-    public bool ShowBanner => Status.State is LicenseState.ExpiringSoon or LicenseState.NotConfigured;
-    public bool IsWarning => Status.State == LicenseState.ExpiringSoon;
+    /// <summary>A strip at the top of the main window: trial or expiry warning, or "licensing not configured" in developer builds.</summary>
+    public bool ShowBanner => Status.State is LicenseState.ExpiringSoon or LicenseState.NotConfigured or LicenseState.Trial;
+    public bool IsWarning => Status.State is LicenseState.ExpiringSoon or LicenseState.Trial;
 
     public string BannerText => Status.State switch
     {
@@ -64,6 +65,9 @@ public sealed partial class LicenseManager : ObservableObject
             ? Loc.T("License.ExpiresToday", Config.Contact)
             : Loc.T("License.ExpiresIn", Status.DaysLeft, Status.License!.ExpiresOn.ToString("d", CultureInfo.CurrentCulture), Config.Contact),
         LicenseState.NotConfigured => Loc.T("License.NotConfigured"),
+        LicenseState.Trial => Status.DaysLeft == 0
+            ? Loc.T("License.TrialLastDay", Config.Contact)
+            : Loc.T("License.TrialDaysLeft", Status.DaysLeft + 1, Config.Contact),
         _ => "",
     };
 
@@ -92,8 +96,43 @@ public sealed partial class LicenseManager : ObservableObject
                 if (earlier is { } e && DateOnly.FromDateTime(e) > seen) seen = DateOnly.FromDateTime(e);
             await RememberSeenAsync(seen, ct);
         }
+        if (status.State == LicenseState.Missing) status = await TrialAsync(evidence, ct);
         Status = status;
         return status;
+    }
+
+    /// <summary>
+    /// A PC with no key runs for <see cref="LicenseStatus.TrialDays"/> days from its first start. The start date is
+    /// kept signed both on this PC and in the database, and the earliest copy wins, so deleting one of them (or a new
+    /// database, or setting the clock back) doesn't start the trial again.
+    /// </summary>
+    private async Task<LicenseStatus> TrialAsync(ClockEvidence evidence, CancellationToken ct)
+    {
+        var fromDb = ReadSigned(evidence.TrialStartRecord, TrialKey());
+        var fromFile = ReadSigned(TryRead(TrialPath), TrialKey());
+        var start = new[] { fromDb, fromFile }.Where(d => d is not null).Select(d => DateOnly.FromDateTime(d!.Value))
+            .DefaultIfEmpty(TrustedToday).Min();
+        if (fromDb is null || fromFile is null || DateOnly.FromDateTime(fromDb.Value) != start || DateOnly.FromDateTime(fromFile.Value) != start)
+        {
+            var record = Sign(start, TrialKey());
+            try
+            {
+                Directory.CreateDirectory(Folder);
+                await File.WriteAllTextAsync(TrialPath, record, ct);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+            try
+            {
+                await _clock.SaveTrialStartAsync(record, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The file copy still counts; the database copy is written next time.
+            }
+        }
+        return LicenseStatus.Trial(start, TrustedToday);
     }
 
     /// <summary>Stores a new key if it is valid for this PC; returns the resulting status either way.</summary>
@@ -128,24 +167,30 @@ public sealed partial class LicenseManager : ObservableObject
         }
     }
 
+    private string SignSeen(DateOnly date) => Sign(date, SeenKey());
+    private DateTime? ReadSeen(string? record) => ReadSigned(record, SeenKey());
+
     // "yyyy-MM-dd|HMAC" so the date can't simply be edited back.
-    private string SignSeen(DateOnly date)
+    private static string Sign(DateOnly date, byte[] key)
     {
         var text = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return text + "|" + Convert.ToBase64String(HMACSHA256.HashData(SeenKey(), Encoding.UTF8.GetBytes(text)));
+        return text + "|" + Convert.ToBase64String(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(text)));
     }
 
-    private DateTime? ReadSeen(string? record)
+    private static DateTime? ReadSigned(string? record, byte[] key)
     {
         var parts = record?.Trim().Split('|');
         if (parts is not { Length: 2 }) return null;
-        var expected = Convert.ToBase64String(HMACSHA256.HashData(SeenKey(), Encoding.UTF8.GetBytes(parts[0])));
+        var expected = Convert.ToBase64String(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(parts[0])));
         if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(parts[1]))) return null;
         return DateTime.TryParseExact(parts[0], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
     }
 
     // Same on every till (the database copy is shared), different for every vendor key.
     private byte[] SeenKey() => SHA256.HashData(Encoding.UTF8.GetBytes("ClothingStorePOS.seen|" + (Config.PublicKey ?? "")));
+
+    // A separate key, so a "last seen" record (a later date) can't be passed off as the trial start.
+    private byte[] TrialKey() => SHA256.HashData(Encoding.UTF8.GetBytes("ClothingStorePOS.trial|" + (Config.PublicKey ?? "")));
 
     private static string? TryRead(string path)
     {
@@ -190,18 +235,32 @@ public sealed partial class LicenseManager : ObservableObject
         }
     }
 
+    private static string? ReadResource()
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ClothingStore.Desktop.licensing.json");
+        if (stream is null) return null;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     private static LicensingConfig LoadConfig()
     {
+        string? text = null;
         try
         {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ClothingStore.Desktop.licensing.json");
-            if (stream is null) return new LicensingConfig(null, null, null, null);
-            return JsonSerializer.Deserialize<LicensingConfig>(stream, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            text = ReadResource();
+            if (text is null) return new LicensingConfig(null, null, null, null);
+            // Comments and trailing commas are allowed: a note left in the file must not switch licensing off.
+            return JsonSerializer.Deserialize<LicensingConfig>(text, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                       { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
                    ?? new LicensingConfig(null, null, null, null);
         }
         catch (JsonException)
         {
-            return new LicensingConfig(null, null, null, null);
+            // Still broken: keep licensing on if the public key itself is there, rather than silently running unlicensed.
+            var match = text is null ? null : System.Text.RegularExpressions.Regex.Match(text, @"-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+            return new LicensingConfig(match is { Success: true } ? match.Value.Replace("\\n", "\n") : null, null, null, null);
         }
     }
 }
