@@ -388,7 +388,42 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         }
     }
 
-    public async Task OnNavigatedToAsync() => await ReloadAsync();
+    public async Task OnNavigatedToAsync()
+    {
+        if (!_watchingTextSize)
+        {
+            // Also follows changes made from the user menu or with Ctrl +/−. The page is kept for the whole sign-in.
+            _watchingTextSize = true;
+            UiScale.Changed += (_, _) => OnTextSizeChanged();
+        }
+        OnTextSizeChanged();
+        await ReloadAsync();
+    }
+
+    // ---- Text size of this PC ----
+
+    private bool _watchingTextSize;
+
+    public string TextSizeText => $"{UiScale.Percent}%";
+
+    [RelayCommand(CanExecute = nameof(CanTextLarger))]
+    private void TextLarger() => UiScale.Larger();
+
+    [RelayCommand(CanExecute = nameof(CanTextSmaller))]
+    private void TextSmaller() => UiScale.Smaller();
+
+    [RelayCommand]
+    private void TextReset() => UiScale.Reset();
+
+    private static bool CanTextLarger() => UiScale.CanGrow;
+    private static bool CanTextSmaller() => UiScale.CanShrink;
+
+    private void OnTextSizeChanged()
+    {
+        OnPropertyChanged(nameof(TextSizeText));
+        TextLargerCommand.NotifyCanExecuteChanged();
+        TextSmallerCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand]
     private Task ReloadAsync() => RunAsync(async () =>

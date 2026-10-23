@@ -51,7 +51,8 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <!-- Zoomed as a whole by this PC's text size (Settings / user menu / Ctrl +, Ctrl −) -->
+    <Grid infra:UiScale.IsRoot="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
@@ -132,6 +133,18 @@
                                             <TextBlock Text="{l:T Shell.LanguageArabic}" Margin="8,0,0,0" />
                                         </DockPanel>
                                     </Button>
+                                    <Separator Margin="6,6" />
+                                    <!-- Text size of this PC -->
+                                    <DockPanel Margin="12,2,8,4">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Button Style="{StaticResource SmallButton}" Command="{Binding TextSmallerCommand}" ToolTip="{l:T Shell.TextSmaller}"
+                                                    Content="{l:T Shell.TextSmallerSymbol}" FontSize="11" MinWidth="34" />
+                                            <TextBlock Text="{Binding TextSizeText}" MinWidth="44" TextAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                            <Button Style="{StaticResource SmallButton}" Command="{Binding TextLargerCommand}" ToolTip="{l:T Shell.TextLarger}"
+                                                    Content="{l:T Shell.TextLargerSymbol}" FontSize="14" MinWidth="34" />
+                                        </StackPanel>
+                                        <TextBlock Text="{l:T Shell.TextSize}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    </DockPanel>
                                     <Separator Margin="6,6" />
                                     <Button Style="{StaticResource MenuItemButton}" Command="{Binding ChangePasswordCommand}">
                                         <StackPanel Orientation="Horizontal">

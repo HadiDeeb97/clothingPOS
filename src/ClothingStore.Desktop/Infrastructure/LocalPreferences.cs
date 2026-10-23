@@ -61,6 +61,9 @@ public sealed class LocalPreferences
     /// <summary>The installed program put its shortcut on the desktop already (it isn't made again once deleted).</summary>
     public bool DesktopShortcutMade { get; set; }
 
+    /// <summary>Text size (zoom) of the POS on this PC: 1 = 100%. Snapped to ZoomSteps when read.</summary>
+    public double UiScale { get; set; } = 1.0;
+
     /// <summary>This PC runs the POS full screen (no title bar or taskbar); it starts that way next time too.</summary>
     public bool FullScreen { get; set; }
 
