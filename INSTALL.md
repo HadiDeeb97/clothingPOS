@@ -125,3 +125,46 @@ What depends on the shop's own PC and devices can only be tested there. Sign in 
 
 If anything fails, `%LocalAppData%\ClothingStorePOS\startup-errors.log` (start-up problems) and `slow-searches.log`
 (slow searches) in the same folder help find out why (type `%LocalAppData%\ClothingStorePOS` in Explorer's address bar).
+
+## 5. Online reports (optional, about 5 minutes)
+
+The owner and managers see the shop's sales, profit, drawers and stock on their phone, from anywhere, even when the
+shop PC is off. It costs nothing, needs no domain and no router setup, and runs on the **shop's own** free Cloudflare
+account. Only licensed shops can turn it on.
+
+1. **Cloudflare account:** with the owner, open https://dash.cloudflare.com/sign-up and create a free account with the
+   shop's email. Confirm the email.
+2. **API token:** in Cloudflare open **My Profile → API Tokens → Create Token → Create Custom Token** (Settings shows a
+   button to open this page). Give it any name, and add these three permissions:
+   - Account · **Workers Scripts** · Edit
+   - Account · **D1** · Edit
+   - Account · **Account Settings** · Read
+
+   Then **Continue to summary → Create Token**, and copy the token. Cloudflare shows it only once.
+3. **In the POS**, signed in as admin: **Settings → Online reports → Set up online reports**. Paste the token and click
+   **Set up**. The POS:
+   - creates the database
+   - publishes the website
+   - shows its link, like `https://pos-reports.rami-boutique-4821.workers.dev`
+
+   A brand-new address can take a few minutes to start working.
+4. **On the owner's phone:** open the link and sign in with their **POS username and password**. In the browser menu,
+   tap **Add to Home screen** so it opens like an app.
+5. **Check:** make a sale. Within 5 minutes it appears under **Today** and **Sales**, and Settings shows
+   *"✓ Last upload …"*.
+
+Good to know:
+- **Who can sign in:** active managers and admins. Cashiers can't.
+- **Changes follow the POS** within 5 minutes: a new password, a removed account or a role change.
+- **Lockout:** 5 wrong passwords lock that account on the website for 15 minutes.
+- **Passwords:** the site is open to the internet, so give these accounts passwords of at least 8 characters.
+- **Lost phone:** **Settings → Online reports → Sign out all devices**.
+- **Freshness:** the numbers are up to 5 minutes behind and only update while a till has the POS open. When all tills
+  are closed, the website shows the last numbers and *"Shop offline since …"*.
+- **The token** is remembered (encrypted) only on the PC where it was pasted. That PC updates the website by itself when
+  a POS update changes it. If that PC is replaced, use **Update website** or **Set up again** with a new token.
+- **To stop:** untick *Send reports to the website*, or **Remove**. To delete the website itself, delete the
+  `pos-reports` Worker and D1 database in the Cloudflare dashboard.
+- **What is sent:** report totals, product and category names, cashier names, and drawer counts.
+  **Never sent:** customer names or phone numbers, and passwords. For each account the POS sends only a one-way
+  fingerprint of the password.
