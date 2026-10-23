@@ -239,6 +239,8 @@ public sealed partial class CustomerEditorViewModel : DialogViewModelBase
 
 public sealed partial class CustomerPickerViewModel(IDialogService dialogs, CustomerService customers) : DialogViewModelBase(dialogs)
 {
+    public override System.Windows.Size? WindowSize => new(width: 680, height: 480);
+
     public override string Title => Loc.T("Customers.Select");
 
     [ObservableProperty]
@@ -307,6 +309,8 @@ public sealed partial class CustomerPickerViewModel(IDialogService dialogs, Cust
 
 public sealed partial class HeldSalesViewModel(IDialogService dialogs, SalesService sales) : DialogViewModelBase(dialogs)
 {
+    public override System.Windows.Size? WindowSize => new(width: 540, height: 400);
+
     public override string Title => Loc.T("Held.Title");
 
     [ObservableProperty]

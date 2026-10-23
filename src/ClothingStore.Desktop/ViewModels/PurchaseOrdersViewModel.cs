@@ -163,6 +163,8 @@ public sealed partial class PoLineViewModel(ProductVariant variant, int quantity
 
 public sealed partial class PurchaseOrderEditorViewModel : DialogViewModelBase
 {
+    public override System.Windows.Size? WindowSize => new(width: 1140, height: 660);
+
     private readonly PurchaseOrderService _orders;
     private readonly ProductService _products;
     private readonly InventoryService _inventory;
@@ -330,6 +332,8 @@ public sealed partial class ReceiveLineViewModel(PurchaseOrderLine line) : Obser
 public sealed partial class ReceivePurchaseOrderViewModel(IDialogService dialogs, PurchaseOrderService orders, Session session, PurchaseOrder order)
     : DialogViewModelBase(dialogs)
 {
+    public override System.Windows.Size? WindowSize => new(width: 860, height: 520);
+
     public override string Title => Loc.T("Purchasing.ReceiveTitle", order.OrderNumber, order.Supplier?.Name);
     public List<ReceiveLineViewModel> Lines { get; } = order.Lines.Select(l => new ReceiveLineViewModel(l)).ToList();
 

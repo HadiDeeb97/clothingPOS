@@ -34,6 +34,8 @@ public sealed record LabelPresetOption(LabelPreset Preset, string Name);
 /// </summary>
 public sealed partial class LabelPrintViewModel : DialogViewModelBase
 {
+    public override System.Windows.Size? WindowSize => new(width: 1060, height: 660);
+
     private readonly PrintService _print;
     private readonly ProductService _products;
     private readonly StoreSettings _settings;

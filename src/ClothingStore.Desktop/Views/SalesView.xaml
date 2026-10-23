@@ -209,7 +209,7 @@
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="{l:T Common.Discount}" Width="Auto" MinWidth="110" Binding="{Binding DiscountDisplay}" ElementStyle="{StaticResource RightCell}" Foreground="{StaticResource SuccessBrush}" />
                             <DataGridTextColumn Header="{l:T Common.Total}" Width="Auto" MinWidth="105" Binding="{Binding Total, Converter={StaticResource Money}}" ElementStyle="{StaticResource StrongRightCell}" />
-                            <DataGridTemplateColumn Width="52" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
+                            <DataGridTemplateColumn Width="52" MinWidth="52" MaxWidth="52" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Style="{StaticResource IconButton}" Content="&#xE74D;" Width="32" Height="32" Foreground="{StaticResource DangerBrush}"

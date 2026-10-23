@@ -38,6 +38,8 @@ public sealed record SizePreset(string Name, string Sizes, bool IsCustom = false
 /// <summary>Create/edit a style with its size × colour matrix.</summary>
 public sealed partial class ProductEditorViewModel : DialogViewModelBase
 {
+    public override System.Windows.Size? WindowSize => new(width: 1280, height: 720);
+
     private readonly ProductService _products;
     private readonly SizePresetService _sizePresets;
     private readonly Session _session;
