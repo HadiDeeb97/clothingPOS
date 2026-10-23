@@ -63,6 +63,42 @@ public sealed partial class SalesHistoryViewModel(
     [NotifyCanExecuteChangedFor(nameof(ReprintCommand), nameof(VoidCommand), nameof(ReturnCommand))]
     public partial Sale? SelectedSale { get; set; }
 
+    /// <summary>Shown over the list while the latest sales are being fetched (changing dates, search or filters).</summary>
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
+
+    private int _loads;
+    private readonly LatestSearch _lines = new(TimeSpan.Zero);
+
+    /// <summary>The list comes without items (much quicker): the sale opened gets its items now.</summary>
+    partial void OnSelectedSaleChanged(Sale? value)
+    {
+        if (value is { Lines.Count: 0 }) _ = LoadLinesAsync(value);
+    }
+
+    /// <summary>A quick refresh shows nothing; only one still running after a moment covers the list.</summary>
+    private async Task ShowLoadingIfSlowAsync()
+    {
+        await Task.Delay(TimeSpan.FromMilliseconds(250));
+        if (_loads > 0) IsLoading = true;
+    }
+
+    private async Task LoadLinesAsync(Sale sale)
+    {
+        try
+        {
+            await _lines.RunNowAsync(ct => sales.GetLinesAsync(sale.Id, ct), lines =>
+            {
+                sale.Lines = lines;
+                if (ReferenceEquals(SelectedSale, sale)) OnPropertyChanged(nameof(SelectedSale)); // the items table reads SelectedSale.Lines
+            });
+        }
+        catch (Exception ex)
+        {
+            ReportLoadError(Loc.T("History.SearchFailed"), ex);
+        }
+    }
+
     /// <summary>"Online orders: 3 · $120.00" under the totals (empty when there are none).</summary>
     public string OnlineSummary
     {
@@ -98,8 +134,20 @@ public sealed partial class SalesHistoryViewModel(
         try
         {
             Func<CancellationToken, Task<(List<Sale> Found, SalesSummary Summary)>> load = async ct =>
-                (await sales.SearchAsync(from, to.AddDays(1), text, online: online, filter: filter, ct: ct),
-                 await sales.GetSummaryAsync(from, to.AddDays(1), text, online, ct));
+            {
+                // Counted, so an overtaken search finishing doesn't hide the indicator while the newest is still loading.
+                _loads++;
+                _ = ShowLoadingIfSlowAsync();
+                try
+                {
+                    return (await sales.SearchAsync(from, to.AddDays(1), text, online: online, filter: filter, ct: ct),
+                            await sales.GetSummaryAsync(from, to.AddDays(1), text, online, ct));
+                }
+                finally
+                {
+                    if (--_loads == 0) IsLoading = false;
+                }
+            };
             Action<(List<Sale> Found, SalesSummary Summary)> apply = result =>
             {
                 Sales = result.Found;
@@ -130,9 +178,10 @@ public sealed partial class SalesHistoryViewModel(
     private bool HasSelection() => SelectedSale is not null;
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void Reprint()
+    private async Task ReprintAsync()
     {
         if (SelectedSale is not { } sale) return;
+        if (sale.Lines.Count == 0 && !await RunAsync(async () => sale.Lines = await sales.GetLinesAsync(sale.Id))) return;
         var doc = ReceiptBuilder.FromSale(sale, settings.Current, isCopy: true);
         Dialogs.ShowDialog(new TextPreviewViewModel(Dialogs, print, Loc.T("History.ReceiptTitle", sale.ReceiptNumber),
             ReceiptFormatter.Format(doc, settings.Current.ReceiptWidth), logo: ReceiptLogo.For(settings.Current)));
@@ -182,7 +231,7 @@ public sealed partial class SalesHistoryViewModel(
                     Loc.T("History.ReturnedAmount"), Loc.T("History.Net"), Loc.T("Common.Payments")],
                 Sales.Select(s => new object?[]
                 {
-                    s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), Loc.EnumText(s.Channel), s.User?.FullName, s.Customer?.FullName, s.Lines.Sum(l => l.Quantity),
+                    s.ReceiptNumber, s.CreatedAt, Loc.EnumText(s.Status), Loc.EnumText(s.Channel), s.User?.FullName, s.Customer?.FullName, s.ItemCount,
                     s.Subtotal, s.DiscountTotal, s.TaxTotal, s.DeliveryFee, s.Total, s.RefundedTotal, s.NetTotal,
                     string.Join(" + ", s.Payments.Select(p => $"{Loc.EnumText(p.Method)} {p.Amount:0.00}")),
                 }));

@@ -258,6 +258,10 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         return await SaleQuery(db).FirstOrDefaultAsync(s => s.ReceiptNumber == number, ct);
     }
 
+    /// <summary>
+    /// Sales for the history list, newest first: with cashier, customer, payments, item count and amount returned, but
+    /// not their lines (thousands of rows nobody looks at); <see cref="GetLinesAsync"/> loads them for the sale opened.
+    /// </summary>
     /// <param name="online">null = all sales, true = online orders only, false = in-store only.</param>
     public async Task<List<Sale>> SearchAsync(
         DateTime from, DateTime to, string? text = null, bool includeVoided = true, bool? online = null,
@@ -267,7 +271,6 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         var query = Filtered(db, from, to, text, online)
             .Include(s => s.User)
             .Include(s => s.Customer)
-            .Include(s => s.Lines)
             .Include(s => s.Payments)
             .AsSplitQuery();
 
@@ -289,8 +292,24 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
             .GroupBy(r => r.SaleId)
             .Select(g => new { g.Key, Amount = g.Sum(r => r.TotalRefund) })
             .ToDictionaryAsync(x => x.Key, x => x.Amount, ct);
-        foreach (var sale in list) sale.RefundedTotal = refunded.GetValueOrDefault(sale.Id);
+        var items = await db.SaleLines.AsNoTracking()
+            .Where(l => ids.Contains(l.SaleId))
+            .GroupBy(l => l.SaleId)
+            .Select(g => new { g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Quantity, ct);
+        foreach (var sale in list)
+        {
+            sale.RefundedTotal = refunded.GetValueOrDefault(sale.Id);
+            sale.ItemCount = items.GetValueOrDefault(sale.Id);
+        }
         return list;
+    }
+
+    /// <summary>The lines of one sale, as they are now (returned quantities included).</summary>
+    public async Task<List<SaleLine>> GetLinesAsync(int saleId, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.SaleLines.AsNoTracking().Where(l => l.SaleId == saleId).OrderBy(l => l.Id).ToListAsync(ct);
     }
 
     /// <summary>

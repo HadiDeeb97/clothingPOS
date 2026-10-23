@@ -28,7 +28,7 @@
         </WrapPanel>
         <!-- The receipt is fixed-width text, so it always reads left to right. -->
         <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="22" MaxHeight="560"
-                FlowDirection="LeftToRight">
+                FlowDirection="LeftToRight" HorizontalAlignment="Center">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <StackPanel>
                     <Image Source="{Binding Logo}" MaxHeight="90" MaxWidth="180" HorizontalAlignment="Center" Margin="0,0,0,8"

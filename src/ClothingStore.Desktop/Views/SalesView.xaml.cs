@@ -36,7 +36,29 @@ public partial class SalesView : UserControl
             }
             FocusSearch();
             // After the saved panel sizes are restored.
-            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => ApplyBrowseVisibility(ViewModel?.IsBrowseVisible ?? true));
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            {
+                if (!_widthsRead)
+                {
+                    if (BrowseColumn.Width is { IsAbsolute: true, Value: >= 200 } browse) _browseWidth = browse;
+                    if (PanelColumn.Width is { IsAbsolute: true } panel && panel.Value >= PanelColumn.MinWidth) _panelWidth = panel;
+                    _widthsRead = true;
+                }
+                FitPanels();
+            });
+        };
+        RegisterGrid.SizeChanged += (_, e) =>
+        {
+            if (e.WidthChanged && _widthsRead) FitPanels(); // not before the saved panel sizes are known
+        };
+        BrowseSplitter.DragCompleted += (_, _) =>
+        {
+            if (BrowseColumn.ActualWidth >= 200) _browseWidth = new GridLength(BrowseColumn.ActualWidth);
+        };
+        PanelSplitter.DragCompleted += (_, _) =>
+        {
+            _panelWidth = new GridLength(PanelColumn.ActualWidth);
+            FitPanels();
         };
         Unloaded += (_, _) =>
         {
@@ -58,28 +80,42 @@ public partial class SalesView : UserControl
 
     private SalesViewModel? ViewModel => DataContext as SalesViewModel;
 
-    private static readonly GridLength DefaultBrowseWidth = new(330);
-    private GridLength _browseWidth = DefaultBrowseWidth;
+    private const double BrowseMinWidth = 220;
+
+    /// <summary>Panel widths as the cashier left them (dragged or remembered), used whenever there is room.</summary>
+    private GridLength _browseWidth = new(330), _panelWidth = new(380);
+    private bool _widthsRead;
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SalesViewModel.IsBrowseVisible)) ApplyBrowseVisibility(ViewModel?.IsBrowseVisible ?? true);
+        if (e.PropertyName == nameof(SalesViewModel.IsBrowseVisible)) FitPanels();
     }
 
-    /// <summary>A hidden product list gives its whole column back to the cart; showing it restores its last width.</summary>
-    private void ApplyBrowseVisibility(bool visible)
+    /// <summary>
+    /// Shows the product list when the cashier wants it and it fits beside the cart and the payment panel. In a narrower
+    /// window (not maximised, a small screen) it steps aside by itself, and comes back when there is room again, so the
+    /// totals and the Pay button are never cut off. Hidden, it gives its whole column to the cart.
+    /// </summary>
+    private void FitPanels()
     {
-        if (visible)
+        var total = RegisterGrid.ActualWidth;
+        if (total <= 0) return;
+        // The payment panel gives up width (down to its minimum) before the cart goes below its own.
+        var panel = Math.Max(PanelColumn.MinWidth, Math.Min(_panelWidth.Value, total - CartColumn.MinWidth - PanelSplitter.Width));
+        PanelColumn.Width = new GridLength(panel);
+        var room = total - CartColumn.MinWidth - panel - BrowseSplitter.Width - PanelSplitter.Width;
+        var show = (ViewModel?.IsBrowseVisible ?? true) && room >= BrowseMinWidth;
+        if (show)
         {
-            BrowseColumn.Width = _browseWidth.Value >= 200 ? _browseWidth : DefaultBrowseWidth;
-            BrowseColumn.MinWidth = 220;
+            BrowseColumn.MinWidth = BrowseMinWidth;
+            BrowseColumn.Width = new GridLength(Math.Min(Math.Max(_browseWidth.Value, BrowseMinWidth), room));
         }
         else
         {
-            if (BrowseColumn.ActualWidth >= 200) _browseWidth = BrowseColumn.Width;
             BrowseColumn.MinWidth = 0;
             BrowseColumn.Width = new GridLength(0);
         }
+        BrowsePanel.Visibility = BrowseSplitter.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnFocusSearchRequested(object? sender, EventArgs e) => FocusSearch();

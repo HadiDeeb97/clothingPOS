@@ -34,6 +34,7 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        HorizontalScrolling.Enable(); // touchpad swipes and Shift + wheel scroll tables sideways
         Loc.SetLanguage(LocalPreferences.Current.Language);
         _splash = new SplashWindow();
         _splash.Show();

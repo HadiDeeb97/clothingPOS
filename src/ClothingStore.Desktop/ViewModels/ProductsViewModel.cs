@@ -34,7 +34,7 @@ public sealed record ProductRow(Product Product)
 
 public sealed partial class ProductsViewModel(
     IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers,
-    Session session, PrintService print, SettingsService settings) : ViewModelBase(dialogs), IPageViewModel
+    Session session, PrintService print, SettingsService settings, SizePresetService sizePresets) : ViewModelBase(dialogs), IPageViewModel
 {
     /// <summary>The "All categories" filter entry (one per language, so selecting it by reference keeps working).</summary>
     public static Category AllCategories =>
@@ -111,7 +111,7 @@ public sealed partial class ProductsViewModel(
     private async Task NewAsync()
     {
         if (!CanEdit) return;
-        var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, session, null);
+        var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, sizePresets, session, null);
         if (Dialogs.ShowDialog(editor)) await SearchAsync();
     }
 
@@ -123,7 +123,7 @@ public sealed partial class ProductsViewModel(
         if (SelectedProduct is null || !CanEdit) return;
         var product = await products.GetAsync(SelectedProduct.Product.Id);
         if (product is null) return;
-        var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, session, product);
+        var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, sizePresets, session, product);
         if (Dialogs.ShowDialog(editor)) await SearchAsync();
     }
 

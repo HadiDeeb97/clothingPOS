@@ -3,15 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
              xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure"
-             Width="1200" Height="700">
+             Width="1280" Height="720">
     <DockPanel>
         <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource DialogFooter}" Margin="0,16,0,0">
             <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
             <Button Content="{l:T ProductEditor.Save}" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0" MinWidth="120" />
         </StackPanel>
-        <Grid infra:LayoutMemory.Key="ProductEditor">
+        <Grid infra:LayoutMemory.Key="ProductEditor" infra:PanelFit.IsEnabled="True">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="340" MinWidth="280" />
+                <ColumnDefinition Width="320" MinWidth="280" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="420" />
             </Grid.ColumnDefinitions>
@@ -123,11 +123,26 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Content="{Binding Name}" Style="{StaticResource SmallButton}" Margin="0,0,6,6"
-                                            Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    <!-- The store's own buttons have a small × to remove them -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,6,6">
+                                        <Button Content="{Binding Name}" Style="{StaticResource SmallButton}" Margin="0" ToolTip="{Binding Sizes}"
+                                                Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        <Button x:Name="Remove" Style="{StaticResource LinkButton}" Foreground="{StaticResource MutedTextBrush}" Margin="0" Padding="5,4"
+                                                Visibility="Collapsed" ToolTip="{l:T ProductEditor.PresetRemove}"
+                                                Command="{Binding DataContext.RemovePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <TextBlock Text="&#xE711;" Style="{StaticResource Icon}" FontSize="9" />
+                                        </Button>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsCustom}" Value="True">
+                                            <Setter TargetName="Remove" Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Button Content="{l:T ProductEditor.SavePresetButton}" Style="{StaticResource LinkButton}" Command="{Binding SavePresetCommand}"
+                                HorizontalAlignment="Left" Margin="0" ToolTip="{l:T ProductEditor.SavePresetTip}" />
                     </StackPanel>
                 </Border>
 
@@ -139,8 +154,8 @@
                 <DataGrid ItemsSource="{Binding Variants}" IsReadOnly="False" RowHeight="38" infra:LayoutMemory.Key="ProductEditor.Variants">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="70" />
-                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="140" />
-                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="140" />
+                        <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="110" />
+                        <DataGridTextColumn Header="{l:T Common.Sku}" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="130" />
                         <DataGridTextColumn Header="{l:T Common.Barcode}" Binding="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="120" />
                         <DataGridTextColumn Header="{l:T ProductEditor.PriceOverride}" Binding="{Binding PriceOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="105" />
                         <DataGridTextColumn Header="{l:T ProductEditor.CostOverride}" Binding="{Binding CostOverride, TargetNullValue='', UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="100" />
@@ -154,10 +169,10 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel, UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="90" />
                         <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="65" />
-                        <DataGridTemplateColumn Width="Auto" MinWidth="44">
+                        <DataGridTemplateColumn Width="52" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Style="{StaticResource IconButton}" Width="30" Height="30" Content="&#xE74D;" Foreground="{StaticResource DangerBrush}"
+                                    <Button Style="{StaticResource IconButton}" Width="32" Height="32" Content="&#xE74D;" Foreground="{StaticResource DangerBrush}"
                                             ToolTip="{l:T ProductEditor.RemoveVariant}"
                                             Command="{Binding DataContext.RemoveVariantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                 </DataTemplate>
