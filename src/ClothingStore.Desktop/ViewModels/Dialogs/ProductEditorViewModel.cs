@@ -32,18 +32,21 @@ public sealed partial class VariantRowViewModel : ObservableObject
     };
 }
 
-public sealed record SizePreset(string Name, string Sizes);
+/// <summary>A size button: one of the built-in ones, or one the store added (those can be removed).</summary>
+public sealed record SizePreset(string Name, string Sizes, bool IsCustom = false);
 
 /// <summary>Create/edit a style with its size × colour matrix.</summary>
 public sealed partial class ProductEditorViewModel : DialogViewModelBase
 {
     private readonly ProductService _products;
+    private readonly SizePresetService _sizePresets;
     private readonly Session _session;
     private readonly int _id;
 
-    private ProductEditorViewModel(IDialogService dialogs, ProductService products, Session session, Product? product) : base(dialogs)
+    private ProductEditorViewModel(IDialogService dialogs, ProductService products, SizePresetService sizePresets, Session session, Product? product) : base(dialogs)
     {
         _products = products;
+        _sizePresets = sizePresets;
         _session = session;
         _id = product?.Id ?? 0;
         if (product is null) return;
@@ -69,9 +72,10 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     }
 
     public static async Task<ProductEditorViewModel> CreateAsync(
-        IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers, Session session, Product? product)
+        IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers,
+        SizePresetService sizePresets, Session session, Product? product)
     {
-        var vm = new ProductEditorViewModel(dialogs, products, session, product)
+        var vm = new ProductEditorViewModel(dialogs, products, sizePresets, session, product)
         {
             // Active ones, plus the product's own even if it was deactivated since: otherwise saving would quietly move
             // the product to another category or drop its supplier.
@@ -80,6 +84,8 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
         };
         vm.SelectedCategory = vm.Categories.FirstOrDefault(c => c.Id == product?.CategoryId) ?? vm.Categories.FirstOrDefault();
         vm.SelectedSupplier = vm.Suppliers.FirstOrDefault(s => s.Id == product?.SupplierId);
+        try { vm.ShowPresets(await sizePresets.GetAllAsync()); }
+        catch { /* the built-in buttons are enough to work with */ }
         return vm;
     }
 
@@ -89,7 +95,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     public List<Supplier> Suppliers { get; private init; } = [];
     public Gender[] Genders { get; } = Enum.GetValues<Gender>();
 
-    public SizePreset[] SizePresets { get; } =
+    private static readonly SizePreset[] BuiltInPresets =
     [
         new(Loc.T("ProductEditor.Preset.Letters"), "XS, S, M, L, XL, XXL"),
         new(Loc.T("ProductEditor.Preset.LettersShort"), "S, M, L, XL"),
@@ -99,6 +105,43 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
         new(Loc.T("ProductEditor.Preset.Kids"), "2Y, 4Y, 6Y, 8Y, 10Y, 12Y, 14Y"),
         new(Loc.T("ProductEditor.Preset.OneSize"), "One Size"),
     ];
+
+    /// <summary>Built-in size buttons, then the store's own (shared by every till).</summary>
+    [ObservableProperty]
+    public partial List<SizePreset> SizePresets { get; private set; } = [.. BuiltInPresets];
+
+    private void ShowPresets(IEnumerable<CustomSizePreset> custom) =>
+        SizePresets = [.. BuiltInPresets, .. custom.Select(p => new SizePreset(p.Name, p.Sizes, IsCustom: true))];
+
+    /// <summary>Makes a button of the sizes typed in the box, for the next products.</summary>
+    [RelayCommand]
+    private async Task SavePresetAsync()
+    {
+        var sizes = SizePresetService.Normalize(SizesText);
+        if (sizes.Length == 0)
+        {
+            Dialogs.Warning(Loc.T("Err.PresetSizesRequired"));
+            return;
+        }
+        var parts = sizes.Split(", ");
+        var suggestion = parts.Length > 1 ? $"{parts[0]}–{parts[^1]}" : parts[0];
+        var name = Dialogs.Prompt(Loc.T("ProductEditor.SavePreset"), Loc.T("ProductEditor.PresetNamePrompt", sizes), suggestion);
+        if (name is null) return;
+        List<CustomSizePreset> saved = [];
+        if (await RunAsync(async () => saved = await _sizePresets.AddAsync(name, sizes)))
+        {
+            ShowPresets(saved);
+            Dialogs.Toast(Loc.T("ProductEditor.PresetSaved", name.Trim()));
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemovePresetAsync(SizePreset? preset)
+    {
+        if (preset is not { IsCustom: true } || !Dialogs.Confirm(Loc.T("ProductEditor.PresetRemoveConfirm", preset.Name))) return;
+        List<CustomSizePreset> left = [];
+        if (await RunAsync(async () => left = await _sizePresets.RemoveAsync(preset.Name))) ShowPresets(left);
+    }
 
     [ObservableProperty] public partial string Name { get; set; } = "";
     [ObservableProperty] public partial string? Brand { get; set; }

@@ -85,7 +85,14 @@ public class Sale : Entity
     public List<SaleLine> Lines { get; set; } = [];
     public List<Payment> Payments { get; set; } = [];
 
-    public int ItemCount => Lines.Sum(l => l.Quantity);
+    private int? _itemCount;
+
+    /// <summary>Items sold: counted from the lines, or given by a list query that doesn't load the lines (sales history).</summary>
+    public int ItemCount
+    {
+        get => _itemCount ?? Lines.Sum(l => l.Quantity);
+        set => _itemCount = value;
+    }
 }
 
 public class SaleLine : Entity

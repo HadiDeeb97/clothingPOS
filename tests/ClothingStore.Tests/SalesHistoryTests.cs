@@ -37,6 +37,11 @@ public class SalesHistoryTests
         var all = await db.Sales.SearchAsync(from, to);
         Assert.Equal(3, all.Count);
         var withReturn = all.Single(s => s.Id == returned.Id);
+        // The list comes without lines (quicker) but still knows how many items each sale had; the lines load for one sale.
+        Assert.Empty(withReturn.Lines);
+        Assert.Equal(2, withReturn.ItemCount);
+        var lines = await db.Sales.GetLinesAsync(returned.Id);
+        Assert.Equal((2, 1), (Assert.Single(lines).Quantity, lines[0].ReturnedQuantity));
         Assert.Equal((22m, 22m, true), (withReturn.RefundedTotal, withReturn.NetTotal, withReturn.HasReturns));
         Assert.Equal(0m, all.Single(s => s.Id == voided.Id).NetTotal);
 

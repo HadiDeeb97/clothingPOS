@@ -7,6 +7,7 @@
   "History.FilterCompleted": "Completed",
   "History.FilterVoided": "Voided",
   "History.FilterWithReturns": "With returns",
+  "History.Loading": "Loading the latest sales…",
   "History.Net": "Net",
   "History.OnlineSummary": "Online orders: {0} · {1}",
   "History.OnlyManagersVoid": "Only managers can void sales.",

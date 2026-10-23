@@ -123,11 +123,26 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Content="{Binding Name}" Style="{StaticResource SmallButton}" Margin="0,0,6,6"
-                                            Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    <!-- The store's own buttons have a small × to remove them -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,6,6">
+                                        <Button Content="{Binding Name}" Style="{StaticResource SmallButton}" Margin="0" ToolTip="{Binding Sizes}"
+                                                Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        <Button x:Name="Remove" Style="{StaticResource LinkButton}" Foreground="{StaticResource MutedTextBrush}" Margin="0" Padding="5,4"
+                                                Visibility="Collapsed" ToolTip="{l:T ProductEditor.PresetRemove}"
+                                                Command="{Binding DataContext.RemovePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <TextBlock Text="&#xE711;" Style="{StaticResource Icon}" FontSize="9" />
+                                        </Button>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsCustom}" Value="True">
+                                            <Setter TargetName="Remove" Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Button Content="{l:T ProductEditor.SavePresetButton}" Style="{StaticResource LinkButton}" Command="{Binding SavePresetCommand}"
+                                HorizontalAlignment="Left" Margin="0" ToolTip="{l:T ProductEditor.SavePresetTip}" />
                     </StackPanel>
                 </Border>
 

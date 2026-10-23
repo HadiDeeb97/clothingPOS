@@ -843,6 +843,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("CreatedAt");
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAt"), new[] { "Status", "Channel", "Total" });
+
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("DeliveryReference");
@@ -921,6 +923,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("SaleId");
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId"), new[] { "Quantity" });
+
                     b.ToTable("SaleLines");
                 });
 
@@ -983,6 +987,8 @@ namespace ClothingStore.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("SaleId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId"), new[] { "TotalRefund" });
 
                     b.HasIndex("UserId");
 

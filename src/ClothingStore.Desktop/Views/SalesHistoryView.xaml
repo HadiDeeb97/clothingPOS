@@ -119,6 +119,7 @@
                     </DockPanel>
                 </Border>
                 <Border Style="{StaticResource TableCard}">
+                    <Grid>
                     <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Sales}" SelectedItem="{Binding SelectedSale}"
                               infra:LayoutMemory.Key="SalesHistory.Sales">
                         <DataGrid.RowStyle>
@@ -186,6 +187,16 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                    <!-- While the newest sales load (dates, search or filter changed): the old list can't be read or used -->
+                    <Border Background="{StaticResource SurfaceBrush}" Opacity="0.92" Cursor="Wait" CornerRadius="12"
+                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="{l:T History.Loading}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" />
+                            <ProgressBar IsIndeterminate="True" Height="3" Width="200" Margin="0,10,0,0" BorderThickness="0"
+                                         Background="{StaticResource BorderBrush}" Foreground="{StaticResource PrimaryBrush}" />
+                        </StackPanel>
+                    </Border>
+                    </Grid>
                 </Border>
             </DockPanel>
 

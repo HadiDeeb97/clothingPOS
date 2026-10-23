@@ -118,7 +118,9 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.ReceiptNumber).HasMaxLength(32).IsRequired();
             e.HasIndex(x => x.ReceiptNumber).IsUnique();
             e.Ignore(x => x.RefundedTotal);
-            e.HasIndex(x => x.CreatedAt);
+            // Sales history and reports pick sales by date; carrying status, channel and total lets the totals be added
+            // up from the index alone.
+            e.HasIndex(x => x.CreatedAt).IncludeProperties(x => new { x.Status, x.Channel, x.Total });
             e.Property(x => x.TaxRate).HasPrecision(9, 4);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
@@ -138,6 +140,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
 
         b.Entity<SaleLine>(e =>
         {
+            e.HasIndex(x => x.SaleId).IncludeProperties(x => x.Quantity); // item counts in sales history
             e.HasOne(x => x.ProductVariant).WithMany().HasForeignKey(x => x.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
             // Two tills returning the same item at once: the second save fails instead of refunding it twice.
             e.Property(x => x.ReturnedQuantity).IsConcurrencyToken();
@@ -149,6 +152,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.ReturnNumber).HasMaxLength(32).IsRequired();
             e.HasIndex(x => x.ReturnNumber).IsUnique();
             e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => x.SaleId).IncludeProperties(x => x.TotalRefund); // returned amounts in sales history
             e.HasOne(x => x.Sale).WithMany().HasForeignKey(x => x.SaleId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
