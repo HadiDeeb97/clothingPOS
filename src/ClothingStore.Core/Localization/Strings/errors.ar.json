@@ -97,6 +97,7 @@
   "Err.PoOnlyDraftDelete": "يمكن حذف المسودات فقط.",
   "Err.PoOnlyDraftOrdered": "يمكن تعيين المسودات فقط كمطلوبة.",
   "Err.PointsNeedCustomer": "اختر زبوناً لاستخدام نقاط الولاء.",
+  "Err.PresetBusy": "كان صندوق آخر يغيّر أزرار المقاسات في اللحظة نفسها. يرجى المحاولة مرة أخرى.",
   "Err.PresetExists": "يوجد زر مقاسات باسم \"{0}\" مسبقًا.",
   "Err.PresetNameLength": "اسم الزر يجب ألا يتجاوز {0} حرفًا.",
   "Err.PresetNameRequired": "أدخل اسمًا لزر المقاسات.",

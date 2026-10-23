@@ -48,6 +48,7 @@
   "Register.NewSale": "New sale",
   "Register.NoMatch": "No products match \"{0}\".",
   "Register.NoProducts": "No products in this category.",
+  "Register.NoRoomForProducts": "There isn't room for the product list in this window. Maximise the window or collapse the side menu to see it.",
   "Register.NoShiftHint": "Open the cash drawer (Cash drawer screen) with your starting float before taking payments.",
   "Register.NoShiftTitle": "No open shift.",
   "Register.OnlineFrom": "Online order · {0}",

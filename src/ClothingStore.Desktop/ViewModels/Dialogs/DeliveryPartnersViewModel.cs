@@ -15,6 +15,8 @@ public sealed record DeliveryPartnerRow(DeliveryPartner Partner, decimal Owed, i
 /// <summary>Delivery companies and drivers: add them with their phone, contact, address and usual delivery fee.</summary>
 public sealed partial class DeliveryPartnersViewModel(IDialogService dialogs, DeliveryService deliveries) : DialogViewModelBase(dialogs)
 {
+    public override System.Windows.Size? WindowSize => new(width: 900, height: 560);
+
     public override string Title => Loc.T("Partners.Title");
 
     public IReadOnlyList<DeliveryPartnerKind> Kinds { get; } = Enum.GetValues<DeliveryPartnerKind>();

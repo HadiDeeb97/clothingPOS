@@ -768,7 +768,8 @@
     </Style>
 
     <!-- Cell of a column holding only a button or tick box (remove, return...): little padding and centred, so the
-         column can be narrow and fixed (Width ~52, CanUserResize False) without cutting the button off. -->
+         column can be narrow and fixed without cutting the button off. Give the column the same Width, MinWidth and
+         MaxWidth: a table that gets narrower squeezes columns down to their MinWidth (20 unless set). -->
     <Style x:Key="ActionCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
         <Setter Property="Padding" Value="4,0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />

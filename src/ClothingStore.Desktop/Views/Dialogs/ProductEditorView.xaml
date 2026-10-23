@@ -2,8 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
-             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure"
-             Width="1280" Height="720">
+             xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
     <DockPanel>
         <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource DialogFooter}" Margin="0,16,0,0">
             <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
@@ -115,7 +114,9 @@
                             </StackPanel>
                             <Button Grid.Column="6" Content="{l:T ProductEditor.Generate}" Style="{StaticResource PrimaryButton}" Command="{Binding GenerateCommand}" VerticalAlignment="Bottom" Margin="0" />
                         </Grid>
-                        <ItemsControl ItemsSource="{Binding SizePresets}" Margin="0,10,0,0">
+                        <!-- A shop's many own buttons scroll here instead of squeezing the variants table -->
+                        <ScrollViewer MaxHeight="112" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding SizePresets}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel />
@@ -141,6 +142,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        </ScrollViewer>
                         <Button Content="{l:T ProductEditor.SavePresetButton}" Style="{StaticResource LinkButton}" Command="{Binding SavePresetCommand}"
                                 HorizontalAlignment="Left" Margin="0" ToolTip="{l:T ProductEditor.SavePresetTip}" />
                     </StackPanel>
@@ -169,7 +171,7 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="{l:T Products.ReorderAt}" Binding="{Binding ReorderLevel, UpdateSourceTrigger=LostFocus}" Width="Auto" MinWidth="90" />
                         <DataGridCheckBoxColumn Header="{l:T Common.Active}" Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="65" />
-                        <DataGridTemplateColumn Width="52" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
+                        <DataGridTemplateColumn Width="52" MinWidth="52" MaxWidth="52" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource IconButton}" Width="32" Height="32" Content="&#xE74D;" Foreground="{StaticResource DangerBrush}"

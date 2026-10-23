@@ -78,7 +78,7 @@
                     <Grid>
                         <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Rows}" infra:LayoutMemory.Key="Deliveries.List">
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Width="44" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
+                                <DataGridTemplateColumn Width="44" MinWidth="44" MaxWidth="44" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanCheck}"

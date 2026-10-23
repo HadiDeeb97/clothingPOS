@@ -39,4 +39,16 @@ public class SizePresetTests
         await Assert.ThrowsAsync<BusinessRuleException>(() => presets.AddAsync("One more", "S, M"));
         Assert.Equal(SizePresetService.MaxPresets, (await presets.GetAllAsync()).Count);
     }
+
+    [Fact]
+    public async Task Tills_adding_buttons_at_the_same_moment_keep_them_all()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        // Separate service instances, as on separate tills, all starting from an empty list (the first save inserts the row).
+        await Task.WhenAll(Enumerable.Range(1, 3).Select(i => new SizePresetService(db.Factory).AddAsync($"Till {i}", "S, M, L")));
+        Assert.Equal(["Till 1", "Till 2", "Till 3"], (await new SizePresetService(db.Factory).GetAllAsync()).Select(p => p.Name).Order());
+
+        await new SizePresetService(db.Factory).AddAsync("عباية ٥٢–٦٠", "52, 54, 56, 58, 60"); // Arabic stored as is
+        Assert.Contains(await new SizePresetService(db.Factory).GetAllAsync(), p => p.Name == "عباية ٥٢–٦٠");
+    }
 }

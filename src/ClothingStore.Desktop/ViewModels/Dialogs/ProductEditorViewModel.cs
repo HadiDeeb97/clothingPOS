@@ -38,6 +38,8 @@ public sealed record SizePreset(string Name, string Sizes, bool IsCustom = false
 /// <summary>Create/edit a style with its size × colour matrix.</summary>
 public sealed partial class ProductEditorViewModel : DialogViewModelBase
 {
+    public override System.Windows.Size? WindowSize => new(width: 1280, height: 720);
+
     private readonly ProductService _products;
     private readonly SizePresetService _sizePresets;
     private readonly Session _session;
@@ -95,7 +97,8 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     public List<Supplier> Suppliers { get; private init; } = [];
     public Gender[] Genders { get; } = Enum.GetValues<Gender>();
 
-    private static readonly SizePreset[] BuiltInPresets =
+    // Built each time, so the names follow a language changed since the app started.
+    private static SizePreset[] BuiltInPresets() =>
     [
         new(Loc.T("ProductEditor.Preset.Letters"), "XS, S, M, L, XL, XXL"),
         new(Loc.T("ProductEditor.Preset.LettersShort"), "S, M, L, XL"),
@@ -108,10 +111,10 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
 
     /// <summary>Built-in size buttons, then the store's own (shared by every till).</summary>
     [ObservableProperty]
-    public partial List<SizePreset> SizePresets { get; private set; } = [.. BuiltInPresets];
+    public partial List<SizePreset> SizePresets { get; private set; } = [.. BuiltInPresets()];
 
     private void ShowPresets(IEnumerable<CustomSizePreset> custom) =>
-        SizePresets = [.. BuiltInPresets, .. custom.Select(p => new SizePreset(p.Name, p.Sizes, IsCustom: true))];
+        SizePresets = [.. BuiltInPresets(), .. custom.Select(p => new SizePreset(p.Name, p.Sizes, IsCustom: true))];
 
     /// <summary>Makes a button of the sizes typed in the box, for the next products.</summary>
     [RelayCommand]
@@ -128,11 +131,8 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
         var name = Dialogs.Prompt(Loc.T("ProductEditor.SavePreset"), Loc.T("ProductEditor.PresetNamePrompt", sizes), suggestion);
         if (name is null) return;
         List<CustomSizePreset> saved = [];
-        if (await RunAsync(async () => saved = await _sizePresets.AddAsync(name, sizes)))
-        {
-            ShowPresets(saved);
-            Dialogs.Toast(Loc.T("ProductEditor.PresetSaved", name.Trim()));
-        }
+        // The new button appearing is the confirmation (a toast would be hidden behind this window).
+        if (await RunAsync(async () => saved = await _sizePresets.AddAsync(name, sizes))) ShowPresets(saved);
     }
 
     [RelayCommand]

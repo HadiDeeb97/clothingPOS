@@ -80,7 +80,6 @@
   "ProductEditor.PresetNamePrompt": "اسم الزر لهذه المقاسات:\n{0}",
   "ProductEditor.PresetRemove": "إزالة زر المقاسات هذا",
   "ProductEditor.PresetRemoveConfirm": "إزالة زر المقاسات \"{0}\"؟",
-  "ProductEditor.PresetSaved": "تمت إضافة زر المقاسات \"{0}\".",
   "ProductEditor.PriceOverride": "سعر خاص",
   "ProductEditor.PriceRequired": "سعر البيع *",
   "ProductEditor.RemoveVariant": "إزالة الخيار",

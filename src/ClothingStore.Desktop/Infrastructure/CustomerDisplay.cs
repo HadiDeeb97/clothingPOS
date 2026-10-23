@@ -16,7 +16,7 @@ namespace ClothingStore.Desktop.Infrastructure;
 public static class CustomerDisplay
 {
     private static CustomerDisplayWindow? _window;
-    private static string? _device;
+    private static ScreenInfo? _screen;
     private static bool _watching;
 
     /// <summary>Shows, moves or closes the display to match the settings; <paramref name="rebuild"/> redraws it (language changed).</summary>
@@ -25,19 +25,26 @@ public static class CustomerDisplay
         try
         {
             var prefs = LocalPreferences.Current;
+            // Listening even while its screen is missing, so plugging it in (or switching it on) later opens it.
+            if (prefs.CustomerDisplay) WatchScreens();
             var screen = prefs.CustomerDisplay ? Screens.ForCustomerDisplay(prefs.CustomerDisplayScreen) : null;
             if (screen is null)
             {
                 Close();
                 return;
             }
-            if (!rebuild && _window is not null && string.Equals(_device, screen.DeviceName, StringComparison.OrdinalIgnoreCase)) return;
+            if (!rebuild && _window is not null && screen == _screen)
+            {
+                // Same screen: put it back over it anyway (Windows moves it to the till's screen while the customer's
+                // screen drops out, e.g. asleep or switched to another input). Never takes the keyboard.
+                ScreenPlacement.Cover(_window, screen);
+                return;
+            }
 
             Close();
             _window = new CustomerDisplayWindow(App.Services.GetRequiredService<CustomerDisplayViewModel>(), screen);
-            _device = screen.DeviceName;
+            _screen = screen;
             _window.Show();
-            WatchScreens();
         }
         catch (Exception ex)
         {
@@ -50,7 +57,7 @@ public static class CustomerDisplay
     {
         var window = _window;
         _window = null;
-        _device = null;
+        _screen = null;
         window?.Close();
     }
 
@@ -99,8 +106,9 @@ public static class CustomerDisplay
     {
         if (_watching) return;
         _watching = true;
-        // Raised on a system thread when a screen is plugged in or out, or its resolution changes.
+        // Raised on a system thread (often several times) when any screen is plugged in or out or changes resolution.
+        // Only a change to the customer's screen redraws the display.
         SystemEvents.DisplaySettingsChanged += (_, _) =>
-            Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Apply(rebuild: true));
+            Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => Apply());
     }
 }

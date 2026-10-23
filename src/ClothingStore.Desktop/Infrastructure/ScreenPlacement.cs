@@ -19,12 +19,21 @@ public static class ScreenPlacement
             var hwnd = new WindowInteropHelper(window).Handle;
             // Clicking it never takes focus from the register, and it stays out of Alt+Tab.
             SetWindowLong(hwnd, GwlExStyle, GetWindowLong(hwnd, GwlExStyle) | WsExNoActivate | WsExToolWindow);
-            // Monitor coordinates are physical pixels (the app is per-monitor DPI aware), so move it there directly.
-            var b = screen.Bounds;
-            SetWindowPos(hwnd, IntPtr.Zero, b.X, b.Y, b.Width, b.Height, SwpNoZOrder | SwpNoActivate);
+            Cover(window, screen);
         };
-        // Maximised after the move, so it fills that monitor whatever its scaling.
-        window.Loaded += (_, _) => window.WindowState = WindowState.Maximized;
+        // Again once shown: moving onto a monitor with other scaling makes WPF resize the window for it. Not by
+        // maximising: that always activates the window, and the register would lose the keyboard (and a scan).
+        window.Loaded += (_, _) => Cover(window, screen);
+        window.DpiChanged += (_, _) => window.Dispatcher.BeginInvoke(() => Cover(window, screen));
+    }
+
+    /// <summary>Exactly the monitor's area (physical pixels: the app is per-monitor DPI aware), never activating.</summary>
+    public static void Cover(Window window, ScreenInfo screen)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        var b = screen.Bounds;
+        SetWindowPos(hwnd, IntPtr.Zero, b.X, b.Y, b.Width, b.Height, SwpNoZOrder | SwpNoActivate);
     }
 
     private const int GwlExStyle = -20;

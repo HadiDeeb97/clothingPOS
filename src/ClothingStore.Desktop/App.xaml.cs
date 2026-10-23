@@ -98,7 +98,7 @@ public partial class App : Application
             _splash?.SetStatus(Loc.T("Startup.Connecting"));
         }
 
-        if (!await PrepareDatabaseAsync(builder.Configuration.GetValue("Pos:SeedDemoData", true))) return;
+        if (!await PrepareDatabaseAsync(builder.Configuration.GetValue<bool?>("Pos:SeedDemoData") ?? SeedDemoDataByDefault)) return;
 
         try
         {
@@ -125,6 +125,16 @@ public partial class App : Application
     }
 
     private const int StartupAttempts = 4;
+
+    /// <summary>
+    /// A shop's new database starts empty: demo products, customers and users (with known passwords) only when
+    /// "Pos:SeedDemoData" is set, or in a development build.
+    /// </summary>
+#if DEBUG
+    private const bool SeedDemoDataByDefault = true;
+#else
+    private const bool SeedDemoDataByDefault = false;
+#endif
 
     /// <summary>
     /// Upgrades the database and loads the settings the first screens need. A PC that is short of memory or busy

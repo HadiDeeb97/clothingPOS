@@ -77,4 +77,10 @@ public abstract class DialogViewModelBase(IDialogService dialogs) : ViewModelBas
 
     /// <summary>Called once the dialog window has loaded.</summary>
     public virtual Task OnOpenedAsync() => Task.CompletedTask;
+
+    /// <summary>
+    /// Lists and editors give the size their content opens at: the window can then be resized and maximised, and the view
+    /// always fills it. Null (forms, messages): the window fits its content and keeps that size.
+    /// </summary>
+    public virtual System.Windows.Size? WindowSize => null;
 }

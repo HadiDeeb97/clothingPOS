@@ -8,7 +8,7 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         Focusable="False"
-        Cursor="None"
+        Topmost="True"
         WindowStartupLocation="Manual"
         Background="{StaticResource BackgroundBrush}"
         FontFamily="{StaticResource UiFont}"
@@ -47,8 +47,8 @@
             <Border Background="{StaticResource SidebarBrush}" Padding="32,16"
                     Visibility="{Binding IsIdle, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding Sales.RateText}" Foreground="{StaticResource SidebarTextBrush}" FontSize="18"
-                               VerticalAlignment="Center" Visibility="{Binding Sales.ShowLbp, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RateText}" Foreground="{StaticResource SidebarTextBrush}" FontSize="18"
+                               VerticalAlignment="Center" Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}" />
                     <Image Source="{Binding Branding.Icon}" Width="48" Height="48" Margin="0,0,16,0" RenderOptions.BitmapScalingMode="HighQuality"
                            Visibility="{Binding Branding.HasLogo, Converter={StaticResource BoolToVis}}" />
                     <TextBlock Text="{Binding StoreName}" Foreground="White" FontSize="26" FontWeight="SemiBold" VerticalAlignment="Center"
@@ -163,9 +163,9 @@
                             </DockPanel>
                             <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,10" />
                             <TextBlock Text="{l:T Display.Total}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock Text="{Binding Sales.GrandTotal, Converter={StaticResource Money}}" FontSize="56" FontWeight="Bold" />
-                            <TextBlock Text="{Binding Sales.TotalLbp, Converter={StaticResource Lbp}}" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
-                                       Visibility="{Binding Sales.ShowLbp, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding Total, Converter={StaticResource Money}}" FontSize="56" FontWeight="Bold" />
+                            <TextBlock Text="{Binding TotalLbp, Converter={StaticResource Lbp}}" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
+                                       Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </Border>
 

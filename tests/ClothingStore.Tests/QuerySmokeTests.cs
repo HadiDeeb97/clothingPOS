@@ -13,6 +13,18 @@ namespace ClothingStore.Tests;
 public class QuerySmokeTests
 {
     [Fact]
+    public async Task A_new_shop_starts_empty_with_only_the_admin_account()
+    {
+        await using var db = await TestDatabase.CreateAsync(); // created without demo data, as a release build does
+        await using var ctx = await db.Factory.CreateDbContextAsync();
+        Assert.False(await ctx.Products.AnyAsync());
+        Assert.False(await ctx.Customers.AnyAsync());
+        Assert.False(await ctx.Sales.AnyAsync());
+        Assert.Equal("admin", (await ctx.Users.SingleAsync(u => u.Role == UserRole.Admin)).Username);
+        Assert.True(await ctx.Regions.AnyAsync()); // Lebanon's governorates come ready
+    }
+
+    [Fact]
     public async Task All_screen_queries_translate_and_return_data()
     {
         await using var db = await TestDatabase.CreateAsync();

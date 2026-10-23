@@ -41,6 +41,12 @@ public sealed partial class CustomerDisplayViewModel : ObservableObject
         Sales = sales;
         _settings = settings;
         sales.Items.CollectionChanged += OnCartChanged;
+        sales.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SalesViewModel.GrandTotal) or nameof(SalesViewModel.TotalLbp) or nameof(SalesViewModel.ShowLbp)
+                or nameof(SalesViewModel.RateText))
+                OnTotalsChanged();
+        };
         sales.PaymentStarted += (_, payment) => BeginPayment(payment);
         sales.PaymentEnded += (_, _) => EndPayment();
         sales.SaleCompleted += (_, change) => ShowThankYou(change);
@@ -77,8 +83,25 @@ public sealed partial class CustomerDisplayViewModel : ObservableObject
 
     /// <summary>The payment window while it is open.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CashReceivedText), nameof(HasCashReceived))]
+    [NotifyPropertyChangedFor(nameof(CashReceivedText), nameof(HasCashReceived), nameof(Total), nameof(TotalLbp), nameof(ShowLbp), nameof(RateText))]
     public partial PaymentViewModel? Payment { get; private set; }
+
+    /// <summary>
+    /// The total, in dollars and pounds. While paying it is the payment window's own (taken when it opened), so a rate
+    /// changed at another till meanwhile can't show the customer two different pound amounts.
+    /// </summary>
+    public decimal Total => Payment?.Total ?? Sales.GrandTotal;
+    public decimal TotalLbp => Payment is { LbpEnabled: true } p ? p.TotalLbp : Sales.TotalLbp;
+    public bool ShowLbp => Payment?.LbpEnabled ?? Sales.ShowLbp;
+    public string RateText => Payment?.RateText ?? Sales.RateText;
+
+    private void OnTotalsChanged()
+    {
+        OnPropertyChanged(nameof(Total));
+        OnPropertyChanged(nameof(TotalLbp));
+        OnPropertyChanged(nameof(ShowLbp));
+        OnPropertyChanged(nameof(RateText));
+    }
 
     /// <summary>"$20.00 + 500,000 LBP": the cash handed over so far.</summary>
     public string CashReceivedText => Payment is null ? "" : Pair(Payment.TenderedUsd, Payment.TenderedLbp);

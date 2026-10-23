@@ -2,6 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using ClothingStore.Core.Localization;
+using ClothingStore.Desktop.Infrastructure;
 using ClothingStore.Desktop.ViewModels;
 
 namespace ClothingStore.Desktop.Views;
@@ -40,25 +42,35 @@ public partial class SalesView : UserControl
             {
                 if (!_widthsRead)
                 {
-                    if (BrowseColumn.Width is { IsAbsolute: true, Value: >= 200 } browse) _browseWidth = browse;
-                    if (PanelColumn.Width is { IsAbsolute: true } panel && panel.Value >= PanelColumn.MinWidth) _panelWidth = panel;
+                    // The cashier's own widths (kept apart: the saved panel layout also holds widths this view narrowed).
+                    var layout = LocalPreferences.Current.Layout;
+                    if (ReadWidth(layout, BrowseWidthKey) is >= 200 and var browse) _browseWidth = new GridLength(browse);
+                    else if (BrowseColumn.Width is { IsAbsolute: true, Value: >= 200 } restored) _browseWidth = restored;
+                    if (ReadWidth(layout, PanelWidthKey) is { } panel && panel >= PanelColumn.MinWidth) _panelWidth = new GridLength(panel);
+                    else if (PanelColumn.Width is { IsAbsolute: true } restoredPanel && restoredPanel.Value >= PanelColumn.MinWidth) _panelWidth = restoredPanel;
                     _widthsRead = true;
                 }
-                FitPanels();
+                FitPanels(VisibleSize.Width(RegisterGrid));
             });
         };
-        RegisterGrid.SizeChanged += (_, e) =>
+        // Not SizeChanged: a grid that doesn't fit keeps its size and gets cut off instead (see VisibleSize).
+        LayoutUpdated += (_, _) =>
         {
-            if (e.WidthChanged && _widthsRead) FitPanels(); // not before the saved panel sizes are known
+            if (!_widthsRead || !IsLoaded) return; // not before the saved panel sizes are known
+            var width = VisibleSize.Width(RegisterGrid);
+            if (Math.Abs(width - _fittedWidth) >= 0.5) FitPanels(width);
         };
         BrowseSplitter.DragCompleted += (_, _) =>
         {
-            if (BrowseColumn.ActualWidth >= 200) _browseWidth = new GridLength(BrowseColumn.ActualWidth);
+            if (BrowseColumn.ActualWidth < 200) return;
+            _browseWidth = new GridLength(BrowseColumn.ActualWidth);
+            SaveWidth(BrowseWidthKey, BrowseColumn.ActualWidth);
         };
         PanelSplitter.DragCompleted += (_, _) =>
         {
             _panelWidth = new GridLength(PanelColumn.ActualWidth);
-            FitPanels();
+            SaveWidth(PanelWidthKey, PanelColumn.ActualWidth);
+            FitPanels(VisibleSize.Width(RegisterGrid));
         };
         Unloaded += (_, _) =>
         {
@@ -81,41 +93,80 @@ public partial class SalesView : UserControl
     private SalesViewModel? ViewModel => DataContext as SalesViewModel;
 
     private const double BrowseMinWidth = 220;
+    private const string BrowseWidthKey = "register:browseWidth";
+    private const string PanelWidthKey = "register:panelWidth";
+
+    private static double? ReadWidth(Dictionary<string, string> layout, string key) =>
+        layout.TryGetValue(key, out var text)
+        && double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value : null;
+
+    private static void SaveWidth(string key, double width)
+    {
+        LocalPreferences.Current.Layout[key] = width.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        LocalPreferences.Current.Save();
+    }
 
     /// <summary>Panel widths as the cashier left them (dragged or remembered), used whenever there is room.</summary>
     private GridLength _browseWidth = new(330), _panelWidth = new(380);
     private bool _widthsRead;
+    private double _fittedWidth = -1;
+
+    /// <summary>The cashier wants the product list but there's no room for it in this window.</summary>
+    private bool _browseSqueezed;
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SalesViewModel.IsBrowseVisible)) FitPanels();
+        if (e.PropertyName == nameof(SalesViewModel.IsBrowseVisible)) FitPanels(VisibleSize.Width(RegisterGrid));
     }
 
     /// <summary>
-    /// Shows the product list when the cashier wants it and it fits beside the cart and the payment panel. In a narrower
-    /// window (not maximised, a small screen) it steps aside by itself, and comes back when there is room again, so the
-    /// totals and the Pay button are never cut off. Hidden, it gives its whole column to the cart.
+    /// Shows the product list when the cashier wants it and it fits beside the cart and the payment panel (the panel gives
+    /// up width, down to its minimum, to make room). In a narrower window (not maximised, a small screen) the list steps
+    /// aside by itself and comes back when there is room, so the totals and the Pay button are never cut off.
+    /// <paramref name="total"/> is the width really visible (VisibleSize), not the width the grid was laid out at.
     /// </summary>
-    private void FitPanels()
+    private void FitPanels(double total)
     {
-        var total = RegisterGrid.ActualWidth;
         if (total <= 0) return;
-        // The payment panel gives up width (down to its minimum) before the cart goes below its own.
-        var panel = Math.Max(PanelColumn.MinWidth, Math.Min(_panelWidth.Value, total - CartColumn.MinWidth - PanelSplitter.Width));
-        PanelColumn.Width = new GridLength(panel);
-        var room = total - CartColumn.MinWidth - panel - BrowseSplitter.Width - PanelSplitter.Width;
-        var show = (ViewModel?.IsBrowseVisible ?? true) && room >= BrowseMinWidth;
+        _fittedWidth = total;
+        var splitter = PanelSplitter.Width;
+        var cart = CartColumn.MinWidth;
+        var panelMin = PanelColumn.MinWidth;
+        var panelWanted = Math.Max(panelMin, _panelWidth.Value);
+        var wanted = ViewModel?.IsBrowseVisible ?? true;
+
+        // Room for the list with the panel at its width, else with the panel narrowed (never below its minimum).
+        var roomFull = total - cart - panelWanted - 2 * splitter;
+        var roomNarrow = total - cart - panelMin - 2 * splitter;
+        var show = wanted && roomNarrow >= BrowseMinWidth;
+        double panel;
         if (show)
         {
+            var browse = Math.Min(Math.Max(_browseWidth.Value, BrowseMinWidth), Math.Max(roomFull, BrowseMinWidth));
             BrowseColumn.MinWidth = BrowseMinWidth;
-            BrowseColumn.Width = new GridLength(Math.Min(Math.Max(_browseWidth.Value, BrowseMinWidth), room));
+            BrowseColumn.Width = new GridLength(browse);
+            panel = Math.Clamp(total - cart - browse - 2 * splitter, panelMin, panelWanted);
         }
         else
         {
             BrowseColumn.MinWidth = 0;
             BrowseColumn.Width = new GridLength(0);
+            panel = Math.Clamp(total - cart - splitter, panelMin, panelWanted);
         }
+        PanelColumn.Width = new GridLength(panel);
         BrowsePanel.Visibility = BrowseSplitter.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        // The "show products" button stays while the list isn't on screen, also when it's only missing for lack of room.
+        _browseSqueezed = wanted && !show;
+        ShowBrowseButton.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnShowBrowseClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+        if (!vm.IsBrowseVisible) vm.ToggleBrowseCommand.Execute(null); // fits the panels again at once
+        if (_browseSqueezed) ToastHost.Instance.Show(Loc.T("Register.NoRoomForProducts"), ToastKind.Info);
+        FocusSearch(); // the next scan goes to the scan box
     }
 
     private void OnFocusSearchRequested(object? sender, EventArgs e) => FocusSearch();
