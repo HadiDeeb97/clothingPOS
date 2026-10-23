@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         WindowAppearance.Apply(this);
+        FitRestoredSizeToScreen();
         if (LocalPreferences.Current.FullScreen) SetFullScreen(true);
         PreviewKeyDown += OnPreviewKeyDown;
         Loaded += (_, _) => PreparePagesWhenIdle();
@@ -83,6 +84,19 @@ public partial class MainWindow : Window
         {
             dialogs.Error(ClothingStore.Core.Localization.Loc.T("Common.SomethingWentWrong"), ex);
         }
+    }
+
+    /// <summary>
+    /// The size used when the window is restored down from maximised: never bigger than the screen (on a 1366 × 768 laptop
+    /// the default 800 px height put the bottom of the POS under the taskbar).
+    /// </summary>
+    private void FitRestoredSizeToScreen()
+    {
+        var area = SystemParameters.WorkArea;
+        MinWidth = Math.Min(MinWidth, area.Width);
+        MinHeight = Math.Min(MinHeight, area.Height);
+        Width = Math.Max(MinWidth, Math.Min(Width, area.Width - 40));
+        Height = Math.Max(MinHeight, Math.Min(Height, area.Height - 40));
     }
 
     // ---- Full screen -------------------------------------------------------------------------

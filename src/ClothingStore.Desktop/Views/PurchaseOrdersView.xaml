@@ -12,7 +12,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" MinWidth="320" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="3*" MinWidth="420" />
+                <ColumnDefinition Width="3*" MinWidth="400" />
             </Grid.ColumnDefinitions>
             <Border Style="{StaticResource TableCard}">
                 <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder}" infra:LayoutMemory.Key="PurchaseOrders.List">

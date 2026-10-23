@@ -5,8 +5,7 @@
              xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
     <DockPanel>
         <DockPanel Style="{StaticResource Toolbar}" DockPanel.Dock="Top">
-            <TextBlock DockPanel.Dock="Right" Text="{l:T Returns.Tip}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="12,0,0,0" />
-            <StackPanel Orientation="Horizontal">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                 <TextBox x:Name="ReceiptBox" Style="{StaticResource SearchBox}" Width="340" Tag="{l:T Returns.ReceiptHint}"
                          Text="{Binding ReceiptNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0">
                     <TextBox.InputBindings>
@@ -16,12 +15,15 @@
                 <Button Content="{l:T Returns.Find}" Style="{StaticResource PrimaryButton}" Command="{Binding FindCommand}" MinHeight="44" />
                 <Button Content="{l:T Common.Clear}" Command="{Binding ClearCommand}" MinHeight="44" />
             </StackPanel>
+            <!-- Takes what is left and wraps, so the receipt box and its buttons are never pushed out -->
+            <TextBlock Text="{l:T Returns.Tip}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="12,0,0,0"
+                       TextWrapping="Wrap" TextAlignment="Right" />
         </DockPanel>
 
         <Grid>
-            <Grid Visibility="{Binding HasSale, Converter={StaticResource BoolToVis}}" infra:LayoutMemory.Key="Returns">
+            <Grid Visibility="{Binding HasSale, Converter={StaticResource BoolToVis}}" infra:LayoutMemory.Key="Returns" infra:PanelFit.IsEnabled="True">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="460" />
+                    <ColumnDefinition Width="*" MinWidth="420" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="360" MinWidth="300" />
                 </Grid.ColumnDefinitions>

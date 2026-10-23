@@ -713,7 +713,9 @@
         <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
         <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
         <Setter Property="EnableRowVirtualization" Value="True" />
-        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <!-- Columns are all created up front: created only when scrolled into view, columns sized to their content changed
+             width while scrolling sideways and the last ones (the bin buttons) ended up cut off. Tables here have few columns. -->
+        <Setter Property="EnableColumnVirtualization" Value="False" />
         <!-- Reuse row visuals while scrolling instead of creating new ones -->
         <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
         <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
@@ -745,13 +747,14 @@
     </Style>
     <Style TargetType="DataGridCell">
         <Setter Property="Padding" Value="12,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
                     <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter VerticalAlignment="Center" />
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
@@ -762,6 +765,13 @@
                 <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Cell of a column holding only a button or tick box (remove, return...): little padding and centred, so the
+         column can be narrow and fixed (Width ~52, CanUserResize False) without cutting the button off. -->
+    <Style x:Key="ActionCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
 
     <!-- ===================================================================================

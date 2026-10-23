@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
              xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
-    <Grid infra:LayoutMemory.Key="Categories">
+    <Grid infra:LayoutMemory.Key="Categories" infra:PanelFit.IsEnabled="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="360" />
             <ColumnDefinition Width="Auto" />

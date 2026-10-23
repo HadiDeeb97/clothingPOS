@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using ClothingStore.Desktop.Infrastructure;
 using ClothingStore.Desktop.ViewModels.Dialogs;
@@ -11,6 +13,11 @@ namespace ClothingStore.Desktop.Views;
 public partial class DialogWindow : Window
 {
     private readonly IDialogViewModel _viewModel;
+
+    /// <summary>Largest size while the window still sizes itself to its content (a form); lifted when maximised.</summary>
+    private readonly double _maxWidth, _maxHeight;
+
+    private bool _remaximizing;
 
     public DialogWindow(IDialogViewModel viewModel)
     {
@@ -24,11 +31,14 @@ public partial class DialogWindow : Window
         PreviewKeyDown += OnPreviewKeyDown;
         // Set before the first layout so SizeToContent never makes a dialog taller or wider than the screen: content
         // shrinks to fit (lists and text areas scroll) instead of the bottom buttons ending up off-screen.
-        MaxHeight = SystemParameters.WorkArea.Height - 40;
-        MaxWidth = SystemParameters.WorkArea.Width - 40;
+        MaxHeight = _maxHeight = SystemParameters.WorkArea.Height - 40;
+        MaxWidth = _maxWidth = SystemParameters.WorkArea.Width - 40;
+        SourceInitialized += (_, _) => PrepareWindowButtons();
+        StateChanged += OnStateChanged;
         Loaded += async (_, _) =>
         {
             FitViewToScreen();
+            FollowWindowSize();
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             if (_viewModel is DialogViewModelBase dialog) await dialog.OnOpenedAsync();
         };
@@ -40,7 +50,7 @@ public partial class DialogWindow : Window
     /// </summary>
     private void FitViewToScreen()
     {
-        if (VisualTreeHelper.GetChildrenCount(Host) == 0 || VisualTreeHelper.GetChild(Host, 0) is not FrameworkElement view) return;
+        if (View is not { } view) return;
         var chromeHeight = SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight * 2 + 8;
         var chromeWidth = SystemParameters.ResizeFrameVerticalBorderWidth * 2 + 8;
         var maxWidth = MaxWidth - Host.Margin.Left - Host.Margin.Right - chromeWidth;
@@ -48,6 +58,114 @@ public partial class DialogWindow : Window
         if (!double.IsNaN(view.Width) && view.Width > maxWidth) view.Width = Math.Max(300, maxWidth);
         if (!double.IsNaN(view.Height) && view.Height > maxHeight) view.Height = Math.Max(240, maxHeight);
     }
+
+    private FrameworkElement? View =>
+        VisualTreeHelper.GetChildrenCount(Host) > 0 ? VisualTreeHelper.GetChild(Host, 0) as FrameworkElement : null;
+
+    /// <summary>
+    /// A view's Width/Height is only the size the dialog opens at; afterwards the window decides. Lists and editors (views
+    /// that give a height) fill the window when it is resized or maximised, with their tables scrolling inside. Forms keep
+    /// their width and stay centred, and still grow with their content (a message appearing) as before.
+    /// </summary>
+    private void FollowWindowSize()
+    {
+        if (View is not { } view || double.IsNaN(view.Width)) return; // sizes itself to its content (message, preview)
+        UpdateLayout(); // take in FitViewToScreen's shrinking before reading sizes
+
+        if (double.IsNaN(view.Height))
+        {
+            view.HorizontalAlignment = HorizontalAlignment.Center;
+            MinWidth = Math.Max(MinWidth, ActualWidth); // narrower would cut the form off: it doesn't scroll sideways
+            return;
+        }
+
+        // Window border, title bar and margins around the view: what the window needs on top of the view itself.
+        var chromeWidth = Math.Max(0, ActualWidth - view.ActualWidth);
+        var chromeHeight = Math.Max(0, ActualHeight - view.ActualHeight);
+        var minViewWidth = Math.Min(view.ActualWidth, Math.Max(320, Math.Round(view.Width * 0.75)));
+        var minViewHeight = Math.Min(view.ActualHeight, Math.Max(240, Math.Round(view.Height * 0.75)));
+
+        // Keep the size it opened at, then let the view follow the window.
+        var (width, height) = (ActualWidth, ActualHeight);
+        SizeToContent = SizeToContent.Manual;
+        Width = width;
+        Height = height;
+        view.Width = double.NaN;
+        view.Height = double.NaN;
+        Scroller.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled; // the view gets the window's height
+        MinWidth = Math.Max(MinWidth, minViewWidth + chromeWidth);
+        MinHeight = Math.Max(MinHeight, minViewHeight + chromeHeight);
+        // It no longer sizes itself to its content, so it needs no cap: maximising fills the screen.
+        MaxWidth = double.PositiveInfinity;
+        MaxHeight = double.PositiveInfinity;
+    }
+
+    /// <summary>
+    /// Dialogs maximise but don't minimise: the window behind waits for the dialog, so a minimised dialog would leave the
+    /// POS looking frozen. Minimising the main window still takes its open dialog with it.
+    /// </summary>
+    private void PrepareWindowButtons()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        SetWindowLong(handle, GwlStyle, GetWindowLong(handle, GwlStyle) & ~WsMinimizeBox);
+        HwndSource.FromHwnd(handle)?.AddHook(OnWindowMessage);
+    }
+
+    private IntPtr OnWindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (message != WmSysCommand) return IntPtr.Zero;
+        switch ((int)wParam & 0xFFF0)
+        {
+            case ScMinimize:
+                handled = true; // Win+Down or the window menu
+                break;
+            case ScMaximize:
+                // Lift the cap before Windows works out the maximised size, so it covers the whole screen.
+                MaxWidth = double.PositiveInfinity;
+                MaxHeight = double.PositiveInfinity;
+                break;
+        }
+        return IntPtr.Zero;
+    }
+
+    private void OnStateChanged(object? sender, EventArgs e)
+    {
+        switch (WindowState)
+        {
+            case WindowState.Minimized:
+                WindowState = WindowState.Normal;
+                break;
+            case WindowState.Maximized when !double.IsPositiveInfinity(MaxWidth) || !double.IsPositiveInfinity(MaxHeight):
+                // Maximised some other way (dragged to the top of the screen) while still capped: lift the cap and redo it.
+                MaxWidth = double.PositiveInfinity;
+                MaxHeight = double.PositiveInfinity;
+                _remaximizing = true;
+                Dispatcher.BeginInvoke(() =>
+                {
+                    WindowState = WindowState.Normal;
+                    WindowState = WindowState.Maximized;
+                    _remaximizing = false;
+                });
+                break;
+            case WindowState.Normal when SizeToContent != SizeToContent.Manual && !_remaximizing:
+                // Back to a form sizing itself to its content: never taller or wider than the screen.
+                MaxWidth = _maxWidth;
+                MaxHeight = _maxHeight;
+                break;
+        }
+    }
+
+    private const int GwlStyle = -16;
+    private const int WsMinimizeBox = 0x00020000;
+    private const int WmSysCommand = 0x0112;
+    private const int ScMinimize = 0xF020;
+    private const int ScMaximize = 0xF030;
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static extern int GetWindowLong(IntPtr hwnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
+    private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {

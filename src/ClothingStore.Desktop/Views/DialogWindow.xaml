@@ -13,8 +13,8 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
     <!-- A form taller than the screen scrolls instead of losing its bottom fields and buttons. Views with their own
-         height (lists) are shrunk to fit in code-behind and scroll inside. -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+         height (lists, editors) fill the window instead and scroll inside (set up in code-behind once open). -->
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
         <ContentPresenter x:Name="Host" Content="{Binding}" Margin="24,22,24,22" />
     </ScrollViewer>
 </Window>

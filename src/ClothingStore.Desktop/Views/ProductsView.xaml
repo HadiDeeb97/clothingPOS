@@ -12,12 +12,13 @@
                 <Button Content="{l:T Products.NewButton}" Style="{StaticResource PrimaryButton}" Command="{Binding NewCommand}" Margin="0"
                         Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal">
+            <!-- Wraps onto a second line in a narrow window instead of cutting the filters off -->
+            <WrapPanel>
                 <TextBox Style="{StaticResource FilterBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Tag="{l:T Products.SearchHint}" Width="320" Margin="0,0,10,0" />
                 <ComboBox infra:SmartCombo.IsEnabled="True" Tag="{l:T Common.TypeToSearch}" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Name" Width="190" Margin="0,0,14,0" />
-                <CheckBox Content="{l:T Common.IncludeInactive}" IsChecked="{Binding IncludeInactive}" />
-            </StackPanel>
+                <CheckBox Content="{l:T Common.IncludeInactive}" IsChecked="{Binding IncludeInactive}" VerticalAlignment="Center" />
+            </WrapPanel>
         </DockPanel>
 
         <Grid infra:LayoutMemory.Key="Products">

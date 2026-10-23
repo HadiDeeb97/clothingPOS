@@ -72,7 +72,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Width="Auto" MinWidth="40">
+                                <DataGridTemplateColumn Width="48" CanUserResize="False" CanUserReorder="False" CanUserSort="False" CellStyle="{StaticResource ActionCell}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Style="{StaticResource LinkButton}" Foreground="{StaticResource DangerBrush}" ToolTip="{l:T Common.Remove}"
