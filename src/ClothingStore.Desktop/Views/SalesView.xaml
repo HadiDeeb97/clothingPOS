@@ -139,7 +139,7 @@
             </Border>
 
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                <Button x:Name="ShowBrowseButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE8FD;" Width="44" Height="44" Margin="0,0,8,0"
+                <Button x:Name="ShowBrowseButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE8FD;" Width="44" Height="44" Margin="0,0,8,0" Focusable="False"
                         Click="OnShowBrowseClick" ToolTip="{l:T Register.ToggleBrowse}" Visibility="Collapsed"
                         BorderBrush="{StaticResource InputBorderBrush}" Background="{StaticResource SurfaceBrush}" />
                 <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Tag="{l:T Register.SearchHint}"

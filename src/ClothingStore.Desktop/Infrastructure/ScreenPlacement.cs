@@ -28,7 +28,7 @@ public static class ScreenPlacement
     }
 
     /// <summary>Exactly the monitor's area (physical pixels: the app is per-monitor DPI aware), never activating.</summary>
-    private static void Cover(Window window, ScreenInfo screen)
+    public static void Cover(Window window, ScreenInfo screen)
     {
         var hwnd = new WindowInteropHelper(window).Handle;
         if (hwnd == IntPtr.Zero) return;

@@ -42,8 +42,12 @@ public partial class SalesView : UserControl
             {
                 if (!_widthsRead)
                 {
-                    if (BrowseColumn.Width is { IsAbsolute: true, Value: >= 200 } browse) _browseWidth = browse;
-                    if (PanelColumn.Width is { IsAbsolute: true } panel && panel.Value >= PanelColumn.MinWidth) _panelWidth = panel;
+                    // The cashier's own widths (kept apart: the saved panel layout also holds widths this view narrowed).
+                    var layout = LocalPreferences.Current.Layout;
+                    if (ReadWidth(layout, BrowseWidthKey) is >= 200 and var browse) _browseWidth = new GridLength(browse);
+                    else if (BrowseColumn.Width is { IsAbsolute: true, Value: >= 200 } restored) _browseWidth = restored;
+                    if (ReadWidth(layout, PanelWidthKey) is { } panel && panel >= PanelColumn.MinWidth) _panelWidth = new GridLength(panel);
+                    else if (PanelColumn.Width is { IsAbsolute: true } restoredPanel && restoredPanel.Value >= PanelColumn.MinWidth) _panelWidth = restoredPanel;
                     _widthsRead = true;
                 }
                 FitPanels(VisibleSize.Width(RegisterGrid));
@@ -58,11 +62,14 @@ public partial class SalesView : UserControl
         };
         BrowseSplitter.DragCompleted += (_, _) =>
         {
-            if (BrowseColumn.ActualWidth >= 200) _browseWidth = new GridLength(BrowseColumn.ActualWidth);
+            if (BrowseColumn.ActualWidth < 200) return;
+            _browseWidth = new GridLength(BrowseColumn.ActualWidth);
+            SaveWidth(BrowseWidthKey, BrowseColumn.ActualWidth);
         };
         PanelSplitter.DragCompleted += (_, _) =>
         {
             _panelWidth = new GridLength(PanelColumn.ActualWidth);
+            SaveWidth(PanelWidthKey, PanelColumn.ActualWidth);
             FitPanels(VisibleSize.Width(RegisterGrid));
         };
         Unloaded += (_, _) =>
@@ -86,6 +93,19 @@ public partial class SalesView : UserControl
     private SalesViewModel? ViewModel => DataContext as SalesViewModel;
 
     private const double BrowseMinWidth = 220;
+    private const string BrowseWidthKey = "register:browseWidth";
+    private const string PanelWidthKey = "register:panelWidth";
+
+    private static double? ReadWidth(Dictionary<string, string> layout, string key) =>
+        layout.TryGetValue(key, out var text)
+        && double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value : null;
+
+    private static void SaveWidth(string key, double width)
+    {
+        LocalPreferences.Current.Layout[key] = width.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        LocalPreferences.Current.Save();
+    }
 
     /// <summary>Panel widths as the cashier left them (dragged or remembered), used whenever there is room.</summary>
     private GridLength _browseWidth = new(330), _panelWidth = new(380);
@@ -143,8 +163,10 @@ public partial class SalesView : UserControl
 
     private void OnShowBrowseClick(object sender, RoutedEventArgs e)
     {
+        if (ViewModel is not { } vm) return;
+        if (!vm.IsBrowseVisible) vm.ToggleBrowseCommand.Execute(null); // fits the panels again at once
         if (_browseSqueezed) ToastHost.Instance.Show(Loc.T("Register.NoRoomForProducts"), ToastKind.Info);
-        else ViewModel?.ToggleBrowseCommand.Execute(null);
+        FocusSearch(); // the next scan goes to the scan box
     }
 
     private void OnFocusSearchRequested(object? sender, EventArgs e) => FocusSearch();

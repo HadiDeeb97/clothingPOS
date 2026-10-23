@@ -33,7 +33,13 @@ public static class CustomerDisplay
                 Close();
                 return;
             }
-            if (!rebuild && _window is not null && screen == _screen) return; // same screen, same size: nothing to do
+            if (!rebuild && _window is not null && screen == _screen)
+            {
+                // Same screen: put it back over it anyway (Windows moves it to the till's screen while the customer's
+                // screen drops out, e.g. asleep or switched to another input). Never takes the keyboard.
+                ScreenPlacement.Cover(_window, screen);
+                return;
+            }
 
             Close();
             _window = new CustomerDisplayWindow(App.Services.GetRequiredService<CustomerDisplayViewModel>(), screen);
