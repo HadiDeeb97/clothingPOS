@@ -102,3 +102,26 @@ demo PC only, add `"SeedDemoData": true` under `"Pos"` in `publish\appsettings.j
 
 Build a new `publish` folder and replace every file on the customer's PC **except `appsettings.json`**. On the next
 start the app backs up the database and upgrades it. The license stays (it's kept in `C:\ProgramData\ClothingStorePOS`).
+
+## 4. Check before handing over (about 10 minutes per shop)
+
+What depends on the shop's own PC and devices can only be tested there. Sign in as admin and go through this once:
+
+1. **Sign-in:** the first sign-in asks for a new admin password. Write it down for the owner.
+2. **Settings → Printers:** choose the receipt printer and click **Test**; it prints a short slip. With a cash drawer,
+   tick it and click **Test drawer**: the drawer opens (else try another *Drawer signal*).
+3. **Settings → Backup:** set the backup folder (ideally another drive or a USB disk), click **Back up now**, then
+   double-click the backup in the list: Explorer opens with the file.
+4. **Cash drawer:** open a shift with a float.
+5. **Register:** scan (or search) an item, take **cash** with change, and check the receipt prints and the drawer opens.
+   Do a second sale paid by **card**. With a customer display, check the customer sees the items, the total and the
+   change, and that scanning keeps working on the till.
+6. **Returns:** return one item of the first sale (refund cash).
+7. **Sales history:** both sales are there, the first shows the return.
+8. **Cash drawer:** count and close the shift; the Z report prints and the expected cash is right.
+9. **Reports:** today's figures match the two sales and the return.
+10. The test sales stay in the history and today's report. To leave fewer, void the card sale in **Sales history**
+    *before* step 8 (a sale can only be voided while its shift is open, and not once items were returned).
+
+If anything fails, `%LocalAppData%\ClothingStorePOS\startup-errors.log` (start-up problems) and `slow-searches.log`
+(slow searches) in the same folder help find out why (type `%LocalAppData%\ClothingStorePOS` in Explorer's address bar).
