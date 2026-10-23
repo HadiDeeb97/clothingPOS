@@ -43,7 +43,9 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     private readonly ProductService _products;
     private readonly SizePresetService _sizePresets;
     private readonly Session _session;
-    private readonly int _id;
+
+    /// <summary>The product being edited; 0 for a new one (also after "Save &amp; add new").</summary>
+    private int _id;
 
     private ProductEditorViewModel(IDialogService dialogs, ProductService products, SizePresetService sizePresets, Session session, Product? product) : base(dialogs)
     {
@@ -92,6 +94,31 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     }
 
     public override string Title => _id == 0 ? Loc.T("ProductEditor.New") : Loc.T("ProductEditor.Edit", Name);
+
+    public bool IsNew => _id == 0;
+
+    /// <summary>"Save &amp; add new" for a new product; for one being edited it saves and starts a similar new one.</summary>
+    public string SaveAndNewText => IsNew ? Loc.T("ProductEditor.SaveAndNew") : Loc.T("ProductEditor.SaveAndSimilar");
+
+    /// <summary>"Save &amp; add new" keeps everything but the name for the next product (remembered on this PC).</summary>
+    [ObservableProperty]
+    public partial bool KeepDetails { get; set; } = LocalPreferences.Current.KeepProductDetails;
+
+    partial void OnKeepDetailsChanged(bool value)
+    {
+        LocalPreferences.Current.KeepProductDetails = value;
+        LocalPreferences.Current.Save();
+    }
+
+    /// <summary>"Saved "Abaya Classic" ✓" after "Save &amp; add new", so it's clear the last one went in.</summary>
+    [ObservableProperty]
+    public partial string? SavedMessage { get; private set; }
+
+    /// <summary>At least one product was saved, even if the window is then cancelled: the list should refresh.</summary>
+    public bool SavedAny { get; private set; }
+
+    /// <summary>Asks the view to put the cursor in the name box (ready for the next product).</summary>
+    public event EventHandler? FocusNameRequested;
 
     public List<Category> Categories { get; private init; } = [];
     public List<Supplier> Suppliers { get; private init; } = [];
@@ -217,6 +244,58 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     [RelayCommand]
     private Task SaveAsync() => RunAsync(async () =>
     {
+        await SaveProductAsync();
+        Close(true);
+    });
+
+    /// <summary>
+    /// Saves, then stays open for the next product: with the same details (only the name to type, new codes, opening
+    /// stock) when "keep details" is ticked or a product was being edited, else empty.
+    /// </summary>
+    [RelayCommand]
+    private Task SaveAndNewAsync() => RunAsync(async () =>
+    {
+        var keep = KeepDetails || !IsNew;
+        await SaveProductAsync();
+        SavedAny = true;
+        var savedName = Name.Trim();
+
+        _id = 0;
+        if (keep)
+        {
+            // The same sizes and colours as new variants: SKUs and barcodes are generated again, stock starts afresh.
+            var rows = Variants.Where(v => v.IsNew || v.IsActive).Select(v => new VariantRowViewModel
+            {
+                Size = v.Size, Color = v.Color, PriceOverride = v.PriceOverride, CostOverride = v.CostOverride,
+                ReorderLevel = v.ReorderLevel, StockQuantity = Math.Max(0, OpeningStock),
+            }).ToList();
+            Variants.Clear();
+            foreach (var row in rows) Variants.Add(row);
+            StyleCode = null;
+        }
+        else
+        {
+            Brand = StyleCode = Description = Season = Material = null;
+            Gender = default;
+            Price = Cost = 0;
+            IsActive = true;
+            SelectedCategory = Categories.FirstOrDefault(c => c.IsActive) ?? Categories.FirstOrDefault();
+            SelectedSupplier = null;
+            Variants.Clear();
+            SizesText = "S, M, L, XL";
+            ColorsText = "";
+            OpeningStock = 0;
+        }
+        Name = "";
+        SavedMessage = Loc.T("ProductEditor.SavedNext", savedName);
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(IsNew));
+        OnPropertyChanged(nameof(SaveAndNewText));
+        FocusNameRequested?.Invoke(this, EventArgs.Empty);
+    });
+
+    private async Task SaveProductAsync()
+    {
         if (SelectedCategory is null) throw new BusinessRuleException(Loc.T("ProductEditor.NeedCategory"));
         var product = new Product
         {
@@ -236,8 +315,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
             Variants = Variants.Select(v => v.ToEntity()).ToList(),
         };
         await _products.SaveAsync(product, _session.User.Id);
-        Close(true);
-    });
+    }
 
     [RelayCommand]
     private void Cancel() => Close(false);
