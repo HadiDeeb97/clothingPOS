@@ -12,6 +12,10 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
         WindowAppearance.Apply(this);
+        // Fixed size: grows with this PC's text size (never beyond the screen).
+        var area = SystemParameters.WorkArea;
+        Width = Math.Min(Width * UiScale.Current, area.Width - 40);
+        Height = Math.Min(Height * UiScale.Current, area.Height - 40);
         _viewModel = viewModel;
         DataContext = viewModel;
         viewModel.SignedIn += (_, _) => DialogResult = true;

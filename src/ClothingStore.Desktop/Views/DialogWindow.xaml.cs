@@ -47,8 +47,11 @@ public partial class DialogWindow : Window
     private void OpenResizable(Size size)
     {
         var area = SystemParameters.WorkArea;
-        var marginWidth = Host.Margin.Left + Host.Margin.Right + FrameWidth;
-        var marginHeight = Host.Margin.Top + Host.Margin.Bottom + FrameHeight;
+        // The content is zoomed by this PC's text size, and so is the window around it.
+        var zoom = UiScale.Current;
+        size = new Size(size.Width * zoom, size.Height * zoom);
+        var marginWidth = (Host.Margin.Left + Host.Margin.Right) * zoom + FrameWidth;
+        var marginHeight = (Host.Margin.Top + Host.Margin.Bottom) * zoom + FrameHeight;
         SizeToContent = SizeToContent.Manual;
         ResizeMode = ResizeMode.CanResizeWithGrip;
         Width = Math.Min(size.Width + marginWidth, area.Width - 40);
@@ -78,8 +81,10 @@ public partial class DialogWindow : Window
     private void FitViewToScreen()
     {
         if (VisualTreeHelper.GetChildrenCount(Host) == 0 || VisualTreeHelper.GetChild(Host, 0) is not FrameworkElement view) return;
-        var maxWidth = MaxWidth - Host.Margin.Left - Host.Margin.Right - FrameWidth;
-        var maxHeight = MaxHeight - Host.Margin.Top - Host.Margin.Bottom - FrameHeight;
+        // The view is zoomed by the PC's text size: what fits on screen is that much smaller in its own units.
+        var zoom = UiScale.Current;
+        var maxWidth = (MaxWidth - FrameWidth) / zoom - Host.Margin.Left - Host.Margin.Right;
+        var maxHeight = (MaxHeight - FrameHeight) / zoom - Host.Margin.Top - Host.Margin.Bottom;
         if (!double.IsNaN(view.Width) && view.Width > maxWidth) view.Width = Math.Max(300, maxWidth);
         if (!double.IsNaN(view.Height) && view.Height > maxHeight) view.Height = Math.Max(240, maxHeight);
     }

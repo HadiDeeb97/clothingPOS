@@ -47,6 +47,7 @@
                     <Button Style="{StaticResource NavItem}" Click="GoTo" Tag="{Binding ElementName=SecLbp}"><DockPanel><TextBlock Text="&#xE825;" Style="{StaticResource Icon}" Margin="0,0,10,0" /><TextBlock Text="{l:T Settings.Lbp}" TextWrapping="Wrap" /></DockPanel></Button>
                     <Button Style="{StaticResource NavItem}" Click="GoTo" Tag="{Binding ElementName=SecPrinters}"><DockPanel><TextBlock Text="&#xE749;" Style="{StaticResource Icon}" Margin="0,0,10,0" /><TextBlock Text="{l:T Print.Section}" TextWrapping="Wrap" /></DockPanel></Button>
                     <Button Style="{StaticResource NavItem}" Click="GoTo" Tag="{Binding ElementName=SecDisplay}"><DockPanel><TextBlock Text="&#xE7F4;" Style="{StaticResource Icon}" Margin="0,0,10,0" /><TextBlock Text="{l:T Display.Section}" TextWrapping="Wrap" /></DockPanel></Button>
+                    <Button Style="{StaticResource NavItem}" Click="GoTo" Tag="{Binding ElementName=SecScreen}"><DockPanel><TextBlock Text="&#xE8E9;" Style="{StaticResource Icon}" Margin="0,0,10,0" /><TextBlock Text="{l:T Display.ScreenSection}" TextWrapping="Wrap" /></DockPanel></Button>
                     <Button Style="{StaticResource NavItem}" Click="GoTo" Tag="{Binding ElementName=SecData}"><DockPanel><TextBlock Text="&#xE74E;" Style="{StaticResource Icon}" Margin="0,0,10,0" /><TextBlock Text="{l:T Settings.Data}" TextWrapping="Wrap" /></DockPanel></Button>
                 </StackPanel>
             </Border>
@@ -269,6 +270,21 @@
                                 <TextBlock Text="{l:T Display.MessageHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" />
                             </StackPanel>
                             <TextBlock Text="{l:T Display.Hint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,10,16,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Text size of this PC -->
+                    <Border x:Name="SecScreen" Style="{StaticResource Section}">
+                        <StackPanel>
+                            <TextBlock Text="{l:T Display.ScreenSection}" Style="{StaticResource SectionTitle}" TextWrapping="Wrap" />
+                            <TextBlock Text="{l:T Display.TextSize}" Style="{StaticResource Label}" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Command="{Binding TextSmallerCommand}" ToolTip="{l:T Shell.TextSmaller}" Content="{l:T Shell.TextSmallerSymbol}" FontSize="12" MinWidth="48" Margin="0" />
+                                <TextBlock Text="{Binding TextSizeText}" MinWidth="64" TextAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" />
+                                <Button Command="{Binding TextLargerCommand}" ToolTip="{l:T Shell.TextLarger}" Content="{l:T Shell.TextLargerSymbol}" FontSize="16" MinWidth="48" Margin="0" />
+                                <Button Content="{l:T Display.TextSizeReset}" Style="{StaticResource LinkButton}" Command="{Binding TextResetCommand}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{l:T Display.TextSizeHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,8,16,0" />
                         </StackPanel>
                     </Border>
 

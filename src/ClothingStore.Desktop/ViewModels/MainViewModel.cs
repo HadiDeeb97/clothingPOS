@@ -54,6 +54,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _branding = branding;
         Session = session;
         IsSidebarCollapsed = LocalPreferences.Current.SidebarCollapsed;
+        UiScale.Changed += OnUiScaleChanged;
 
         AddGroup("Nav.Group.Sell",
             Nav<SalesViewModel>("Nav.Register", "", Permission.Sell),
@@ -264,6 +265,26 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         LanguageChangeRequested?.Invoke(this, Loc.Normalize(language));
     }
 
+    // ---- Text size of this PC (everyone can change it; also Ctrl +, Ctrl −, Ctrl 0) ----
+
+    public string TextSizeText => $"{UiScale.Percent}%";
+
+    [RelayCommand(CanExecute = nameof(CanTextLarger))]
+    private void TextLarger() => UiScale.Larger();
+
+    [RelayCommand(CanExecute = nameof(CanTextSmaller))]
+    private void TextSmaller() => UiScale.Smaller();
+
+    private static bool CanTextLarger() => UiScale.CanGrow;
+    private static bool CanTextSmaller() => UiScale.CanShrink;
+
+    private void OnUiScaleChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(TextSizeText));
+        TextLargerCommand.NotifyCanExecuteChanged();
+        TextSmallerCommand.NotifyCanExecuteChanged();
+    }
+
     [RelayCommand]
     private void ResetLayout()
     {
@@ -329,5 +350,6 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _navigation.Navigated -= OnNavigated;
         _navigation.PropertyChanged -= OnNavigationPropertyChanged;
         _settings.SettingsChanged -= OnSettingsChanged;
+        UiScale.Changed -= OnUiScaleChanged;
     }
 }

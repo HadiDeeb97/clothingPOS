@@ -18,6 +18,9 @@ public static class VisibleSize
         for (DependencyObject? d = element; d is not null and not Window and not Popup; d = VisualTreeHelper.GetParent(d))
         {
             if (d is not FrameworkElement fe) continue;
+            // A zoomed element (UiScale) is laid out in its own scale: its size and its slot can't be compared, and it
+            // is the top of the page anyway (it fills the window).
+            if (fe != element && fe.LayoutTransform is { Value.IsIdentity: false }) break;
             var slot = LayoutInformation.GetLayoutSlot(fe).Width;
             var used = fe.ActualWidth + fe.Margin.Left + fe.Margin.Right;
             if (slot > 0 && used - slot > hidden) hidden = used - slot;

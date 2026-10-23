@@ -142,6 +142,14 @@ public partial class MainWindow : Window
             if (App.Services.GetService(typeof(IDialogService)) is IDialogService dialogs)
                 dialogs.Info(ClothingStore.Core.Localization.Loc.T("Shell.ShortcutsHelp"), ClothingStore.Core.Localization.Loc.T("Shell.ShortcutsTitle"));
         }
+        else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.OemPlus or Key.Add or Key.OemMinus or Key.Subtract or Key.D0 or Key.NumPad0)
+        {
+            // Text size of this PC, as in a web browser.
+            e.Handled = true;
+            if (e.Key is Key.OemPlus or Key.Add) UiScale.Larger();
+            else if (e.Key is Key.OemMinus or Key.Subtract) UiScale.Smaller();
+            else UiScale.Reset();
+        }
         else if (RunPageShortcut(e))
         {
             e.Handled = true;
