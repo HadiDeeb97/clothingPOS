@@ -74,15 +74,18 @@ Keep notes out of this file (put commands in this guide instead).
 dotnet publish src/ClothingStore.Desktop -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 ```
 
-The `publish` folder holds `ClothingStore.Desktop.exe` and `appsettings.json`. The customer's PC doesn't need .NET.
+The `publish` folder holds `ClothingStorePOS.exe` and `appsettings.json` (the `.pdb` files are only for diagnosing
+crashes; they can be left out). The customer's PC doesn't need .NET.
 
-For a **new customer (empty database)** open `publish\appsettings.json` and set `"SeedDemoData": false`.
+A release build starts a **new customer with an empty database** (no demo products, customers or demo users). For a
+demo PC only, add `"SeedDemoData": true` under `"Pos"` in `publish\appsettings.json` before the first start.
 
 ## 2. Install on the customer's PC
 
 1. Install **SQL Server 2022 Express** (free; 2016 or newer is required, 2008/2012/2014 don't work). Choose **Basic**,
    keep the instance name `SQLEXPRESS`.
-2. Copy the `publish` folder to e.g. `C:\ClothingStorePOS\` and make a desktop shortcut to `ClothingStore.Desktop.exe`.
+2. Copy the `publish` folder to e.g. `C:\ClothingStorePOS\` and start `ClothingStorePOS.exe` (the first start puts a
+   shortcut on the desktop by itself).
 3. Start it. The first start creates the empty `ClothingStorePOS` database with one user: `admin` / `admin123`
    (a new password is required at first sign-in).
 4. **License:** without a key the app runs a **7-day free trial** (orange banner with the days left and your contact).

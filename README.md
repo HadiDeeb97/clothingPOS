@@ -60,8 +60,9 @@ with 15 styles, 125 size/colour variants, customers and suppliers.
 | `manager` | `manager123` | Manager (demo data only) |
 | `cashier` | `cashier123` | Cashier (demo data only) |
 
-To start with an empty catalogue, set `"SeedDemoData": false` in `appsettings.json` **before** the first run. Then delete or
-deactivate the demo users once real accounts exist.
+Demo data is loaded only by development (Debug) builds, or when `"SeedDemoData": true` is set in `appsettings.json` before
+the first run; a release build starts with an empty catalogue and only the `admin` account. If demo data was loaded,
+delete or deactivate the demo users once real accounts exist.
 
 ### Configuration (`src/ClothingStore.Desktop/appsettings.json`)
 
@@ -71,7 +72,7 @@ deactivate the demo users once real accounts exist.
     "Pos": "Server=.\\SQLEXPRESS;Database=ClothingStorePOS;Trusted_Connection=True;TrustServerCertificate=True"
   },
   "Pos": {
-    "SeedDemoData": true
+    "SeedDemoData": true // optional: demo catalogue and users on first run (default: Debug builds only)
   }
 }
 ```
