@@ -46,6 +46,9 @@ public sealed class LocalPreferences
     /// <summary>Windows name of that screen (e.g. \\.\DISPLAY2); null or unplugged = the first screen that isn't the main one.</summary>
     public string? CustomerDisplayScreen { get; set; }
 
+    /// <summary>New product: "Save &amp; add new" keeps the details for the next product (only the name is cleared).</summary>
+    public bool KeepProductDetails { get; set; }
+
     /// <summary>Copies of a receipt printed by default on this PC.</summary>
     public int ReceiptCopies { get; set; } = 1;
 

@@ -4,10 +4,22 @@
              xmlns:l="clr-namespace:ClothingStore.Desktop.Localization"
              xmlns:infra="clr-namespace:ClothingStore.Desktop.Infrastructure">
     <DockPanel>
-        <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource DialogFooter}" Margin="0,16,0,0">
-            <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
-            <Button Content="{l:T ProductEditor.Save}" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0" MinWidth="120" />
-        </StackPanel>
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="{l:T Common.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
+                <Button Content="{Binding SaveAndNewText}" Command="{Binding SaveAndNewCommand}" MinWidth="120" ToolTip="{l:T ProductEditor.SaveAndNewTip}" />
+                <Button Content="{l:T ProductEditor.Save}" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0" MinWidth="120" />
+            </StackPanel>
+            <!-- Entering several similar products in a row -->
+            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                <CheckBox IsChecked="{Binding KeepDetails}" Margin="0" Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}"
+                          ToolTip="{l:T ProductEditor.KeepDetailsTip}">
+                    <TextBlock Text="{l:T ProductEditor.KeepDetails}" TextWrapping="Wrap" />
+                </CheckBox>
+                <TextBlock Text="{Binding SavedMessage}" Foreground="{StaticResource SuccessBrush}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Visibility="{Binding SavedMessage, Converter={StaticResource HasValueToVis}}" />
+            </StackPanel>
+        </DockPanel>
         <Grid infra:LayoutMemory.Key="ProductEditor" infra:PanelFit.IsEnabled="True">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="320" MinWidth="280" />
@@ -153,7 +165,7 @@
                     <TextBlock VerticalAlignment="Center" Style="{StaticResource HintText}" Margin="0" Text="{l:T ProductEditor.VariantsHint}" />
                 </DockPanel>
 
-                <DataGrid ItemsSource="{Binding Variants}" IsReadOnly="False" RowHeight="38" infra:LayoutMemory.Key="ProductEditor.Variants">
+                <DataGrid x:Name="VariantsGrid" ItemsSource="{Binding Variants}" IsReadOnly="False" RowHeight="38" infra:LayoutMemory.Key="ProductEditor.Variants">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{l:T Common.Size}" Binding="{Binding Size, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="70" />
                         <DataGridTextColumn Header="{l:T Common.Colour}" Binding="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="110" />

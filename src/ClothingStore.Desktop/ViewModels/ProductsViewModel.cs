@@ -112,7 +112,8 @@ public sealed partial class ProductsViewModel(
     {
         if (!CanEdit) return;
         var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, sizePresets, session, null);
-        if (Dialogs.ShowDialog(editor)) await SearchAsync();
+        // Several may have been saved with "Save & add new" before the window was closed or cancelled.
+        if (Dialogs.ShowDialog(editor) | editor.SavedAny) await SearchAsync();
     }
 
     private bool HasSelection() => SelectedProduct is not null;
@@ -124,7 +125,7 @@ public sealed partial class ProductsViewModel(
         var product = await products.GetAsync(SelectedProduct.Product.Id);
         if (product is null) return;
         var editor = await ProductEditorViewModel.CreateAsync(Dialogs, products, categories, suppliers, sizePresets, session, product);
-        if (Dialogs.ShowDialog(editor)) await SearchAsync();
+        if (Dialogs.ShowDialog(editor) | editor.SavedAny) await SearchAsync();
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
