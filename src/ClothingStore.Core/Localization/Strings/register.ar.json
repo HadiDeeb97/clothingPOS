@@ -48,6 +48,7 @@
   "Register.NewSale": "بيع جديد",
   "Register.NoMatch": "لا توجد منتجات مطابقة لـ \"{0}\".",
   "Register.NoProducts": "لا توجد منتجات في هذه الفئة.",
+  "Register.NoRoomForProducts": "لا توجد مساحة لقائمة المنتجات في هذه النافذة. كبّر النافذة أو صغّر القائمة الجانبية لرؤيتها.",
   "Register.NoShiftHint": "افتح درج النقد (شاشة درج النقد) برصيدك الافتتاحي قبل استلام الدفعات.",
   "Register.NoShiftTitle": "لا توجد وردية مفتوحة.",
   "Register.OnlineFrom": "طلب أونلاين · {0}",

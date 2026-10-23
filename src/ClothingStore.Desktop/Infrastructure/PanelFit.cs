@@ -23,16 +23,32 @@ public static class PanelFit
     /// <summary>Width each fixed column should have when there is room.</summary>
     private static readonly ConditionalWeakTable<ColumnDefinition, StrongBox<double>> Preferred = new();
 
+    /// <summary>Per grid: its layout listener and the visible width it last fitted to.</summary>
+    private sealed class Watch
+    {
+        public EventHandler? OnLayout;
+        public double Width = -1;
+    }
+
+    private static readonly ConditionalWeakTable<Grid, Watch> Watches = new();
+
     private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not Grid grid) return;
         grid.Loaded -= OnLoaded;
-        grid.SizeChanged -= OnSizeChanged;
+        grid.Unloaded -= OnUnloaded;
         grid.RemoveHandler(Thumb.DragCompletedEvent, (DragCompletedEventHandler)OnSplitterReleased);
         if (e.NewValue is not true) return;
         grid.Loaded += OnLoaded;
-        grid.SizeChanged += OnSizeChanged;
+        grid.Unloaded += OnUnloaded;
         grid.AddHandler(Thumb.DragCompletedEvent, (DragCompletedEventHandler)OnSplitterReleased);
+    }
+
+    private static void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        var grid = (Grid)sender;
+        if (Watches.TryGetValue(grid, out var watch) && watch.OnLayout is not null) grid.LayoutUpdated -= watch.OnLayout;
+        Watches.Remove(grid);
     }
 
     // After LayoutMemory has put back the saved sizes (it does that on Loaded too). Read once: pages are kept between visits,
@@ -44,13 +60,20 @@ public static class PanelFit
         {
             foreach (var column in grid.ColumnDefinitions.Where(c => c.Width.IsAbsolute))
                 Preferred.TryAdd(column, new StrongBox<double>(column.Width.Value));
-            Fit(grid);
+            // SizeChanged isn't enough: a grid that doesn't fit keeps its size and is cut off instead (see VisibleSize).
+            if (Watches.TryGetValue(grid, out var old) && old.OnLayout is not null) grid.LayoutUpdated -= old.OnLayout;
+            var watch = new Watch();
+            watch.OnLayout = (_, _) =>
+            {
+                var width = VisibleSize.Width(grid);
+                if (Math.Abs(width - watch.Width) < 0.5) return;
+                watch.Width = width;
+                Fit(grid, width);
+            };
+            Watches.AddOrUpdate(grid, watch);
+            grid.LayoutUpdated += watch.OnLayout;
+            watch.OnLayout(grid, EventArgs.Empty);
         });
-    }
-
-    private static void OnSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (e.WidthChanged) Fit((Grid)sender);
     }
 
     /// <summary>A panel dragged to a new width wants that width from now on.</summary>
@@ -62,9 +85,8 @@ public static class PanelFit
             Preferred.AddOrUpdate(column, new StrongBox<double>(column.ActualWidth));
     }
 
-    private static void Fit(Grid grid)
+    private static void Fit(Grid grid, double width)
     {
-        var width = grid.ActualWidth;
         if (width <= 0) return;
 
         var fixedColumns = grid.ColumnDefinitions

@@ -78,7 +78,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="BrowseColumn" Width="330" MinWidth="0" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition x:Name="CartColumn" Width="*" MinWidth="400" />
+            <ColumnDefinition x:Name="CartColumn" Width="*" MinWidth="380" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition x:Name="PanelColumn" Width="380" MinWidth="320" />
         </Grid.ColumnDefinitions>
@@ -139,9 +139,8 @@
             </Border>
 
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE8FD;" Width="44" Height="44" Margin="0,0,8,0"
-                        Command="{Binding ToggleBrowseCommand}" ToolTip="{l:T Register.ToggleBrowse}"
-                        Visibility="{Binding IsBrowseVisible, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
+                <Button x:Name="ShowBrowseButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE8FD;" Width="44" Height="44" Margin="0,0,8,0"
+                        Click="OnShowBrowseClick" ToolTip="{l:T Register.ToggleBrowse}" Visibility="Collapsed"
                         BorderBrush="{StaticResource InputBorderBrush}" Background="{StaticResource SurfaceBrush}" />
                 <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Tag="{l:T Register.SearchHint}"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="OnSearchKeyDown">

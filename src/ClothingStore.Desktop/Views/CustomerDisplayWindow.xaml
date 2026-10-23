@@ -8,7 +8,6 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         Focusable="False"
-        Cursor="None"
         WindowStartupLocation="Manual"
         Background="{StaticResource BackgroundBrush}"
         FontFamily="{StaticResource UiFont}"
@@ -163,9 +162,9 @@
                             </DockPanel>
                             <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,10" />
                             <TextBlock Text="{l:T Display.Total}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock Text="{Binding Sales.GrandTotal, Converter={StaticResource Money}}" FontSize="56" FontWeight="Bold" />
-                            <TextBlock Text="{Binding Sales.TotalLbp, Converter={StaticResource Lbp}}" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
-                                       Visibility="{Binding Sales.ShowLbp, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding Total, Converter={StaticResource Money}}" FontSize="56" FontWeight="Bold" />
+                            <TextBlock Text="{Binding TotalLbp, Converter={StaticResource Lbp}}" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}"
+                                       Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </Border>
 

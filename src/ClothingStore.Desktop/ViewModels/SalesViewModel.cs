@@ -693,7 +693,17 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
 
         var payment = new PaymentViewModel(Dialogs, GrandTotal, Customer, _settings.Current, allowDelivery: IsOnline);
         PaymentStarted?.Invoke(this, payment);
-        if (!Dialogs.ShowDialog(payment))
+        bool paid;
+        try
+        {
+            paid = Dialogs.ShowDialog(payment);
+        }
+        catch
+        {
+            PaymentEnded?.Invoke(this, EventArgs.Empty); // the customer's screen doesn't stay on "paying"
+            throw;
+        }
+        if (!paid)
         {
             PaymentEnded?.Invoke(this, EventArgs.Empty);
             return;

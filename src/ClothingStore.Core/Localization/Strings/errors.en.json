@@ -97,6 +97,7 @@
   "Err.PoOnlyDraftDelete": "Only drafts can be deleted.",
   "Err.PoOnlyDraftOrdered": "Only drafts can be marked as ordered.",
   "Err.PointsNeedCustomer": "Select a customer to redeem loyalty points.",
+  "Err.PresetBusy": "Another till was changing the size buttons at the same moment. Please try again.",
   "Err.PresetExists": "There is already a size button called \"{0}\".",
   "Err.PresetNameLength": "The button name can be at most {0} characters.",
   "Err.PresetNameRequired": "Enter a name for the size button.",

@@ -29,9 +29,10 @@ public interface IDialogService
 
 public sealed class DialogService : IDialogService
 {
+    // Never the customer display or the screen numbers: a dialog would open on the customer's monitor (or close with them).
     private static Window? Owner =>
-        Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
-        ?? (Application.Current.MainWindow is { IsVisible: true } main ? main : null);
+        Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive && !CustomerDisplay.IsDisplayWindow(w))
+        ?? (Application.Current.MainWindow is { IsVisible: true } main && !CustomerDisplay.IsDisplayWindow(main) ? main : null);
 
     public void Info(string message, string? title = null) =>
         ShowDialog(new MessageDialogViewModel(this, MessageKind.Info, title ?? Loc.T("Common.Information"), message));

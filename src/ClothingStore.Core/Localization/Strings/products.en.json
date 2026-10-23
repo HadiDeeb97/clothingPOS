@@ -80,7 +80,6 @@
   "ProductEditor.PresetNamePrompt": "Name for the button with these sizes:\n{0}",
   "ProductEditor.PresetRemove": "Remove this size button",
   "ProductEditor.PresetRemoveConfirm": "Remove the size button \"{0}\"?",
-  "ProductEditor.PresetSaved": "Size button \"{0}\" added.",
   "ProductEditor.PriceOverride": "Price override",
   "ProductEditor.PriceRequired": "Selling price *",
   "ProductEditor.RemoveVariant": "Remove variant",
