@@ -316,6 +316,7 @@ public partial class App : Application
         services.AddSingleton<PrintService>();
         services.AddSingleton<LicenseManager>();
         services.AddHostedService<AutoBackupWorker>();
+        services.AddHostedService<OnlineReportsWorker>();
 
         services.AddTransient<LoginViewModel>();
         services.AddTransient<MainViewModel>();
@@ -336,6 +337,7 @@ public partial class App : Application
         services.AddTransient<ReportsViewModel>();
         services.AddTransient<UsersViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<OnlineReportsViewModel>();
     }
 
     private void ShowLogin()

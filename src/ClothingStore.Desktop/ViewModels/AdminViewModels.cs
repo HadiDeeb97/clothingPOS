@@ -165,8 +165,11 @@ public sealed record LanguageOption(string Code, string Name);
 public sealed record PrinterChoice(string Name, string Display);
 
 public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsService settings, BackupService backup, Session session, BrandingService branding,
-    PrintService print) : ViewModelBase(dialogs), IPageViewModel
+    PrintService print, OnlineReportsViewModel online) : ViewModelBase(dialogs), IPageViewModel
 {
+    /// <summary>The Online reports section.</summary>
+    public OnlineReportsViewModel Online { get; } = online;
+
     public string Title => Loc.T("Nav.Settings");
     public string DatabaseName => App.DatabaseName;
 
@@ -398,6 +401,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         }
         OnTextSizeChanged();
         await ReloadAsync();
+        await Online.LoadAsync();
     }
 
     // ---- Text size of this PC ----
