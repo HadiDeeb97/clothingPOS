@@ -46,7 +46,7 @@ function kpi({ label, value, format = f.money, foot, spark, sparkGood = true, he
 }
 
 const csvButton = (name, headers, rows) =>
-  h("button", { class: "chip-btn", type: "button", onclick: () => downloadCsv(name, headers, rows()) }, icon("download", 14), t("exportCsv"));
+  h("button", { class: "chip-btn export", type: "button", onclick: () => downloadCsv(name, headers, rows()) }, icon("download", 14), t("exportCsv"));
 
 /** A table whose columns can be sorted by tapping their heading. */
 function sortTable(ctx, id, columns, rows, defaultKey, defaultDesc = true) {
@@ -261,7 +261,7 @@ const analytics = {
         h("option", { value: "" }, `${t("pickMonth")}…`), months.map((m) => h("option", { value: m, selected: state.report === `month:${m}` }, f.month(m)))) : null,
       h("span", { class: "spacer" }),
       h("label", { class: "switch" }, h("input", { type: "checkbox", checked: state.compare, onchange: (e) => { state.compare = e.target.checked; ctx.rerender(); } }), t("compare")),
-      h("button", { class: "chip-btn", type: "button", onclick: () => window.print() }, icon("printer", 14), t("print")));
+      h("button", { class: "chip-btn export", type: "button", onclick: () => window.print() }, icon("printer", 14), t("print")));
 
     const title = state.report.startsWith("period:") ? t(`period_${state.report.slice(7)}`)
       : state.report.startsWith("month:") ? f.month(state.report.slice(6)) : f.day(state.report.slice(4), { year: true });
