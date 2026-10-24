@@ -125,9 +125,9 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
 {
     public async Task<SalesReport> GetSalesReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
-        var report = await BuildAsync(from, to, details: true, ct);
+        var report = await BuildAsync(from, to, ct);
         // Same length of time just before, for the "vs previous period" figures.
-        var previous = await BuildAsync(from - (to - from), from, details: false, ct);
+        var previous = await ComparisonAsync(from - (to - from), from, ct);
         return report with
         {
             PreviousTotalSales = previous.TotalSales,
@@ -136,7 +136,36 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
         };
     }
 
-    private async Task<SalesReport> BuildAsync(DateTime from, DateTime to, bool details, CancellationToken ct)
+    /// <summary>
+    /// Only the three figures the comparison shows, added up by SQL Server (worked out as in <see cref="BuildAsync"/>):
+    /// building a whole report for them doubled the time of long periods.
+    /// </summary>
+    private async Task<(decimal TotalSales, int Transactions, decimal GrossProfit)> ComparisonAsync(DateTime from, DateTime to, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var sales = await db.Sales.AsNoTracking()
+            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && s.Status == SaleStatus.Completed)
+            .GroupBy(_ => 1)
+            .Select(g => new { Count = g.Count(), Total = g.Sum(s => s.Total), Tax = g.Sum(s => s.TaxTotal) })
+            .FirstOrDefaultAsync(ct);
+        var cost = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed)
+            .SumAsync(l => (decimal?)(l.UnitCost * l.Quantity), ct) ?? 0m;
+        var returns = await db.Returns.AsNoTracking()
+            .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
+            .GroupBy(_ => 1)
+            .Select(g => new { Refunds = g.Sum(r => r.TotalRefund), Tax = g.Sum(r => r.TaxRefund) })
+            .FirstOrDefaultAsync(ct);
+        var returnedCost = await db.ReturnLines.AsNoTracking()
+            .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to && rl.Restocked)
+            .SumAsync(rl => (decimal?)(rl.Quantity * (rl.SaleLine != null ? rl.SaleLine.UnitCost : 0m)), ct) ?? 0m;
+
+        var total = sales?.Total ?? 0m;
+        var netRevenue = total - (sales?.Tax ?? 0m) - ((returns?.Refunds ?? 0m) - (returns?.Tax ?? 0m));
+        return (total, sales?.Count ?? 0, netRevenue - (cost - returnedCost));
+    }
+
+    private async Task<SalesReport> BuildAsync(DateTime from, DateTime to, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
 
@@ -153,14 +182,23 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             .ToListAsync(ct);
         var completed = sales.Where(s => s.Status == SaleStatus.Completed).ToList();
 
-        var lines = await db.SaleLines.AsNoTracking()
-            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed)
-            .Select(l => new
+        // A long period has tens of thousands of lines: SQL Server adds them up per product, category and size, and
+        // counts the items of each sale, instead of every line being downloaded.
+        var periodLines = db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed);
+        var lines = await periodLines
+            .GroupBy(l => new { l.ProductName, l.CategoryName, Size = l.ProductVariant != null ? l.ProductVariant.Size : null })
+            .Select(g => new
             {
-                l.SaleId, l.Quantity, l.LineTotal, l.TaxAmount, l.UnitCost, l.ProductName, l.CategoryName,
-                Size = l.ProductVariant != null ? l.ProductVariant.Size : null,
+                g.Key.ProductName, g.Key.CategoryName, g.Key.Size, Quantity = g.Sum(l => l.Quantity),
+                Net = g.Sum(l => l.LineTotal - l.TaxAmount), Cost = g.Sum(l => l.UnitCost * l.Quantity), FirstLine = g.Min(l => l.Id),
             })
             .ToListAsync(ct);
+        lines = lines.OrderBy(l => l.FirstLine).ToList(); // ties in the lists stay in the order things were first sold
+        var itemsBySale = await periodLines
+            .GroupBy(l => l.SaleId)
+            .Select(g => new { SaleId = g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToDictionaryAsync(x => x.SaleId, x => x.Quantity, ct);
 
         // SQL Server sums decimals exactly, so payment totals are grouped on the server.
         var payments = await db.Payments.AsNoTracking()
@@ -192,12 +230,11 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             })
             .ToListAsync(ct);
         var items = lines
-            .Select(l => new ItemFlow(l.ProductName, l.CategoryName, l.Size, l.Quantity, l.LineTotal - l.TaxAmount, l.UnitCost * l.Quantity))
+            .Select(l => new ItemFlow(l.ProductName, l.CategoryName, l.Size, l.Quantity, l.Net, l.Cost))
             .Concat(returnedItems.Select(r => new ItemFlow(r.ProductName, r.CategoryName, r.Size, -r.Quantity, -r.Net, -r.Cost)))
             .ToList();
 
-        var itemsBySale = lines.GroupBy(l => l.SaleId).ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
-        var extra = details ? await DetailsAsync(db, from, to, ct) : null;
+        var extra = await DetailsAsync(db, from, to, ct);
         var totalSales = completed.Sum(s => s.Total);
         var tax = completed.Sum(s => s.TaxTotal);
         var refunds = returns.Sum(r => r.TotalRefund);
@@ -219,7 +256,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             Refunds = refunds,
             RefundTax = refundTax,
             NetRevenue = totalSales - tax - (refunds - refundTax),
-            CostOfGoods = lines.Sum(l => l.UnitCost * l.Quantity) - returnedCost,
+            CostOfGoods = lines.Sum(l => l.Cost) - returnedCost,
 
             ByPaymentMethod = WithShares(payments
                 .Select(p => new NamedAmount(Loc.EnumText(p.Method), 0, p.Amount, p.Count))
@@ -276,11 +313,11 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
                 .Select(g => new NamedAmount(g.Key, 0, g.Sum(r => r.TotalRefund), g.Count()))
                 .OrderByDescending(x => x.Count).ToList(),
 
-            TopReturned = extra?.TopReturned ?? [],
-            RefundsByMethod = extra?.RefundsByMethod ?? [],
-            Settlements = extra?.Settlements ?? [],
-            CashMovements = extra?.CashMovements ?? [],
-            ShiftCloses = extra?.ShiftCloses ?? [],
+            TopReturned = extra.TopReturned,
+            RefundsByMethod = extra.RefundsByMethod,
+            Settlements = extra.Settlements,
+            CashMovements = extra.CashMovements,
+            ShiftCloses = extra.ShiftCloses,
         };
     }
 
@@ -288,7 +325,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
         IReadOnlyList<NamedAmount> TopReturned, IReadOnlyList<NamedAmount> RefundsByMethod, IReadOnlyList<SettlementRow> Settlements,
         IReadOnlyList<CashMovementRow> CashMovements, IReadOnlyList<ShiftCloseRow> ShiftCloses);
 
-    /// <summary>The parts only shown for the chosen period (not needed for the comparison).</summary>
+    /// <summary>Lists that come straight from the database: returns, refunds, settlements, cash in/out, drawer closes.</summary>
     private static async Task<Details> DetailsAsync(PosDbContext db, DateTime from, DateTime to, CancellationToken ct)
     {
         var returnedLines = await db.ReturnLines.AsNoTracking()

@@ -401,6 +401,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("SaleId");
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId"), new[] { "Method", "Amount" });
+
                     b.ToTable("Payments");
                 });
 
@@ -535,7 +537,7 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("IsActive", "ProductId");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive", "ProductId"), new[] { "Sku", "Color", "Size", "Barcode" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive", "ProductId"), new[] { "Sku", "Color", "Size", "Barcode", "StockQuantity", "ReorderLevel", "PriceOverride", "CostOverride" });
 
                     b.ToTable("ProductVariants");
                 });
@@ -841,11 +843,15 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("Courier");
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Courier"), new[] { "CreatedAt", "Status", "DeliverySettlementId" });
+
                     b.HasIndex("CreatedAt");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAt"), new[] { "Status", "Channel", "Total" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAt"), new[] { "Status", "Channel", "Total", "Subtotal", "DiscountTotal", "TaxTotal", "DeliveryFee", "UserId", "CustomerId" });
 
                     b.HasIndex("CustomerId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CustomerId"), new[] { "Status", "Total", "CreatedAt" });
 
                     b.HasIndex("DeliveryReference");
 
@@ -870,7 +876,8 @@ namespace ClothingStore.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CategoryName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(18, 2)
@@ -882,7 +889,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.Property<string>("ProductName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("ProductVariantId")
                         .HasColumnType("int");
@@ -899,7 +907,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.Property<string>("Sku")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<decimal>("TaxAmount")
                         .HasPrecision(18, 2)
@@ -915,7 +924,8 @@ namespace ClothingStore.Data.Migrations
 
                     b.Property<string>("VariantDescription")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
@@ -923,7 +933,7 @@ namespace ClothingStore.Data.Migrations
 
                     b.HasIndex("SaleId");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId"), new[] { "Quantity" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId"), new[] { "Quantity", "ReturnedQuantity", "ProductVariantId", "UnitPrice", "UnitCost", "LineTotal", "TaxAmount", "DiscountAmount", "ProductName", "CategoryName" });
 
                     b.ToTable("SaleLines");
                 });
@@ -1135,6 +1145,10 @@ namespace ClothingStore.Data.Migrations
                     b.HasIndex("ClosedByUserId");
 
                     b.HasIndex("CurrentUserId");
+
+                    b.HasIndex("OpenedAt");
+
+                    b.HasIndex("Status", "ClosedAt");
 
                     b.HasIndex("TillId", "Status");
 
