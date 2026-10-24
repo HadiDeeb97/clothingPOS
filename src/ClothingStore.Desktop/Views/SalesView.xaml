@@ -196,10 +196,10 @@
                                     <DataTemplate>
                                         <Border Background="{StaticResource HoverBrush}" CornerRadius="10" HorizontalAlignment="Center" Padding="2">
                                             <StackPanel Orientation="Horizontal">
-                                                <Button Content="−" Style="{StaticResource IconButton}" FontFamily="{StaticResource UiFont}" FontSize="16" Width="30" Height="30"
+                                                <Button Content="−" Style="{StaticResource IconButton}" FontFamily="{DynamicResource UiFont}" FontSize="16" Width="30" Height="30"
                                                         Command="{Binding DataContext.DecreaseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                                 <TextBlock Text="{Binding Quantity}" MinWidth="30" TextAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" />
-                                                <Button Content="+" Style="{StaticResource IconButton}" FontFamily="{StaticResource UiFont}" FontSize="16" Width="30" Height="30"
+                                                <Button Content="+" Style="{StaticResource IconButton}" FontFamily="{DynamicResource UiFont}" FontSize="16" Width="30" Height="30"
                                                         Command="{Binding DataContext.IncreaseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                             </StackPanel>
                                         </Border>

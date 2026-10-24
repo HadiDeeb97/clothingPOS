@@ -9,7 +9,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="True"
         Background="{StaticResource SidebarBrush}"
-        FontFamily="{StaticResource UiFont}"
+        FontFamily="{DynamicResource UiFont}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
     <Grid Margin="32">

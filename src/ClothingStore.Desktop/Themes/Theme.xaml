@@ -968,7 +968,9 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- Tooltips and menus open in windows of their own, so they take the font from here. -->
     <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Padding" Value="8,5" />
         <Setter Property="Background" Value="#1E293B" />
@@ -980,6 +982,7 @@
         <Setter Property="Margin" Value="0,10" />
     </Style>
     <Style TargetType="ContextMenu">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
         <Setter Property="FontSize" Value="13" />
     </Style>
 </ResourceDictionary>

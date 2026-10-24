@@ -404,6 +404,28 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         await Online.LoadAsync();
     }
 
+    // ---- Font of this PC ----
+
+    private List<FontChoice>? _fonts;
+
+    /// <summary>The app's own font, Windows' clearest fonts, then every installed font (each shown in itself).</summary>
+    public List<FontChoice> Fonts => _fonts ??= UiFont.Choices(Loc.T("Display.FontDefault"));
+
+    /// <summary>The chosen font; changing it changes every open screen at once.</summary>
+    public FontChoice? SelectedFont
+    {
+        get => Fonts.FirstOrDefault(f => f.Name == LocalPreferences.Current.UiFont) ?? Fonts[0];
+        set
+        {
+            if (value is null || value.Name == LocalPreferences.Current.UiFont) return;
+            UiFont.Set(value.Name);
+            OnPropertyChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void FontReset() => SelectedFont = Fonts[0];
+
     // ---- Text size of this PC ----
 
     private bool _watchingTextSize;
