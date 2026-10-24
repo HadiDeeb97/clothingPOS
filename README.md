@@ -83,6 +83,8 @@ Settings can also be overridden with environment variables, e.g. `ConnectionStri
 
 ### Several tills
 
+Step-by-step instructions (where to click, the exact commands, and a troubleshooting table) are in INSTALL.md, section 6. In short:
+
 1. Install SQL Server Express on one PC (the "server", which can also be a till). In SQL Server Configuration Manager, enable
    TCP/IP for the instance, start the SQL Server Browser service and allow SQL Server through Windows Firewall.
 2. In a shop without a Windows domain, Windows authentication doesn't work between PCs, so enable mixed-mode authentication

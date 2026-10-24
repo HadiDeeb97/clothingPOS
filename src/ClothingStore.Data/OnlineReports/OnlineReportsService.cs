@@ -64,6 +64,9 @@ public sealed record OnlineReportsState
     /// <summary>When the slower parts (other periods, stock) were last sent.</summary>
     public DateTime? FullUploadUtc { get; init; }
 
+    /// <summary>When the item list was last looked at.</summary>
+    public DateTime? CatalogUtc { get; init; }
+
     /// <summary>Finished days and months already on the website.</summary>
     public string? DaysThrough { get; init; }
     public string? MonthsThrough { get; init; }
@@ -119,6 +122,9 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
 
     public static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan FullInterval = TimeSpan.FromMinutes(30);
+
+    /// <summary>How often the item list is looked at (and sent when stock or items changed).</summary>
+    public static readonly TimeSpan CatalogInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan LeaseTime = TimeSpan.FromMinutes(12);
 
     /// <summary>The website's upload format (cloud/reports-worker, VERSION).</summary>
@@ -140,7 +146,7 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
     // This POS's own daily caps, far below Cloudflare's free plan (100,000 requests and 100,000 rows written a day): a
     // normal day is about 300 uploads and a few hundred documents. A bug or a stuck loop can never use up the free plan.
     public const int MaxUploadsPerDay = 400;
-    public const int MaxDocsPerDay = 3000;
+    public const int MaxDocsPerDay = 5000;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -282,6 +288,10 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
             // Yesterday again: a sale voided this morning still changes it.
             Add($"day:{Day(today.AddDays(-1))}", await builder.ReportAsync(today.AddDays(-1), today, ct));
         }
+        var catalog = force || state.CatalogUtc is not { } lastCatalog || DateTime.UtcNow - lastCatalog >= CatalogInterval;
+        if (catalog)
+            foreach (var part in await builder.CatalogAsync(today, ct))
+                Add($"catalog:{part.Part}", part);
 
         // Finished days and months not on the website yet (the first time: the last 90 days and 12 months).
         var budget = HistoryPerRun;
@@ -362,7 +372,7 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
         await SaveStateAsync(state with
         {
             LastUploadUtc = DateTime.UtcNow, Error = null, ErrorDetail = null, FailingSinceUtc = null, PausedUntilUtc = null, Till = tillName,
-            FullUploadUtc = full ? DateTime.UtcNow : state.FullUploadUtc, DaysThrough = daysThrough, MonthsThrough = monthsThrough, Sent = sent,
+            FullUploadUtc = full ? DateTime.UtcNow : state.FullUploadUtc, CatalogUtc = catalog ? DateTime.UtcNow : state.CatalogUtc, DaysThrough = daysThrough, MonthsThrough = monthsThrough, Sent = sent,
         }, ct);
         return new SyncResult(SyncOutcome.Sent, count);
     }

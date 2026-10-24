@@ -497,11 +497,125 @@ function daysLeftTag(r) {
   return h("span", { class: `tag ${r.daysLeft <= 7 ? "bad" : r.daysLeft <= 14 ? "warn" : "good"}` }, t("daysLeftN", f.number(r.daysLeft)));
 }
 
+/** Lower case, Arabic letter variants and marks folded, Arabic digits as Western: what a search compares. */
+function fold(text) {
+  return String(text ?? "").toLowerCase()
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي")
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+}
+
+/** The item list from its parts, with what a search needs, worked out once per list the shop sends. */
+let catalogCache = { key: null, products: [] };
+
+function catalog(ctx) {
+  const first = ctx.state.docs["catalog:0"];
+  if (!first) return null;
+  const parts = Array.from({ length: first.parts ?? 1 }, (_, i) => ctx.state.docs[`catalog:${i}`]);
+  if (parts.some((p) => !p)) return null;
+  const key = parts.map((p) => p.products?.length ?? 0).join(",") + ":" + ctx.state.version;
+  if (catalogCache.key === key && catalogCache.parts === parts[0]) return catalogCache.products;
+  const products = parts.flatMap((p) => p.products ?? []).map((p) => {
+    const variants = (p.v ?? []).map(([size, color, sku, barcode, stock, reorder, price, sold30]) =>
+      ({ size, color, sku, barcode, stock, reorder, price: price ?? p.p, sold30: sold30 ?? 0 }));
+    const total = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
+    return {
+      name: p.n, category: p.c, brand: p.b, style: p.s, price: p.p, variants, total,
+      text: fold([p.n, p.c, p.b, p.s, ...variants.flatMap((v) => [v.size, v.color, v.sku, v.barcode])].filter(Boolean).join(" ")),
+    };
+  });
+  catalogCache = { key, parts: parts[0], products };
+  return products;
+}
+
+const variantState = (v) => (v.stock <= 0 ? "out" : v.stock <= v.reorder ? "low" : "in");
+
+function productCard(ctx, p, codeMatch) {
+  const store = ctx.state.me.store ?? {};
+  const prices = [...new Set(p.variants.map((v) => v.price))];
+  const priceText = prices.length > 1 ? `${f.money(Math.min(...prices))} – ${f.money(Math.max(...prices))}` : f.money(prices[0] ?? p.price);
+  const lbpText = store.lbp && store.lbpRate ? `≈ ${f.lbp(Math.round(((prices[0] ?? p.price) * store.lbpRate) / 1000) * 1000)}` : null;
+  const status = p.total <= 0 ? "out" : p.variants.some((v) => variantState(v) !== "in") ? "low" : "in";
+  return h("article", { class: "item-card" },
+    h("div", { class: "item-head" },
+      h("div", { class: "item-title" },
+        h("strong", null, bdi(p.name)),
+        h("span", { class: "sub" }, [p.category, p.brand, p.style].filter(Boolean).map((x, i) => [i ? " · " : "", bdi(x)]))),
+      h("div", { class: "item-price" }, h("strong", { class: "num" }, priceText), lbpText ? h("span", { class: "sub num" }, lbpText) : null)),
+    h("div", { class: "item-total" },
+      h("span", { class: `tag ${status === "out" ? "bad" : status === "low" ? "warn" : "good"}` },
+        status === "out" ? t("outOfStock") : t("inStockN", f.number(p.total))),
+      h("span", { class: "muted" }, t("variantsN", f.number(p.variants.length)))),
+    h("div", { class: "chips-grid" }, p.variants.map((v) => {
+      const state = variantState(v);
+      const label = [v.size, v.color].filter(Boolean).join(" · ") || "–";
+      const match = codeMatch && (fold(v.sku) === codeMatch || fold(v.barcode) === codeMatch);
+      return h("div", {
+        class: `stock-chip ${state} ${match ? "match" : ""}`,
+        title: [`${t("skuLabel")}: ${v.sku}`, v.barcode ? `${t("barcodeLabel")}: ${v.barcode}` : null, t("soldN", f.number(v.sold30)), f.money(v.price)].filter(Boolean).join("\n"),
+      },
+        h("span", { class: "chip-label" }, bdi(label)),
+        h("strong", { class: "num" }, state === "out" ? t("outShort") : f.number(v.stock)),
+        h("span", { class: "chip-sub" }, v.sold30 ? t("soldShort", f.number(v.sold30)) : bdi(v.sku)));
+    })));
+}
+
+function stockItems(ctx) {
+  const products = catalog(ctx);
+  if (!products) return [ctx.emptyState("search", t("catalogMissing"), t("catalogMissingHint"))];
+  const ui = (ctx.state.ui.items ??= { q: "", filter: "all", shown: 30 });
+  const list = h("div", { class: "items" });
+  const summary = h("div", { class: "range-label" });
+  const draw = () => {
+    const words = fold(ui.q).split(/\s+/).filter(Boolean);
+    const code = words.length === 1 ? words[0] : null;
+    const matches = products.filter((p) => words.every((w) => p.text.includes(w)) &&
+      (ui.filter === "all" || p.variants.some((v) => variantState(v) === ui.filter || (ui.filter === "in" && v.stock > 0))));
+    // An exact SKU or barcode first.
+    if (code) matches.sort((a, b) => Number(b.variants.some((v) => fold(v.sku) === code || fold(v.barcode) === code)) - Number(a.variants.some((v) => fold(v.sku) === code || fold(v.barcode) === code)));
+    summary.textContent = t("itemsFound", f.number(matches.length), f.number(products.length));
+    const shown = matches.slice(0, ui.shown);
+    list.replaceChildren(
+      ...(shown.length ? shown.map((p) => productCard(ctx, p, code)) : [h("div", { class: "card empty" }, t("noItems"))]),
+      matches.length > shown.length ? h("button", { class: "tool more", type: "button", onclick: () => { ui.shown += 30; draw(); } }, t("showMore", f.number(matches.length - shown.length))) : null);
+  };
+  draw();
+  const search = h("input", { class: "input", id: "stock-search", type: "search", inputmode: "search", autocomplete: "off", placeholder: t("stockSearch"), value: ui.q,
+    oninput: (e) => { ui.q = e.target.value; ui.shown = 30; draw(); } });
+  const variants = products.reduce((n, p) => n + p.variants.length, 0);
+  const out = products.reduce((n, p) => n + p.variants.filter((v) => v.stock <= 0).length, 0);
+  const low = products.reduce((n, p) => n + p.variants.filter((v) => variantState(v) === "low").length, 0);
+  return [
+    h("div", { class: "toolbar" },
+      h("div", { class: "search" }, icon("search", 17), search),
+      h("div", { class: "segmented" }, ["all", "in", "low", "out"].map((k) =>
+        h("button", { type: "button", class: ui.filter === k ? "active" : null, onclick: () => { ui.filter = k; ui.shown = 30; ctx.rerender(); } }, t(`stockFilter_${k}`))))),
+    h("div", { class: "kpis k4" },
+      kpi({ label: t("productsLabel"), value: products.length, format: f.number, iconName: "tag" }),
+      kpi({ label: t("skus"), value: variants, format: f.number, iconName: "overview" }),
+      kpi({ label: t("lowStock"), value: low, format: f.number, iconName: "alert" }),
+      kpi({ label: t("outOfStock"), value: out, format: f.number, iconName: "stock" })),
+    summary,
+    list,
+  ];
+}
+
 const stock = {
-  keys: () => ["stock"],
+  keys: (ctx) => {
+    const parts = ctx.state.docs["catalog:0"]?.parts ?? 1;
+    return ["stock", ...Array.from({ length: Math.min(parts, 10) }, (_, i) => `catalog:${i}`)];
+  },
   render(ctx) {
+    const ui = (ctx.state.ui.stockView ??= { view: "items" });
+    const tabs = h("div", { class: "segmented" }, ["items", "summary"].map((k) =>
+      h("button", { type: "button", class: ui.view === k ? "active" : null, onclick: () => { ui.view = k; ctx.rerender(); } }, t(`stockView_${k}`))));
+    return { nodes: [tabs, ...(ui.view === "items" ? stockItems(ctx) : stockSummary(ctx))] };
+  },
+};
+
+function stockSummary(ctx) {
     const s = ctx.state.docs.stock;
-    if (!s) return { nodes: [ctx.emptyState("stock", t("noData"), t("noDataHint"))] };
+    if (!s) return [ctx.emptyState("stock", t("noData"), t("noDataHint"))];
     const nodes = [h("div", { class: "kpis" },
       kpi({ label: t("stockValue"), value: s.costValue, format: f.money0, hero: true, iconName: "stock" }),
       kpi({ label: t("retailValue"), value: s.retailValue, format: f.money0, iconName: "tag" }),
@@ -529,8 +643,7 @@ const stock = {
         { key: "last", label: t("lastSold"), end: true, value: (r) => (r.lastSold ? -f.daysAgo(r.lastSold) : -Infinity),
           render: (r) => (r.lastSold ? h("span", { class: "muted" }, t("daysAgoN", f.number(f.daysAgo(r.lastSold)))) : h("span", { class: "tag plain" }, t("never"))) },
       ], s.slowMovers, "value") : h("div", { class: "empty" }, t("nothing"))));
-    return { nodes };
-  },
-};
+    return nodes;
+}
 
 export const PAGES = { overview, analytics, sales, drawers, stock };

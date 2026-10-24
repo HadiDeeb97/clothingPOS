@@ -111,6 +111,22 @@ public sealed record StockDoc(
     IReadOnlyList<ReportRow> ByCategory, IReadOnlyList<LowStockDoc> LowStock, IReadOnlyList<SlowMoverDoc> SlowMovers);
 
 /// <summary>
+/// Every active item, for looking stock up from the website ("do we have the black abaya in 54?"). Compact, as it is
+/// the biggest thing the POS sends: one entry per product, its variants as rows of
+/// [size, colour, SKU, barcode, in stock, reorder level, own price or null, sold in the last 30 days].
+/// Split in parts so a big shop's list still fits; selling prices only, never costs.
+/// </summary>
+public sealed record CatalogDoc(int Part, int Parts, IReadOnlyList<CatalogProduct> Products);
+
+/// <param name="N">Name.</param>
+/// <param name="C">Category.</param>
+/// <param name="B">Brand.</param>
+/// <param name="S">Style code.</param>
+/// <param name="P">Price (a variant with its own price has it in its row).</param>
+/// <param name="V">Variants: see <see cref="CatalogDoc"/>.</param>
+public sealed record CatalogProduct(string N, string? C, string? B, string? S, decimal P, IReadOnlyList<object?[]> V);
+
+/// <summary>
 /// An account allowed to sign in (managers and admins). Never the password: the PBKDF2 salt the browser needs, and a
 /// SHA-256 of the stored PBKDF2 key that the website compares with what the browser works out.
 /// </summary>

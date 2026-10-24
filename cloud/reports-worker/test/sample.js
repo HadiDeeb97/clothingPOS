@@ -100,6 +100,43 @@ function period(from, to, now, scale = 1, seed = 1) {
   };
 }
 
+/** About 120 products in their sizes and colours, as the POS's item list (CatalogDoc). */
+export function sampleCatalog() {
+  const rnd = random(7);
+  const styles = [
+    ["Slim fit jeans", "Jeans", "Levi's", 45, ["28", "30", "32", "34", "36"], ["Blue", "Black"]],
+    ["Wide-leg jeans", "Jeans", "Zara", 49, ["S", "M", "L"], ["Light blue"]],
+    ["Mom jeans", "Jeans", "Mango", 42, ["S", "M", "L", "XL"], ["Blue"]],
+    ["Linen summer dress", "Dresses", "Mango", 60, ["S", "M", "L"], ["Sand", "White"]],
+    ["Floral midi dress", "Dresses", "Zara", 55, ["XS", "S", "M", "L"], ["Rose"]],
+    ["Satin evening dress", "Dresses", "", 120, ["S", "M", "L"], ["Emerald", "Black"]],
+    ["Essential cotton tee", "T-shirts", "Basics", 12, ["S", "M", "L", "XL"], ["White", "Black", "Grey"]],
+    ["Graphic tee", "T-shirts", "", 15, ["S", "M", "L"], ["Black"]],
+    ["Oxford shirt", "Shirts", "Massimo Dutti", 35, ["S", "M", "L", "XL"], ["Sky", "White"]],
+    ["Classic black abaya", "Abayas", "", 90, ["52", "54", "56", "58"], ["Black"]],
+    ["Embroidered abaya", "Abayas", "", 140, ["54", "56"], ["Navy"]],
+    ["Denim jacket", "Jackets", "Levi's", 75, ["S", "M", "L"], ["Blue"]],
+    ["Silk scarf", "Accessories", "", 18, [""], ["Rose", "Olive", "Ivory"]],
+    ["Leather belt", "Accessories", "", 22, ["90", "100", "110"], ["Brown", "Black"]],
+    ["جلابية مطرّزة", "Abayas", "", 65, ["M", "L"], ["أسود"]],
+  ];
+  const products = [];
+  for (let i = 0; i < 120; i++) {
+    const [name, category, brand, price, sizes, colors] = styles[i % styles.length];
+    const round = Math.floor(i / styles.length);
+    const v = [];
+    let n = 0;
+    for (const color of colors) for (const size of sizes) {
+      const stock = Math.max(0, Math.round(rnd() * 9) - (rnd() < 0.18 ? 9 : 0));
+      v.push([size, color, `${name.slice(0, 3).toUpperCase()}${round}-${size || "OS"}-${color.slice(0, 2).toUpperCase()}`,
+        `62${String(1000000000 + i * 97 + n++).slice(-10)}`, stock, 2, size === "XL" || size === "58" ? price + 5 : null, Math.round(rnd() * 12)]);
+    }
+    products.push({ n: round ? `${name} ${["II", "III", "IV", "V", "VI", "VII", "VIII", "IX"][round - 1]}` : name, c: category, b: brand || undefined, s: `ST-${100 + i}`, p: price, v });
+  }
+  products.sort((a, b) => a.n.localeCompare(b.n));
+  return { part: 0, parts: 1, products };
+}
+
 export function sampleDocs(now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days = (n) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
@@ -171,6 +208,7 @@ export function sampleDocs(now = new Date()) {
     "period:lastmonth": period(lastMonthStart, lastMonthEnd, now, 1, 16),
     "period:year": period(new Date(today.getFullYear(), 0, 1), today, now, 1, 17),
   };
+  docs["catalog:0"] = sampleCatalog();
   for (let i = 1; i <= 20; i++) docs[`day:${isoDate(days(-i))}`] = period(days(-i), days(-i), now, 1, 100 + i);
   for (let i = 1; i <= 3; i++) {
     const start = new Date(today.getFullYear(), today.getMonth() - i, 1);

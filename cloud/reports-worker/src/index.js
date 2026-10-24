@@ -30,8 +30,9 @@ const MAX_FAILURES = 5;
 const LOCK_MINUTES = 15;
 const COOKIE = "__Host-pos";
 
-// What the POS may send. Days are kept 13 months; months and the rest are replaced in place.
-const DOC_KEY = /^(store|live|stock|period:(today|yesterday|week|lastweek|month|lastmonth|year)|day:\d{4}-\d{2}-\d{2}|month:\d{4}-\d{2})$/;
+// What the POS may send. Days are kept 13 months; months and the rest are replaced in place. The item list (for the
+// stock search) comes in up to 10 parts.
+const DOC_KEY = /^(store|live|stock|catalog:\d|period:(today|yesterday|week|lastweek|month|lastmonth|year)|day:\d{4}-\d{2}-\d{2}|month:\d{4}-\d{2})$/;
 const MAX_DOCS_PER_UPLOAD = 30; // D1's free plan allows 50 queries per request
 const MAX_DOC_LENGTH = 1_500_000;
 const MAX_UPLOAD_LENGTH = 8_000_000;
