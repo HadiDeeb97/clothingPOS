@@ -322,6 +322,8 @@ async function show() {
   }
   try {
     await loadDocs(keys);
+    // A page can need more once the first documents are in (the item list says how many parts it has).
+    await loadDocs(page.keys(ctx));
   } catch (err) {
     if (err instanceof SignedOut) return showLogin();
     renderShell({});

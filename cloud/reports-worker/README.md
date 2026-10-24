@@ -26,7 +26,7 @@ website's source code. The POS carries a copy and publishes it.
   - **Analytics:** any period, day or month, with a comparison line, profit and margin, a busiest-times heatmap, payments, channels, categories, top products with trends, cashiers, customers, sizes, returns, delivery companies and drawer closes. CSV export and Print/PDF.
   - **Sales:** the last 50 sales with search, filters and each sale's items.
   - **Drawers:** each till's open drawer and the over/short history.
-  - **Stock:** value, low stock with "days left" at the current pace, slow movers.
+  - **Stock:** search every item by name, code, SKU or barcode (Arabic too) and see each size and colour's stock (in, low or out), price and sales this month. A summary tab has the stock value, low stock with "days left" at the current pace, and slow movers.
 
   All pages are in English or Arabic, in light or dark, on a phone or a computer. The site installs to the home screen and shows the last numbers offline.
 
@@ -49,6 +49,7 @@ website's source code. The POS carries a copy and publishes it.
 | `day:YYYY-MM-DD` | A finished day's report (kept 13 months) |
 | `month:YYYY-MM` | A finished month's report (kept) |
 | `stock` | Stock value, low stock, slow movers |
+| `catalog:0` … `catalog:9` | Every active item with its sizes and colours: SKU, barcode, stock, reorder level, price and sold in the last 30 days (no costs). Up to 4,000 variants per part; looked at every 10 minutes and sent only when something changed |
 
 The exact shapes are in `test/sample.js`, and the POS builds them in `OnlineReportsBuilder.cs`.
 
@@ -104,7 +105,7 @@ The site and the POS are built to stay far below the limits:
 | 5 GB stored | About 25 MB | Days are kept 13 months |
 
 **Safety nets:**
-- **The POS's own caps:** it stops itself at 400 uploads or 3,000 documents a day.
+- **The POS's own caps:** it stops itself at 400 uploads or 5,000 documents a day.
 - **Pause on a limit:** if Cloudflare ever answers "limit reached" (429 or error 1027), the POS pauses until midnight UTC and Settings says so.
 - **Public pages are limited per visitor:** sign-in and the shop name allow 30 requests a minute per visitor, so a bot can't use up the day's requests.
 

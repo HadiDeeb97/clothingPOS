@@ -274,6 +274,69 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
             alerts.SlowMovers.Take(StockRows).Select(a => new SlowMoverDoc(a.Product, a.Variant, a.Stock, a.CostValue, a.LastSold)).ToList());
     }
 
+    /// <summary>Variants per part of the item list (about 100 bytes each, far below D1's 2 MB per row).</summary>
+    public const int CatalogPartSize = 4000;
+
+    /// <summary>Parts at most (40,000 variants), as many as the website reads in one request.</summary>
+    public const int CatalogMaxParts = 10;
+
+    /// <summary>
+    /// Every active item with its stock, for the website's stock search: products A–Z, each with its sizes and colours.
+    /// Two queries; the 30-day sales use the sales date index.
+    /// </summary>
+    public async Task<List<CatalogDoc>> CatalogAsync(DateTime today, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var variants = await db.ProductVariants.AsNoTracking()
+            .Where(v => v.IsActive && v.Product!.IsActive)
+            .Select(v => new
+            {
+                v.Id, v.ProductId, Product = v.Product!.Name, Category = v.Product.Category != null ? v.Product.Category.Name : null,
+                v.Product.Brand, v.Product.StyleCode, ProductPrice = v.Product.Price,
+                v.Size, v.Color, v.Sku, v.Barcode, v.StockQuantity, v.ReorderLevel, v.PriceOverride,
+            })
+            .ToListAsync(ct);
+        var since = today.Date.AddDays(-30);
+        var sold = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.Status == SaleStatus.Completed && l.Sale.CreatedAt >= since)
+            .GroupBy(l => l.ProductVariantId)
+            .Select(g => new { Id = g.Key, Qty = g.Sum(l => l.Quantity - l.ReturnedQuantity) })
+            .ToDictionaryAsync(x => x.Id, x => x.Qty, ct);
+
+        var products = variants
+            .GroupBy(v => v.ProductId)
+            .Select(g =>
+            {
+                var first = g.First();
+                return new CatalogProduct(first.Product, first.Category, Blank(first.Brand), Blank(first.StyleCode), first.ProductPrice,
+                    g.OrderBy(v => v.Color).ThenBy(v => v.Id).Select(v => new object?[]
+                    {
+                        v.Size, v.Color, v.Sku, Blank(v.Barcode), v.StockQuantity, v.ReorderLevel,
+                        v.PriceOverride is { } own && own != first.ProductPrice ? own : null, sold.GetValueOrDefault(v.Id),
+                    }).ToList());
+            })
+            .OrderBy(p => p.N, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        // Whole products per part, up to the part size.
+        var parts = new List<List<CatalogProduct>> { new() };
+        var count = 0;
+        foreach (var product in products)
+        {
+            if (count > 0 && count + product.V.Count > CatalogPartSize)
+            {
+                if (parts.Count == CatalogMaxParts) break;
+                parts.Add([]);
+                count = 0;
+            }
+            parts[^1].Add(product);
+            count += product.V.Count;
+        }
+        return parts.Select((list, i) => new CatalogDoc(i, parts.Count, list)).ToList();
+    }
+
+    private static string? Blank(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
     /// <summary>
     /// The accounts allowed to sign in: active managers and admins whose password is their own (not one still to be
     /// changed at first sign-in).

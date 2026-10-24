@@ -15,7 +15,7 @@ public class OnlineReportsTests
     private const string Site = "https://pos-reports.example.workers.dev";
 
     /// <summary>The keys the website accepts (cloud/reports-worker/src/index.js, DOC_KEY).</summary>
-    private static readonly Regex DocKey = new(@"^(store|live|stock|period:(today|yesterday|week|lastweek|month|lastmonth|year)|day:\d{4}-\d{2}-\d{2}|month:\d{4}-\d{2})$");
+    private static readonly Regex DocKey = new(@"^(store|live|stock|catalog:\d|period:(today|yesterday|week|lastweek|month|lastmonth|year)|day:\d{4}-\d{2}-\d{2}|month:\d{4}-\d{2})$");
 
     /// <summary>Stands in for the website: records each upload and answers as told.</summary>
     private sealed class FakeSite : HttpMessageHandler
@@ -160,6 +160,74 @@ public class OnlineReportsTests
         Assert.Equal((int)Math.Floor(low.Stock / (3 / 30m)), low.DaysLeft);
     }
 
+    [Fact]
+    public async Task The_item_list_has_every_size_with_its_stock_and_price_but_no_cost()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync(price: 20m, cost: 8.75m);
+        var gone = await db.CreateTeeAsync();
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+        {
+            await ctx.ProductVariants.Where(v => v.Id == tee.Variants[1].Id).ExecuteUpdateAsync(u => u.SetProperty(v => v.PriceOverride, 25m).SetProperty(v => v.Barcode, "6221234567890"));
+            await ctx.Products.Where(p => p.Id == gone.Id).ExecuteUpdateAsync(u => u.SetProperty(p => p.Name, "Old Tee").SetProperty(p => p.IsActive, false));
+        }
+        var shift = await db.OpenShiftAsync();
+        await SellAsync(db, shift, tee);
+        var (_, builder, _) = Create(db);
+
+        var part = Assert.Single(await builder.CatalogAsync(DateTime.Today));
+
+        Assert.Equal((0, 1), (part.Part, part.Parts));
+        var product = Assert.Single(part.Products); // the switched-off product is left out
+        Assert.Equal(("Basic Tee", 20m), (product.N, product.P));
+        Assert.StartsWith("Tees ", product.C);
+        Assert.Equal(["S", "M", "L"], product.V.Select(v => (string)v[0]!));
+        var (s, m) = (product.V[0], product.V[1]);
+        Assert.Equal(("Black", 9, 1), ((string)s[1]!, (int)s[4]!, (int)s[7]!)); // one sold this month
+        Assert.False(string.IsNullOrEmpty((string?)s[2])); // the SKU
+        Assert.Null(s[6]);
+        Assert.Equal(("6221234567890", 10, 25m, 0), ((string)m[3]!, (int)m[4]!, (decimal)m[6]!, (int)m[7]!));
+        Assert.DoesNotContain("8.75", JsonSerializer.Serialize(part, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+    }
+
+    [Fact]
+    public async Task The_item_list_goes_up_every_ten_minutes_and_only_when_it_changed()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync();
+        var shift = await db.OpenShiftAsync();
+        var (service, _, site) = Create(db);
+        await SetUpAsync(service);
+        await service.SyncAsync("till-1", "Till 1");
+        Assert.Contains("catalog:0", site.AllDocKeys);
+
+        // A sale: the item list waits for its ten minutes.
+        await SellAsync(db, shift, tee);
+        site.Uploads.Clear();
+        await service.SyncAsync("till-1", "Till 1");
+        Assert.DoesNotContain("catalog:0", site.AllDocKeys);
+
+        // Ten minutes on: it goes up with the new stock.
+        await AgeCatalogAsync(db);
+        site.Uploads.Clear();
+        await service.SyncAsync("till-1", "Till 1");
+        Assert.Contains("catalog:0", site.AllDocKeys);
+
+        // Ten more minutes with nothing changed: not sent again.
+        await AgeCatalogAsync(db);
+        site.Uploads.Clear();
+        await service.SyncAsync("till-1", "Till 1");
+        Assert.DoesNotContain("catalog:0", site.AllDocKeys);
+    }
+
+    private static async Task AgeCatalogAsync(TestDatabase db)
+    {
+        await using var ctx = await db.Factory.CreateDbContextAsync();
+        var row = await ctx.AppState.SingleAsync(x => x.Key == OnlineReportsService.StateKey);
+        row.Value = Regex.Replace(row.Value, "\"catalogUtc\":\"[^\"]+\"", "\"catalogUtc\":\"2020-01-01T00:00:00Z\"");
+        await ctx.SaveChangesAsync();
+    }
+
     [Theory]
     [InlineData("today", "2026-10-22", "2026-10-23")]
     [InlineData("yesterday", "2026-10-21", "2026-10-22")]
@@ -232,6 +300,7 @@ public class OnlineReportsTests
         Assert.Contains("store", keys);
         Assert.Contains("live", keys);
         Assert.Contains("stock", keys);
+        Assert.Contains("catalog:0", keys);
         Assert.All(OnlineReportsBuilder.Periods, p => Assert.Contains($"period:{p}", keys));
         Assert.Contains(keys, k => k.StartsWith("day:"));
         // The accounts and the clean-up of old days go with the first batch.

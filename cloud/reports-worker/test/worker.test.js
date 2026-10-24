@@ -118,6 +118,16 @@ test("signs in with the POS username and password, and reads the reports", async
   assert.equal((await get("/api/docs?keys=users", cookie)).status, 400);
 });
 
+test("the item list is stored in parts and read back", async () => {
+  const part = (i) => ({ part: i, parts: 2, products: [{ n: `Tee ${i}`, c: "Tees", b: null, s: null, p: 20, v: [["S", "Black", `T${i}-S`, null, 4, 2, null, 1]] }] });
+  await upload({ docs: { "catalog:0": part(0), "catalog:1": part(1) }, users: [account("owner", "secret-pass")] });
+  assert.equal((await upload({ docs: { "catalog:10": part(10) } })).status, 400, "ten parts at most");
+  const { cookie } = await signIn("owner", "secret-pass");
+  const docs = await (await get("/api/docs?keys=catalog:0,catalog:1", cookie)).json();
+  assert.equal(docs.docs["catalog:1"].body.products[0].v[0][2], "T1-S");
+  assert.equal(docs.docs["catalog:0"].body.parts, 2);
+});
+
 test("an unknown username gets a made-up salt that never changes, so names can't be guessed", async () => {
   const a = await (await call("/api/salt?u=nobody")).json();
   const b = await (await call("/api/salt?u=nobody")).json();
