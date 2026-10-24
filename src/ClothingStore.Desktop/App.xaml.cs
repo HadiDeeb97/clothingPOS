@@ -36,6 +36,7 @@ public partial class App : Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         HorizontalScrolling.Enable(); // touchpad swipes and Shift + wheel scroll tables sideways
         Loc.SetLanguage(LocalPreferences.Current.Language);
+        UiFont.Apply(); // this PC's font, before the first window
         _splash = new SplashWindow();
         _splash.Show();
 
