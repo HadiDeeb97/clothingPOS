@@ -16,7 +16,7 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
     private const int TopProducts = 20;
     private const int TableRows = 50;
     private const int StockRows = 200;
-    private const int RecentSales = 20;
+    private const int RecentSales = 50;
     private const int RecentCloses = 20;
 
     /// <summary>The standard periods, as on the Reports page's quick buttons (weeks start on Monday).</summary>
@@ -53,6 +53,10 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
     public async Task<ReportDoc> ReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
         var r = await reports.GetSalesReportAsync(from, to, ct);
+        var previousFrom = from - (to - from);
+        var oneDay = to - from == TimeSpan.FromDays(1);
+        var products = Rows(r.TopProducts.Take(TopProducts));
+        var before = await ProductSalesAsync(previousFrom, from, products.Select(p => p.Name).ToList(), ct);
         return new ReportDoc
         {
             From = Day(from),
@@ -61,11 +65,17 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
                 r.TotalSales, r.GrossSales, r.Discounts, r.Tax, r.NetRevenue, r.CostOfGoods, r.GrossProfit, r.MarginPercent,
                 r.Transactions, r.ItemsSold, r.AverageBasket, r.Refunds, r.ReturnsCount, r.VoidedCount, r.DeliveryFees),
             Change = new ReportChange(r.SalesChangePercent, r.TransactionsChangePercent, r.ProfitChangePercent),
-            ByDay = r.ByDay.Select(d => new DayPoint(Day(d.Date), d.Transactions, d.Total)).ToList(),
+            ByDay = await DailyAsync(from, to, ct),
             ByHour = r.ByHour.Select(h => new HourPoint(h.Hour, h.Transactions, h.Total)).ToList(),
+            PreviousByDay = oneDay ? [] : await DailyAsync(previousFrom, from, ct),
+            PreviousByHour = oneDay ? await HourlyAsync(from.AddDays(-7), from.AddDays(-6), ct) : [],
+            Heatmap = oneDay ? [] : await HeatmapAsync(from, to, ct),
+            Customers = await CustomersAsync(from, to, ct),
             Payments = Rows(r.ByPaymentMethod),
             Categories = Rows(r.ByCategory),
-            Products = Rows(r.TopProducts.Take(TopProducts)),
+            Products = products.Select(p => before.TryGetValue(p.Name, out var b)
+                ? p with { PreviousQty = b.Qty, PreviousAmount = b.Amount }
+                : p with { PreviousQty = 0, PreviousAmount = 0 }).ToList(),
             Cashiers = Rows(r.ByCashier),
             Sizes = Rows(r.BySize),
             Channels = Rows(r.ByChannel),
@@ -77,6 +87,103 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
             DrawerCloses = r.ShiftCloses.Take(TableRows)
                 .Select(c => new DrawerCloseDoc(c.ClosedAt, c.Cashier, null, c.Expected, c.Counted, c.ExpectedLbp, c.CountedLbp)).ToList(),
         };
+    }
+
+    /// <summary>
+    /// Each day's sales and profit, worked out as the Reports page does for a period (net sales minus refunds, minus the
+    /// cost of what was sold, plus the cost of what came back to the shelf), so the days add up to the period's profit.
+    /// A day with only returns shows too. Grouped in the database: a year is 365 small rows.
+    /// </summary>
+    public async Task<List<DayPoint>> DailyAsync(DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var sales = await db.Sales.AsNoTracking()
+            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && s.Status == SaleStatus.Completed)
+            .GroupBy(s => s.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count(), Total = g.Sum(s => s.Total), Net = g.Sum(s => s.Total - s.TaxTotal) })
+            .ToDictionaryAsync(x => x.Date, ct);
+        var cost = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed)
+            .GroupBy(l => l.Sale!.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Cost = g.Sum(l => l.UnitCost * l.Quantity) })
+            .ToDictionaryAsync(x => x.Date, x => x.Cost, ct);
+        var refunds = await db.Returns.AsNoTracking()
+            .Where(r => r.CreatedAt >= from && r.CreatedAt < to)
+            .GroupBy(r => r.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Net = g.Sum(r => r.TotalRefund - r.TaxRefund) })
+            .ToDictionaryAsync(x => x.Date, x => x.Net, ct);
+        var restocked = await db.ReturnLines.AsNoTracking()
+            .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to && rl.Restocked)
+            .GroupBy(rl => rl.SaleReturn!.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Cost = g.Sum(rl => rl.Quantity * (rl.SaleLine != null ? rl.SaleLine.UnitCost : 0m)) })
+            .ToDictionaryAsync(x => x.Date, x => x.Cost, ct);
+
+        return sales.Keys.Union(refunds.Keys).Order().Select(date =>
+        {
+            var sale = sales.GetValueOrDefault(date);
+            var profit = (sale?.Net ?? 0) - refunds.GetValueOrDefault(date) - cost.GetValueOrDefault(date) + restocked.GetValueOrDefault(date);
+            return new DayPoint(Day(date), sale?.Count ?? 0, sale?.Total ?? 0, profit);
+        }).ToList();
+    }
+
+    private async Task<List<HourPoint>> HourlyAsync(DateTime from, DateTime to, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var hours = await db.Sales.AsNoTracking()
+            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && s.Status == SaleStatus.Completed)
+            .GroupBy(s => s.CreatedAt.Hour)
+            .Select(g => new { Hour = g.Key, Count = g.Count(), Total = g.Sum(s => s.Total) })
+            .ToListAsync(ct);
+        return hours.OrderBy(h => h.Hour).Select(h => new HourPoint(h.Hour, h.Count, h.Total)).ToList();
+    }
+
+    /// <summary>Sales by weekday (Monday first) and hour over the period.</summary>
+    private async Task<List<HeatCell>> HeatmapAsync(DateTime from, DateTime to, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var cells = await db.Sales.AsNoTracking()
+            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && s.Status == SaleStatus.Completed)
+            .GroupBy(s => new { s.CreatedAt.Date, s.CreatedAt.Hour })
+            .Select(g => new { g.Key.Date, g.Key.Hour, Count = g.Count(), Total = g.Sum(s => s.Total) })
+            .ToListAsync(ct);
+        return cells
+            .GroupBy(c => (Weekday: ((int)c.Date.DayOfWeek + 6) % 7, c.Hour))
+            .Select(g => new HeatCell(g.Key.Weekday, g.Key.Hour, g.Sum(c => c.Count), g.Sum(c => c.Total)))
+            .OrderBy(c => c.Weekday).ThenBy(c => c.Hour)
+            .ToList();
+    }
+
+    /// <summary>Units and net amount per product over a period (returns taken off), for the given products only.</summary>
+    private async Task<Dictionary<string, (int Qty, decimal Amount)>> ProductSalesAsync(DateTime from, DateTime to, List<string> names, CancellationToken ct)
+    {
+        if (names.Count == 0) return [];
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var sold = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.CreatedAt >= from && l.Sale.CreatedAt < to && l.Sale.Status == SaleStatus.Completed && names.Contains(l.ProductName))
+            .GroupBy(l => l.ProductName)
+            .Select(g => new { Name = g.Key, Qty = g.Sum(l => l.Quantity), Amount = g.Sum(l => l.LineTotal - l.TaxAmount) })
+            .ToListAsync(ct);
+        var returned = await db.ReturnLines.AsNoTracking()
+            .Where(rl => rl.SaleReturn!.CreatedAt >= from && rl.SaleReturn.CreatedAt < to && rl.SaleLine != null && names.Contains(rl.SaleLine.ProductName))
+            .GroupBy(rl => rl.SaleLine!.ProductName)
+            .Select(g => new { Name = g.Key, Qty = g.Sum(rl => rl.Quantity), Amount = g.Sum(rl => rl.RefundAmount - rl.TaxAmount) })
+            .ToDictionaryAsync(x => x.Name, ct);
+        return sold.ToDictionary(
+            x => x.Name,
+            x => (x.Qty - (returned.GetValueOrDefault(x.Name)?.Qty ?? 0), x.Amount - (returned.GetValueOrDefault(x.Name)?.Amount ?? 0)));
+    }
+
+    /// <summary>How many sales had a customer, how many customers, and how many of them had bought before the period.</summary>
+    private async Task<CustomerCounts> CustomersAsync(DateTime from, DateTime to, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var inPeriod = db.Sales.AsNoTracking()
+            .Where(s => s.CreatedAt >= from && s.CreatedAt < to && s.Status == SaleStatus.Completed && s.CustomerId != null);
+        var sales = await inPeriod.CountAsync(ct);
+        var customers = await inPeriod.Select(s => s.CustomerId).Distinct().CountAsync(ct);
+        var returning = await inPeriod.Select(s => s.CustomerId).Distinct()
+            .CountAsync(id => db.Sales.Any(e => e.CustomerId == id && e.Status == SaleStatus.Completed && e.CreatedAt < from), ct);
+        return new CustomerCounts(sales, customers, returning);
     }
 
     public Task<ReportDoc> PeriodAsync(string period, DateTime today, CancellationToken ct = default)
@@ -92,7 +199,10 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
         {
             var summary = await shifts.GetSummaryAsync(shift.Id, ct);
             var cashier = shift.CurrentUser?.FullName ?? shift.User?.FullName ?? summary.Cashier;
-            drawers.Add(new OpenDrawerDoc(shift.TillName, cashier, shift.OpenedAt, summary.SalesCount, summary.ExpectedCash, summary.ExpectedCashLbp));
+            drawers.Add(new OpenDrawerDoc(shift.TillName, cashier, shift.OpenedAt, summary.SalesCount, summary.ExpectedCash, summary.ExpectedCashLbp)
+            {
+                TotalSales = summary.TotalSales,
+            });
         }
 
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -100,10 +210,17 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
             .OrderByDescending(s => s.CreatedAt).Take(RecentSales)
             .Select(s => new
             {
-                s.ReceiptNumber, s.CreatedAt, Cashier = s.User != null ? s.User.FullName : null, s.Total, s.Status, s.Channel,
+                s.Id, s.ReceiptNumber, s.CreatedAt, Cashier = s.User != null ? s.User.FullName : null, s.Total, s.Status, s.Channel,
                 Items = s.Lines.Sum(l => (int?)l.Quantity) ?? 0,
             })
             .ToListAsync(ct);
+        var ids = sales.Select(s => s.Id).ToList();
+        var lines = (await db.SaleLines.AsNoTracking()
+                .Where(l => ids.Contains(l.SaleId))
+                .OrderBy(l => l.Id)
+                .Select(l => new { l.SaleId, l.ProductName, l.VariantDescription, l.Quantity, l.LineTotal })
+                .ToListAsync(ct))
+            .ToLookup(l => l.SaleId, l => new SaleLineDoc(l.ProductName, l.VariantDescription, l.Quantity, l.LineTotal));
 
         var closes = await db.Shifts.AsNoTracking()
             .Where(s => s.Status == ShiftStatus.Closed && s.ClosedAt != null)
@@ -116,23 +233,44 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
         var low = await active.CountAsync(v => v.StockQuantity <= v.ReorderLevel, ct);
         var outOfStock = await active.CountAsync(v => v.StockQuantity <= 0, ct);
 
+        var today = DateTime.Today;
         return new LiveDoc(
             drawers,
             sales.Select(s => new RecentSaleDoc(
                 s.ReceiptNumber, s.CreatedAt, s.Cashier, s.Total, s.Items, s.Status == SaleStatus.Voided ? "voided" : "completed",
-                s.Channel == SalesChannel.InStore ? null : Loc.EnumText(s.Channel))).ToList(),
-            closes, low, outOfStock);
+                s.Channel == SalesChannel.InStore ? null : Loc.EnumText(s.Channel)) { Lines = lines[s.Id].ToList() }).ToList(),
+            closes, low, outOfStock)
+        {
+            Trend14 = await DailyAsync(today.AddDays(-13), today.AddDays(1), ct),
+        };
     }
 
     public async Task<StockDoc> StockAsync(DateTime today, CancellationToken ct = default)
     {
         var valuation = await reports.GetInventoryValuationAsync(ct);
         var alerts = await reports.GetStockAlertsAsync(today.Date.AddDays(-SlowSinceDays), today.Date.AddDays(1), ct);
+        var skus = alerts.LowStock.Take(StockRows).Select(a => a.Sku).ToList();
+        var since = today.Date.AddDays(-30);
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var sold30 = await db.SaleLines.AsNoTracking()
+            .Where(l => l.Sale!.Status == SaleStatus.Completed && l.Sale.CreatedAt >= since && skus.Contains(l.Sku))
+            .GroupBy(l => l.Sku)
+            .Select(g => new { Sku = g.Key, Qty = g.Sum(l => l.Quantity - l.ReturnedQuantity) })
+            .ToDictionaryAsync(x => x.Sku, x => x.Qty, ct);
         return new StockDoc(
             valuation.Skus, valuation.Units, valuation.CostValue, valuation.RetailValue,
             alerts.LowStock.Count, valuation.OutOfStockCount, SlowSinceDays,
             Rows(valuation.ByCategoryCost.Take(TableRows)),
-            alerts.LowStock.Take(StockRows).Select(a => new LowStockDoc(a.Product, a.Variant, a.Sku, a.Stock, a.ReorderLevel)).ToList(),
+            alerts.LowStock.Take(StockRows).Select(a =>
+            {
+                var sold = sold30.GetValueOrDefault(a.Sku);
+                return new LowStockDoc(a.Product, a.Variant, a.Sku, a.Stock, a.ReorderLevel)
+                {
+                    Sold30 = sold,
+                    // At the last 30 days' pace; nothing when it hasn't sold (it isn't running out).
+                    DaysLeft = a.Stock <= 0 ? 0 : sold > 0 ? (int)Math.Floor(a.Stock / (sold / 30m)) : null,
+                };
+            }).ToList(),
             alerts.SlowMovers.Take(StockRows).Select(a => new SlowMoverDoc(a.Product, a.Variant, a.Stock, a.CostValue, a.LastSold)).ToList());
     }
 

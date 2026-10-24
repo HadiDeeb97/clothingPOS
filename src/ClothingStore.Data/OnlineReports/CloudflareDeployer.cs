@@ -143,13 +143,21 @@ public class CloudflareDeployer(HttpClient http)
         foreach (var (name, content) in WorkerFiles)
         {
             var part = new ByteArrayContent(content);
-            // The code is ES modules; the pages are imported as text.
-            part.Headers.ContentType = new MediaTypeHeaderValue(name.StartsWith("ui/") ? "text/plain" : "application/javascript+module");
+            part.Headers.ContentType = new MediaTypeHeaderValue(ModuleType(name));
             form.Add(Part(part, name, name));
         }
         using var request = new HttpRequestMessage(HttpMethod.Put, $"{ApiBase}/accounts/{account}/workers/scripts/{ScriptName}") { Content = form };
         await SendAsync(token, request, "upload", ct);
     }
+
+    /// <summary>
+    /// How Cloudflare is to load each file, as wrangler.toml says: the server code as ES modules, the pages as text, the
+    /// fonts as raw bytes.
+    /// </summary>
+    public static string ModuleType(string name) =>
+        name.EndsWith(".woff2", StringComparison.Ordinal) ? "application/octet-stream"
+        : name.StartsWith("ui/", StringComparison.Ordinal) ? "text/plain"
+        : "application/javascript+module";
 
     /// <summary>
     /// A form part with its name in quotes, as browsers and wrangler send it (.NET leaves "ui/app.js" unquoted, and a
@@ -215,7 +223,11 @@ public class CloudflareDeployer(HttpClient http)
     {
         var assembly = typeof(CloudflareDeployer).Assembly;
         var files = new List<(string, byte[])>();
-        foreach (var resource in assembly.GetManifestResourceNames().Where(n => n.StartsWith(ResourcePrefix)).Order(StringComparer.Ordinal))
+        // Only what the website loads (not, say, the fonts' licence texts kept beside them).
+        string[] served = [".js", ".html", ".css", ".svg", ".webmanifest", ".woff2"];
+        foreach (var resource in assembly.GetManifestResourceNames()
+                     .Where(n => n.StartsWith(ResourcePrefix) && served.Any(ext => n.EndsWith(ext, StringComparison.Ordinal)))
+                     .Order(StringComparer.Ordinal))
         {
             using var stream = assembly.GetManifestResourceStream(resource)!;
             using var copy = new MemoryStream();
@@ -233,7 +245,8 @@ public class CloudflareDeployer(HttpClient http)
         {
             sha.AppendData(Encoding.UTF8.GetBytes(name));
             // Line endings differ between a Windows and a Linux checkout; the website is the same.
-            sha.AppendData(Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(content).Replace("\r\n", "\n")));
+            if (name.EndsWith(".woff2", StringComparison.Ordinal)) sha.AppendData(content);
+            else sha.AppendData(Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(content).Replace("\r\n", "\n")));
         }
         return Convert.ToHexString(sha.GetHashAndReset())[..12].ToLowerInvariant();
     }

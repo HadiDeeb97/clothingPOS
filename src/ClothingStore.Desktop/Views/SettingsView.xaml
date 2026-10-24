@@ -310,6 +310,18 @@
                                 <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,14,0,0">
                                     <TextBlock Text="{l:T Online.Enabled}" TextWrapping="Wrap" FontWeight="SemiBold" />
                                 </CheckBox>
+                                <TextBlock Text="{l:T Online.Target}" Style="{StaticResource Label}" Margin="0,14,0,5" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding MonthlyTargetText, UpdateSourceTrigger=PropertyChanged}" MinWidth="140" />
+                                    <Button Content="{l:T Online.TargetSave}" Command="{Binding SaveTargetCommand}" Margin="8,0,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="{l:T Online.TargetHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,16,0" />
+                                <TextBlock Text="{l:T Online.Google}" Style="{StaticResource Label}" Margin="0,12,0,5" />
+                                <DockPanel Margin="0,0,16,0">
+                                    <Button DockPanel.Dock="Right" Content="{l:T Online.TargetSave}" Command="{Binding SaveTargetCommand}" Margin="8,0,0,0" />
+                                    <TextBox Text="{Binding GoogleCodeText, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" />
+                                </DockPanel>
+                                <TextBlock Text="{l:T Online.GoogleHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,16,0" />
                                 <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,10,16,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">

@@ -6,6 +6,7 @@ using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Data.OnlineReports;
 using ClothingStore.Data.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClothingStore.Tests;
 
@@ -85,6 +86,78 @@ public class OnlineReportsTests
         Assert.Equal((2, 100m + 44m), (drawer.Sales, drawer.ExpectedCash));
         Assert.Equal(2, live.RecentSales.Count);
         Assert.Equal(("completed", 1, 22m), (live.RecentSales[0].Status, live.RecentSales[0].Items, live.RecentSales[0].Total));
+    }
+
+    [Fact]
+    public async Task Charts_and_trends_add_up_to_the_report()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var tee = await db.CreateTeeAsync(stockEach: 4, price: 20m, cost: 8m);
+        var shift = await db.OpenShiftAsync();
+        var regular = await db.Customers.SaveAsync(new Customer { FirstName = "Rana", LastName = "Haddad", Phone = "03111222" });
+        // Last week: the tee sold once (to Rana, so she has bought before).
+        await SellAsync(db, shift, tee, regular.Id);
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+            await ctx.Sales.ExecuteUpdateAsync(u => u.SetProperty(x => x.CreatedAt, x => x.CreatedAt.AddDays(-7)));
+        // This week: yesterday once, today twice (one to Rana), and one returned.
+        await SellAsync(db, shift, tee);
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+            await ctx.Sales.Where(x => x.CreatedAt > DateTime.Today.AddDays(-1)).ExecuteUpdateAsync(u => u.SetProperty(x => x.CreatedAt, x => x.CreatedAt.AddDays(-1)));
+        await SellAsync(db, shift, tee, regular.Id);
+        var last = await db.Sales.CompleteSaleAsync(new CheckoutRequest
+        {
+            UserId = db.Cashier.Id, ShiftId = shift.Id,
+            Lines = [new CheckoutLine(tee.Variants[0].Id, 1)], Payments = [new PaymentInput(PaymentMethod.Cash, 22m)],
+        });
+        await db.Returns.ProcessReturnAsync(new ReturnRequest
+        {
+            SaleId = last.Id, UserId = db.Cashier.Id, ShiftId = shift.Id, Lines = [new ReturnLineRequest(last.Lines[0].Id, 1)],
+        });
+        var (_, builder, _) = Create(db);
+
+        var from = DateTime.Today.AddDays(-1);
+        var to = DateTime.Today.AddDays(1);
+        var doc = await builder.ReportAsync(from, to);
+
+        // Day by day adds up to the period (profit as on the Reports page, with the return taken off).
+        Assert.Equal(doc.Totals.TotalSales, doc.ByDay.Sum(d => d.Total));
+        Assert.Equal(doc.Totals.GrossProfit, doc.ByDay.Sum(d => d.Profit));
+        Assert.Equal(doc.Totals.Transactions, doc.ByDay.Sum(d => d.Count));
+        // The two days before, for the comparison line: last week's sale isn't in them.
+        Assert.Empty(doc.PreviousByDay);
+        Assert.Equal(doc.Totals.TotalSales, doc.Heatmap.Sum(c => c.Total));
+        Assert.All(doc.Heatmap, c => Assert.InRange(c.Weekday, 0, 6));
+        Assert.Contains(doc.Heatmap, c => c.Weekday == ((int)DateTime.Today.DayOfWeek + 6) % 7 && c.Hour == DateTime.Now.Hour);
+
+        // Rana bought before (last week): one returning customer, counted, never named.
+        Assert.Equal(new CustomerCounts(1, 1, 1), doc.Customers);
+
+        // The product's arrows compare with the two days before.
+        var product = Assert.Single(doc.Products);
+        Assert.Equal((0, 0m), (product.PreviousQty, product.PreviousAmount));
+
+        // A single day compares hour by hour with the same weekday last week.
+        var today = await builder.PeriodAsync("today", DateTime.Today);
+        Assert.Empty(today.Heatmap);
+        Assert.Equal((DateTime.Now.Hour, 22m), (Assert.Single(today.PreviousByHour).Hour, today.PreviousByHour[0].Total)); // last week's sale
+        var week = await builder.ReportAsync(DateTime.Today.AddDays(-7), DateTime.Today.AddDays(-6));
+        Assert.Equal(1, Assert.Single(week.ByDay).Count);
+
+        var live = await builder.LiveAsync();
+        Assert.InRange((DateTime.Parse(live.Trend14[^1].Date) - DateTime.Parse(live.Trend14[0].Date)).Days, 0, 13);
+        Assert.Equal(doc.ByDay.Sum(d => d.Total) + 22m, live.Trend14.Sum(d => d.Total)); // + last week's sale
+        var sale = live.RecentSales[0];
+        var line = Assert.Single(sale.Lines);
+        Assert.Equal(("Basic Tee", "S / Black", 1, 22m), (line.Product, line.Variant, line.Qty, line.Amount)); // what the customer paid, tax included
+        Assert.True(live.OpenDrawers[0].TotalSales > 0);
+
+        // The S tee: 4 sold in the last 30 days and one came back, so 3 sold; at that pace its stock lasts this many days.
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+            await ctx.ProductVariants.Where(v => v.Id == tee.Variants[0].Id).ExecuteUpdateAsync(u => u.SetProperty(v => v.ReorderLevel, 5));
+        var stock = await builder.StockAsync(DateTime.Today);
+        var low = stock.LowStock.Single(r => r.Variant == "S / Black");
+        Assert.Equal(3, low.Sold30);
+        Assert.Equal((int)Math.Floor(low.Stock / (3 / 30m)), low.DaysLeft);
     }
 
     [Theory]
@@ -283,6 +356,76 @@ public class OnlineReportsTests
 
         var after = site.Uploads[0].GetProperty("users")[0].GetProperty("verifier").GetString();
         Assert.NotEqual(before, after);
+    }
+
+    [Fact]
+    public async Task Cloudflare_daily_limit_pauses_sending_until_midnight_utc()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var (service, _, site) = Create(db);
+        await SetUpAsync(service);
+
+        // Cloudflare's free plan answers 429 (error 1027) once a daily limit is used up.
+        site.Status = HttpStatusCode.TooManyRequests;
+        site.Answer = "error code: 1027";
+        var first = await service.SyncAsync("till-1", "Till 1");
+        Assert.Equal((SyncOutcome.Paused, OnlineReportsError.Limit), (first.Outcome, first.Error));
+        var state = await service.GetStateAsync();
+        Assert.Equal(DateTime.UtcNow.Date.AddDays(1), state.PausedUntilUtc);
+
+        // Until then nothing is sent, not even with "Upload now".
+        site.Status = HttpStatusCode.OK;
+        site.Uploads.Clear();
+        Assert.Equal(SyncOutcome.Paused, (await service.SyncAsync("till-1", "Till 1")).Outcome);
+        Assert.Equal(SyncOutcome.Paused, (await service.SyncAsync("till-1", "Till 1", force: true)).Outcome);
+        Assert.Empty(site.Uploads);
+    }
+
+    [Fact]
+    public async Task The_pos_never_sends_more_than_its_own_daily_cap()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var (service, _, site) = Create(db);
+        await SetUpAsync(service);
+        await service.SyncAsync("till-1", "Till 1");
+        var state = await service.GetStateAsync();
+        Assert.Equal(DateTime.UtcNow.ToString("yyyy-MM-dd"), state.CountDay);
+        Assert.Equal(site.Uploads.Count, state.UploadsToday);
+        Assert.Equal(site.AllDocKeys.Count(), state.DocsToday);
+
+        // Pretend today's cap was used up: the next run sends nothing and waits for the next UTC day.
+        await using (var ctx = await db.Factory.CreateDbContextAsync())
+        {
+            var row = await ctx.AppState.SingleAsync(x => x.Key == OnlineReportsService.StateKey);
+            row.Value = row.Value.Replace($"\"uploadsToday\":{state.UploadsToday}", $"\"uploadsToday\":{OnlineReportsService.MaxUploadsPerDay}");
+            await ctx.SaveChangesAsync();
+        }
+        site.Uploads.Clear();
+        Assert.Equal(SyncOutcome.Paused, (await service.SyncAsync("till-1", "Till 1")).Outcome);
+        Assert.Empty(site.Uploads);
+    }
+
+    [Theory]
+    [InlineData("<meta name=\"google-site-verification\" content=\"AbC123_xyz-987654321\" />", "AbC123_xyz-987654321")]
+    [InlineData("  AbC123_xyz-987654321 ", "AbC123_xyz-987654321")]
+    [InlineData("<script>alert(1)</script>", null)]
+    [InlineData("", null)]
+    public void Google_code_is_taken_from_what_was_pasted(string text, string? code) =>
+        Assert.Equal(code, OnlineReportsService.NormalizeGoogleCode(text));
+
+    [Fact]
+    public async Task The_google_code_and_target_go_up_with_the_store()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        var (service, _, site) = Create(db);
+        await service.SaveConfigAsync(new OnlineReportsConfig
+        {
+            SiteUrl = Site, UploadKey = "key-123", MonthlyTarget = 30000, GoogleVerification = "<meta name=\"google-site-verification\" content=\"AbC123_xyz-987654321\">",
+        });
+        await service.SyncAsync("till-1", "Till 1");
+        var store = site.Uploads[0].GetProperty("docs").GetProperty("store");
+        Assert.Equal("AbC123_xyz-987654321", store.GetProperty("googleVerification").GetString());
+        Assert.Equal(30000m, store.GetProperty("monthlyTarget").GetDecimal());
     }
 
     [Theory]

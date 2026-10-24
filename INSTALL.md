@@ -165,6 +165,11 @@ Good to know:
   a POS update changes it. If that PC is replaced, use **Update website** or **Set up again** with a new token.
 - **To stop:** untick *Send reports to the website*, or **Remove**. To delete the website itself, delete the
   `pos-reports` Worker and D1 database in the Cloudflare dashboard.
+- **If Chrome says the site is dangerous:** this is a known false alarm for new free `workers.dev` sites with a password
+  box. Report it as a mistake, then use the Google verification code box in Settings → Online reports to verify the site
+  in Google Search Console and request a review. The steps are in that box's hint and in `cloud/reports-worker/README.md`.
+- **Free limits:** a shop uses only a few percent of Cloudflare's free daily limits, and the POS has its own daily caps.
+  If a limit were ever reached, nothing is charged: sending pauses until midnight UTC and Settings says so.
 - **What is sent:** report totals, product and category names, cashier names, and drawer counts.
   **Never sent:** customer names or phone numbers, and passwords. For each account the POS sends only a one-way
   fingerprint of the password.

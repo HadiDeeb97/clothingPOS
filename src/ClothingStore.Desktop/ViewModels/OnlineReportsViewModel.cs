@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using ClothingStore.Core.Localization;
 using ClothingStore.Data.OnlineReports;
@@ -36,6 +37,48 @@ public sealed partial class OnlineReportsViewModel(
     public bool CanUpdateWebsite => Config?.Cloudflare is { } site &&
         (site.WorkerBuild != CloudflareDeployer.CurrentBuild || State.Error == nameof(OnlineReportsError.Outdated));
 
+    /// <summary>The month's sales target as typed (empty for none); saved with <see cref="SaveTargetCommand"/>.</summary>
+    [ObservableProperty]
+    public partial string MonthlyTargetText { get; set; } = "";
+
+    /// <summary>Google Search Console's verification code as pasted (the code or the whole meta tag).</summary>
+    [ObservableProperty]
+    public partial string GoogleCodeText { get; set; } = "";
+
+    partial void OnConfigChanged(OnlineReportsConfig? value)
+    {
+        MonthlyTargetText = value?.MonthlyTarget is { } target ? target.ToString("0.##", CultureInfo.CurrentCulture) : "";
+        GoogleCodeText = value?.GoogleVerification ?? "";
+    }
+
+    [RelayCommand]
+    private async Task SaveTargetAsync()
+    {
+        if (Config is null) return;
+        decimal? target = null;
+        if (!string.IsNullOrWhiteSpace(MonthlyTargetText))
+        {
+            if (!decimal.TryParse(MonthlyTargetText, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) &&
+                !decimal.TryParse(MonthlyTargetText, NumberStyles.Number, CultureInfo.InvariantCulture, out value) || value < 0 || value > 1_000_000_000)
+            {
+                Dialogs.Warning(Loc.T("Online.TargetInvalid"));
+                return;
+            }
+            target = value == 0 ? null : Math.Round(value, 2);
+        }
+        var google = OnlineReportsService.NormalizeGoogleCode(GoogleCodeText);
+        if (!string.IsNullOrWhiteSpace(GoogleCodeText) && google is null)
+        {
+            Dialogs.Warning(Loc.T("Online.GoogleInvalid"));
+            return;
+        }
+        var config = Config with { MonthlyTarget = target, GoogleVerification = google };
+        if (!await RunAsync(() => service.SaveConfigAsync(config))) return;
+        Config = config;
+        Dialogs.Toast(Loc.T("Online.TargetSaved"));
+        await UploadNowAsync(); // on the website within a minute
+    }
+
     public bool IsLicensed => OnlineReportsWorker.IsLicensed(license);
     public bool IsSetUp => Config is not null;
     public string SiteUrl => Config?.SiteUrl ?? "";
@@ -66,9 +109,11 @@ public sealed partial class OnlineReportsViewModel(
             {
                 nameof(OnlineReportsError.Offline) => Loc.T("Online.StatusOffline", since),
                 nameof(OnlineReportsError.Rejected) => Loc.T("Online.StatusRejected"),
+                nameof(OnlineReportsError.Limit) => Loc.T("Online.StatusPaused", State.PausedUntilUtc is { } until ? When(until) : "00:00 UTC"),
                 nameof(OnlineReportsError.Outdated) => Loc.T("Online.StatusOutdated"),
                 nameof(OnlineReportsError.Server) => Loc.T("Online.StatusServer", since, State.ErrorDetail ?? ""),
-                _ when State.LastUploadUtc is { } last => Loc.T("Online.StatusOk", When(last), State.Till ?? "-"),
+                _ when State.LastUploadUtc is { } last => Loc.T("Online.StatusOk", When(last), State.Till ?? "-") + "  ·  " +
+                    Loc.T("Online.UploadsToday", State.UploadsToday, OnlineReportsService.MaxUploadsPerDay),
                 _ => Loc.T("Online.StatusWaiting"),
             };
         }

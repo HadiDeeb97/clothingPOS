@@ -4,9 +4,21 @@
 
 import indexHtml from "./ui/index.html";
 import appJs from "./ui/app.js";
+import chartsJs from "./ui/charts.js";
+import domJs from "./ui/dom.js";
+import formatJs from "./ui/format.js";
+import i18nJs from "./ui/i18n.js";
+import iconsJs from "./ui/icons.js";
+import insightsJs from "./ui/insights.js";
+import pagesJs from "./ui/pages.js";
+import swJs from "./ui/sw.js";
 import appCss from "./ui/app.css";
 import manifest from "./ui/manifest.webmanifest";
 import icon from "./ui/icon.svg";
+import interFont from "./ui/fonts/inter.woff2";
+import plex400 from "./ui/fonts/plex-arabic-400.woff2";
+import plex600 from "./ui/fonts/plex-arabic-600.woff2";
+import plex700 from "./ui/fonts/plex-arabic-700.woff2";
 import { ensureSchema, getMeta, setMeta } from "./db.js";
 import { fromBase64, hmac, randomToken, sameSecret, sha256, toBase64 } from "./crypto.js";
 
@@ -25,19 +37,40 @@ const MAX_DOC_LENGTH = 1_500_000;
 const MAX_UPLOAD_LENGTH = 8_000_000;
 const DEFAULT_ITERATIONS = 100_000; // the POS's own (PasswordHasher)
 
+// Requests a visitor can make to the pages that work without signing in, per minute. Keeps a bot from using up the
+// shop's free daily requests (it would only pause the site until midnight UTC, but the owner would lose the reports).
+const PUBLIC_PER_MINUTE = 30;
+
+const JS = "text/javascript; charset=utf-8";
+const HTML = "text/html; charset=utf-8";
+const FONT = "font/woff2";
+
+// The website's files, served by the Worker itself. [content, type, long cache]
 const STATIC = {
-  "/": [indexHtml, "text/html; charset=utf-8"],
-  "/index.html": [indexHtml, "text/html; charset=utf-8"],
-  "/app.js": [appJs, "text/javascript; charset=utf-8"],
+  "/": [indexHtml, HTML],
+  "/index.html": [indexHtml, HTML],
+  "/app.js": [appJs, JS],
+  "/charts.js": [chartsJs, JS],
+  "/dom.js": [domJs, JS],
+  "/format.js": [formatJs, JS],
+  "/i18n.js": [i18nJs, JS],
+  "/icons.js": [iconsJs, JS],
+  "/insights.js": [insightsJs, JS],
+  "/pages.js": [pagesJs, JS],
+  "/sw.js": [swJs, JS],
   "/app.css": [appCss, "text/css; charset=utf-8"],
   "/manifest.webmanifest": [manifest, "application/manifest+json"],
   "/icon.svg": [icon, "image/svg+xml"],
+  "/fonts/inter.woff2": [interFont, FONT, true],
+  "/fonts/plex-arabic-400.woff2": [plex400, FONT, true],
+  "/fonts/plex-arabic-600.woff2": [plex600, FONT, true],
+  "/fonts/plex-arabic-700.woff2": [plex700, FONT, true],
 };
 
 const SECURITY_HEADERS = {
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; " +
-    "manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; " +
+    "manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
   "X-Frame-Options": "DENY",
@@ -59,23 +92,83 @@ async function route(request, env) {
   const path = url.pathname;
   const method = request.method;
 
+  if (method === "GET" && (path === "/" || path === "/index.html")) return page(env);
+  if (method === "GET" && path === "/robots.txt") {
+    // Crawlable (Google has to read the page to review it), but kept out of search results by noindex.
+    return new Response("User-agent: *\nAllow: /\n", { headers: { "Content-Type": "text/plain; charset=utf-8", ...SECURITY_HEADERS } });
+  }
   if (method === "GET" && STATIC[path]) {
-    const [body, type] = STATIC[path];
-    return new Response(body, { headers: { "Content-Type": type, "Cache-Control": "no-cache", ...SECURITY_HEADERS } });
+    const [body, type, immutable] = STATIC[path];
+    // Fonts never change under the same name; the pages and code are checked each time (the POS may have updated them).
+    const cache = immutable ? "public, max-age=31536000, immutable" : "no-cache";
+    return new Response(body, { headers: { "Content-Type": type, "Cache-Control": cache, ...SECURITY_HEADERS } });
   }
   if (!path.startsWith("/api/")) return json({ error: "not_found" }, 404);
   if (path === "/api/health" && method === "GET") return json({ ok: true, version: VERSION });
 
+  if ((path === "/api/salt" || path === "/api/login" || path === "/api/public") && tooMany(request, env)) {
+    return json({ error: "slow_down" }, 429, { "Retry-After": "60" });
+  }
+
   await ensureSchema(env.DB);
   switch (`${method} ${path}`) {
     case "POST /api/upload": return upload(request, env);
+    case "GET /api/public": return publicInfo(env);
     case "GET /api/salt": return salt(url, env);
     case "POST /api/login": return login(request, env);
     case "POST /api/logout": return logout(request, env);
     case "GET /api/me": return me(request, env);
+    case "GET /api/poll": return poll(request, env);
     case "GET /api/docs": return docs(request, url, env);
     default: return json({ error: "not_found" }, 404);
   }
+}
+
+// ---- Page and public details ------------------------------------------------------------------------------------
+
+/**
+ * The page, with the shop's Google Search Console code when the POS sent one (so the owner can verify the site and ask
+ * Google to review a wrong "dangerous site" warning).
+ */
+async function page(env) {
+  let html = indexHtml;
+  try {
+    await ensureSchema(env.DB);
+    const code = await getMeta(env.DB, "google_verification");
+    if (code) html = html.replace("<!--google-->", `<meta name="google-site-verification" content="${escapeAttr(code)}">`);
+  } catch {
+    // The page works without it.
+  }
+  return new Response(html, {
+    headers: { "Content-Type": HTML, "Cache-Control": "no-cache", "X-Robots-Tag": "noindex, nofollow", ...SECURITY_HEADERS },
+  });
+}
+
+function escapeAttr(text) {
+  return String(text).replace(/[^A-Za-z0-9_\-]/g, ""); // verification codes are letters, digits, - and _
+}
+
+/** The shop's name and language for the sign-in page, so it is clearly that shop's site. Nothing else. */
+async function publicInfo(env) {
+  const row = await env.DB.prepare("SELECT value FROM meta WHERE key = 'public'").first();
+  return json(row ? JSON.parse(row.value) : { name: null, language: null });
+}
+
+// Per-visitor counts for the public pages, kept in this Worker instance's memory (no database writes).
+const visitors = new Map();
+
+function tooMany(request, env) {
+  const limit = Number(env.PUBLIC_PER_MINUTE) || PUBLIC_PER_MINUTE;
+  const ip = request.headers.get("CF-Connecting-IP") ?? "local";
+  const minute = Math.floor(Date.now() / 60_000);
+  const entry = visitors.get(ip);
+  if (!entry || entry.minute !== minute) {
+    if (visitors.size > 5000) visitors.clear();
+    visitors.set(ip, { minute, count: 1 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > limit;
 }
 
 // ---- Upload (from the POS) --------------------------------------------------------------------------------------
@@ -142,10 +235,37 @@ async function upload(request, env) {
     }
   }
 
+  // What the phones check every couple of minutes: a new number only when there is something new to show.
+  if (entries.length) statements.push(setMeta(db, "data_version", now));
+  const store = payload.docs?.store;
+  if (store) {
+    statements.push(setMeta(db, "public", JSON.stringify({
+      name: typeof store.name === "string" ? store.name.slice(0, 100) : null,
+      language: store.language === "ar" ? "ar" : "en",
+    })));
+    statements.push(typeof store.googleVerification === "string" && store.googleVerification
+      ? setMeta(db, "google_verification", escapeAttr(store.googleVerification).slice(0, 100))
+      : db.prepare("DELETE FROM meta WHERE key = 'google_verification'"));
+  }
+
+  // A beat with nothing new writes this one row.
   statements.push(setMeta(db, "last_upload", now));
-  statements.push(db.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now));
-  statements.push(db.prepare("DELETE FROM lockouts WHERE updated_at < ?").bind(now - 24 * 3600_000));
+  if (payload.keepDaysFrom !== undefined) {
+    // Housekeeping with the half-hourly upload only.
+    statements.push(db.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now));
+    statements.push(db.prepare("DELETE FROM lockouts WHERE updated_at < ?").bind(now - 24 * 3600_000));
+  }
   await db.batch(statements); // all or nothing
+
+  // The list of past days and months, kept in one row so a phone opening the site doesn't read hundreds of rows.
+  if (payload.keepDaysFrom !== undefined || entries.some(([k]) => k.startsWith("day:") || k.startsWith("month:"))) {
+    const history = await db.prepare("SELECT key FROM docs WHERE key >= 'day:' AND key < 'day;' OR key >= 'month:' AND key < 'month;' ORDER BY key DESC").all();
+    const keys = history.results.map((r) => r.key);
+    await setMeta(db, "history", JSON.stringify({
+      days: keys.filter((k) => k.startsWith("day:")).map((k) => k.slice(4)),
+      months: keys.filter((k) => k.startsWith("month:")).map((k) => k.slice(6)),
+    })).run();
+  }
   return json({ ok: true, docs: entries.length });
 }
 
@@ -273,20 +393,37 @@ async function me(request, env) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: "signed_out" }, 401);
   const db = env.DB;
-  const [store, lastUpload, history] = await Promise.all([
+  const [store, meta] = await Promise.all([
     db.prepare("SELECT body FROM docs WHERE key = 'store'").first(),
-    getMeta(db, "last_upload"),
-    db.prepare("SELECT key FROM docs WHERE key >= 'day:' AND key < 'day;' OR key >= 'month:' AND key < 'month;' ORDER BY key DESC").all(),
+    readMeta(db, ["last_upload", "history", "data_version"]),
   ]);
-  const keys = history.results.map((r) => r.key);
+  const history = meta.history ? JSON.parse(meta.history) : { days: [], months: [] };
   return json({
     user: { name: user.name, role: user.role },
     store: store ? JSON.parse(store.body) : null,
-    lastUpload: lastUpload ? Number(lastUpload) : null,
+    lastUpload: meta.last_upload ? Number(meta.last_upload) : null,
+    version: meta.data_version ? Number(meta.data_version) : 0,
     now: Date.now(),
-    days: keys.filter((k) => k.startsWith("day:")).map((k) => k.slice(4)),
-    months: keys.filter((k) => k.startsWith("month:")).map((k) => k.slice(6)),
+    days: history.days,
+    months: history.months,
   });
+}
+
+/** What a phone checks every couple of minutes: a few rows, and the documents only when the version moved. */
+async function poll(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: "signed_out" }, 401);
+  const meta = await readMeta(env.DB, ["last_upload", "data_version"]);
+  return json({
+    lastUpload: meta.last_upload ? Number(meta.last_upload) : null,
+    version: meta.data_version ? Number(meta.data_version) : 0,
+    now: Date.now(),
+  });
+}
+
+async function readMeta(db, keys) {
+  const rows = await db.prepare(`SELECT key, value FROM meta WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all();
+  return Object.fromEntries(rows.results.map((r) => [r.key, r.value]));
 }
 
 async function docs(request, url, env) {

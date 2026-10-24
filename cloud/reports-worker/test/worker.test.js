@@ -11,7 +11,8 @@ let worker;
 before(async () => {
   worker = await unstable_startWorker({
     config: fileURLToPath(new URL("../wrangler.toml", import.meta.url)),
-    bindings: { UPLOAD_KEY: { type: "plain_text", value: UPLOAD_KEY } },
+    // A higher per-visitor limit than live: every test here comes from the same address.
+    bindings: { UPLOAD_KEY: { type: "plain_text", value: UPLOAD_KEY }, PUBLIC_PER_MINUTE: { type: "plain_text", value: "150" } },
     dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: "error" },
   });
 }, { timeout: 90_000 });
@@ -59,7 +60,7 @@ const get = (path, cookie) => call(path, { headers: cookie ? { Cookie: cookie } 
 test("serves the pages with a strict content policy", async () => {
   const page = await call("/");
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /<script src="\/app.js"/);
+  assert.match(await page.text(), /<script type="module" src="\/app.js">/);
   assert.match(page.headers.get("Content-Security-Policy"), /script-src 'self'/);
   assert.equal((await call("/app.js")).headers.get("Content-Type"), "text/javascript; charset=utf-8");
   assert.equal((await call("/nope")).status, 404);
@@ -192,4 +193,47 @@ test("old days are removed, months are kept", async () => {
   assert.ok(!me.days.includes("2025-01-05"));
   assert.ok(me.days.includes("2025-09-30"));
   assert.ok(me.months.includes("2024-12"));
+});
+
+test("the sign-in page knows the shop, and Google's code is on the page once the POS sends it", async () => {
+  await upload({ docs: { store: { name: "Rami Boutique", currency: "$", language: "ar", googleVerification: "AbC123_xyz-987654321" } } });
+  assert.deepEqual(await (await call("/api/public")).json(), { name: "Rami Boutique", language: "ar" });
+  const page = await (await call("/")).text();
+  assert.match(page, /<meta name="google-site-verification" content="AbC123_xyz-987654321">/);
+  assert.equal((await call("/")).headers.get("X-Robots-Tag"), "noindex, nofollow");
+  assert.match(await (await call("/robots.txt")).text(), /Allow: \//);
+
+  await upload({ docs: { store: { name: "Rami Boutique", currency: "$", language: "ar" } } });
+  assert.doesNotMatch(await (await call("/")).text(), /google-site-verification/);
+});
+
+test("serves the fonts and the page's modules", async () => {
+  for (const path of ["/pages.js", "/charts.js", "/i18n.js", "/sw.js"]) assert.equal((await call(path)).status, 200, path);
+  const font = await call("/fonts/inter.woff2");
+  assert.equal(font.headers.get("Content-Type"), "font/woff2");
+  assert.match(font.headers.get("Cache-Control"), /immutable/);
+  assert.ok((await font.arrayBuffer()).byteLength > 10_000);
+  assert.match((await call("/")).headers.get("Content-Security-Policy"), /font-src 'self'/);
+});
+
+test("phones check for news cheaply and only reload when the shop sent something", async () => {
+  await upload({ users: [account("owner", "secret-pass")] });
+  const { cookie } = await signIn("owner", "secret-pass");
+  assert.equal((await get("/api/poll")).status, 401);
+  const before = await (await get("/api/poll", cookie)).json();
+  await upload({}); // a heartbeat: nothing new
+  const beat = await (await get("/api/poll", cookie)).json();
+  assert.equal(beat.version, before.version);
+  assert.ok(beat.lastUpload >= before.lastUpload);
+  await upload({ docs: { live: { recentSales: [] } } });
+  const after = await (await get("/api/poll", cookie)).json();
+  assert.notEqual(after.version, before.version);
+  const me = await (await get("/api/me", cookie)).json();
+  assert.equal(me.version, after.version);
+});
+
+test("a visitor hammering the public pages is slowed down", async () => {
+  let limited = 0;
+  for (let i = 0; i < 160; i++) if ((await call("/api/public")).status === 429) limited++;
+  assert.ok(limited > 0);
 });

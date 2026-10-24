@@ -146,7 +146,19 @@ public class CloudflareDeployerTests
     public void The_pos_carries_the_whole_website()
     {
         var names = CloudflareDeployer.WorkerFiles.Select(f => f.Name).ToList();
-        Assert.Equal(["crypto.js", "db.js", "index.js", "ui/app.css", "ui/app.js", "ui/icon.svg", "ui/index.html", "ui/manifest.webmanifest"], names);
+        Assert.Equal([
+            "crypto.js", "db.js", "index.js", "ui/app.css", "ui/app.js", "ui/charts.js", "ui/dom.js",
+            "ui/fonts/inter.woff2", "ui/fonts/plex-arabic-400.woff2", "ui/fonts/plex-arabic-600.woff2", "ui/fonts/plex-arabic-700.woff2",
+            "ui/format.js", "ui/i18n.js", "ui/icon.svg", "ui/icons.js", "ui/index.html", "ui/insights.js", "ui/manifest.webmanifest",
+            "ui/pages.js", "ui/sw.js",
+        ], names);
+        Assert.Equal("application/octet-stream", CloudflareDeployer.ModuleType("ui/fonts/inter.woff2"));
+        Assert.Equal("text/plain", CloudflareDeployer.ModuleType("ui/pages.js"));
+        Assert.Equal("application/javascript+module", CloudflareDeployer.ModuleType("index.js"));
+        // Every file the server imports is uploaded (or Cloudflare would refuse the script).
+        var server = System.Text.Encoding.UTF8.GetString(CloudflareDeployer.WorkerFiles.Single(f => f.Name == "index.js").Content);
+        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(server, @"from ""\./([^""]+)"""))
+            Assert.Contains(m.Groups[1].Value, names);
         Assert.Matches("^[0-9a-f]{12}$", CloudflareDeployer.CurrentBuild);
     }
 

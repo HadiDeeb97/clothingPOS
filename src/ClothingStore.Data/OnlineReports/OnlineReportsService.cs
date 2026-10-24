@@ -25,6 +25,15 @@ public sealed record OnlineReportsConfig
 
     /// <summary>Filled when the POS set the website up on Cloudflare itself (so it can update it).</summary>
     public CloudflareSite? Cloudflare { get; init; }
+
+    /// <summary>The sales the shop aims for each month, shown on the website with how the month is going; null for none.</summary>
+    public decimal? MonthlyTarget { get; init; }
+
+    /// <summary>
+    /// Google Search Console's code (the HTML tag method): shown on the website so the owner can prove it is theirs and
+    /// ask Google to review a wrong "dangerous site" warning.
+    /// </summary>
+    public string? GoogleVerification { get; init; }
 }
 
 public sealed record CloudflareSite(string AccountId, string ScriptName, string DatabaseId, string Subdomain, string? WorkerBuild);
@@ -33,6 +42,14 @@ public sealed record CloudflareSite(string AccountId, string ScriptName, string 
 public sealed record OnlineReportsState
 {
     public DateTime? LastUploadUtc { get; init; }
+
+    /// <summary>Uploads and documents sent on <see cref="CountDay"/> (a UTC day, as Cloudflare counts).</summary>
+    public string? CountDay { get; init; }
+    public int UploadsToday { get; init; }
+    public int DocsToday { get; init; }
+
+    /// <summary>Cloudflare said the free daily limit was reached: nothing is sent until then (midnight UTC).</summary>
+    public DateTime? PausedUntilUtc { get; init; }
 
     /// <summary>Why the last try failed (an <see cref="OnlineReportsError"/> name), or null when it worked.</summary>
     public string? Error { get; init; }
@@ -64,6 +81,9 @@ public enum OnlineReportsError
     /// <summary>The website refused the upload key.</summary>
     Rejected,
 
+    /// <summary>Cloudflare's free daily limit was reached (or this POS's own daily cap): sending resumes at midnight UTC.</summary>
+    Limit,
+
     /// <summary>The website is older than this POS and needs updating.</summary>
     Outdated,
 
@@ -79,6 +99,8 @@ public enum SyncOutcome
     /// <summary>Another till is sending.</summary>
     OtherTill,
     Failed,
+    /// <summary>Waiting for Cloudflare's next day: a daily limit was reached.</summary>
+    Paused,
 }
 
 public sealed record SyncResult(SyncOutcome Outcome, int Documents = 0, OnlineReportsError? Error = null, string? Detail = null);
@@ -115,9 +137,15 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
     /// <summary>Finished days and months built per run, so catching up never keeps a till busy for long.</summary>
     private const int HistoryPerRun = 25;
 
+    // This POS's own daily caps, far below Cloudflare's free plan (100,000 requests and 100,000 rows written a day): a
+    // normal day is about 300 uploads and a few hundred documents. A bug or a stuck loop can never use up the free plan.
+    public const int MaxUploadsPerDay = 400;
+    public const int MaxDocsPerDay = 3000;
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
     private readonly SemaphoreSlim _running = new(1, 1);
@@ -213,6 +241,14 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
         if (!await TakeLeaseAsync(tillId, force, ct)) return new SyncResult(SyncOutcome.OtherTill);
 
         var state = await GetStateAsync(ct);
+        var utcDay = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        if (state.CountDay != utcDay) state = state with { CountDay = utcDay, UploadsToday = 0, DocsToday = 0 };
+        if (state.PausedUntilUtc is { } paused && paused > DateTime.UtcNow) return new SyncResult(SyncOutcome.Paused, Error: OnlineReportsError.Limit);
+        if (state.UploadsToday >= MaxUploadsPerDay)
+        {
+            await SaveStateAsync(state with { PausedUntilUtc = NextUtcMidnight(), Error = nameof(OnlineReportsError.Limit), ErrorDetail = "daily cap" }, ct);
+            return new SyncResult(SyncOutcome.Paused, Error: OnlineReportsError.Limit);
+        }
         var sent = new Dictionary<string, string>(state.Sent);
         var now = DateTime.Now;
         var today = now.Date;
@@ -231,7 +267,11 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
             if (force || !sent.TryGetValue(key, out var hash) || hash != Hash(json)) Put(key, json);
         }
 
-        Add("store", await builder.StoreAsync(ct));
+        Add("store", await builder.StoreAsync(ct) with
+        {
+            MonthlyTarget = config.MonthlyTarget is > 0 ? config.MonthlyTarget : null,
+            GoogleVerification = NormalizeGoogleCode(config.GoogleVerification),
+        });
         Add("live", await builder.LiveAsync(ct));
         Add("period:today", await builder.PeriodAsync("today", today, ct));
         if (full)
@@ -264,6 +304,15 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
         var sendUsers = full || !sent.TryGetValue("users", out var usersHash) || usersHash != Hash(usersJson);
         var signOut = config.SignOutAll > state.SignOutAllSent ? config.SignOutAll : (int?)null;
 
+        // Within the day's cap: what is happening now first, history last (it carries on tomorrow).
+        var room = Math.Max(0, MaxDocsPerDay - state.DocsToday);
+        if (docs.Count > room)
+        {
+            docs = docs.Take(room).ToList();
+            daysThrough = state.DaysThrough; // the history goes on from where it was, tomorrow
+            monthsThrough = state.MonthsThrough;
+        }
+
         // Up in batches; the first also carries the accounts and clean-up, and goes even with no documents (it tells the
         // website the shop is online).
         var batches = docs.Chunk(DocsPerUpload).ToList();
@@ -284,6 +333,7 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
             body.Append('}');
 
             var failure = await PostAsync(site, config.UploadKey, body.ToString(), ct);
+            state = state with { UploadsToday = state.UploadsToday + 1 };
             if (failure is not null)
             {
                 // Keep what did go up, so the next run carries on from there.
@@ -291,10 +341,13 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
                 {
                     Error = failure.Value.Error.ToString(), ErrorDetail = failure.Value.Detail,
                     FailingSinceUtc = state.Error is null ? DateTime.UtcNow : state.FailingSinceUtc ?? DateTime.UtcNow,
+                    PausedUntilUtc = failure.Value.Error == OnlineReportsError.Limit ? NextUtcMidnight() : null,
                     Till = tillName, Sent = sent,
                 }, ct);
-                return new SyncResult(SyncOutcome.Failed, count, failure.Value.Error, failure.Value.Detail);
+                return new SyncResult(failure.Value.Error == OnlineReportsError.Limit ? SyncOutcome.Paused : SyncOutcome.Failed,
+                    count, failure.Value.Error, failure.Value.Detail);
             }
+            state = state with { DocsToday = state.DocsToday + batches[i].Length };
             foreach (var (key, json) in batches[i]) sent[key] = Hash(json);
             if (i == 0)
             {
@@ -308,7 +361,7 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
         foreach (var key in sent.Keys.Where(k => k.StartsWith("day:") || k.StartsWith("month:")).ToList()) sent.Remove(key);
         await SaveStateAsync(state with
         {
-            LastUploadUtc = DateTime.UtcNow, Error = null, ErrorDetail = null, FailingSinceUtc = null, Till = tillName,
+            LastUploadUtc = DateTime.UtcNow, Error = null, ErrorDetail = null, FailingSinceUtc = null, PausedUntilUtc = null, Till = tillName,
             FullUploadUtc = full ? DateTime.UtcNow : state.FullUploadUtc, DaysThrough = daysThrough, MonthsThrough = monthsThrough, Sent = sent,
         }, ct);
         return new SyncResult(SyncOutcome.Sent, count);
@@ -330,6 +383,9 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
             return response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized => (OnlineReportsError.Rejected, detail),
+                // Cloudflare's free plan answers this way once a daily limit is used up (error 1027).
+                HttpStatusCode.TooManyRequests => (OnlineReportsError.Limit, detail),
+                _ when text.Contains("1027") => (OnlineReportsError.Limit, detail),
                 HttpStatusCode.BadRequest when text.Contains("bad_version") => (OnlineReportsError.Outdated, detail),
                 HttpStatusCode.NotFound => (OnlineReportsError.Outdated, detail),
                 _ => (OnlineReportsError.Server, detail),
@@ -417,6 +473,20 @@ public class OnlineReportsService(IDbContextFactory<PosDbContext> factory, Onlin
         {
             return null;
         }
+    }
+
+    private static DateTime NextUtcMidnight() => DateTime.UtcNow.Date.AddDays(1);
+
+    /// <summary>
+    /// Google's code from what was pasted: the code itself, or the whole tag
+    /// (&lt;meta name="google-site-verification" content="abc…" /&gt;). Null when there is none.
+    /// </summary>
+    public static string? NormalizeGoogleCode(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(text, "content\\s*=\\s*[\"']([^\"']+)[\"']");
+        var code = (match.Success ? match.Groups[1].Value : text).Trim();
+        return System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Za-z0-9_-]{10,100}$") ? code : null;
     }
 
     private static string Hash(string json) => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(json)), 0, 12);
