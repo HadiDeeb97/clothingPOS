@@ -95,8 +95,7 @@ demo PC only, add `"SeedDemoData": true` under `"Pos"` in `publish\appsettings.j
    receipt and label printers, backup folder), **Users** (cashiers, managers), then categories, suppliers, products
    and delivery companies.
 
-**Several tills:** install SQL Server Express on one PC only and point the other tills' `appsettings.json` at it
-(see "Several tills" in README.md).
+**Several tills:** install SQL Server Express on one PC only and point the other tills at it. See section 6 below.
 
 ## 3. Updating a customer
 
@@ -173,3 +172,62 @@ Good to know:
 - **What is sent:** report totals, product and category names, cashier names, and drawer counts.
   **Never sent:** customer names or phone numbers, and passwords. For each account the POS sends only a one-way
   fingerprint of the password.
+
+## 6. Several tills sharing one database
+
+The **main PC** keeps the database (SQL Server Express). Every **other till** gets only the POS and connects to the
+main PC over the shop's network. All tills share products, stock, sales, customers and users in real time.
+
+### On the main PC (once)
+
+1. **Let SQL Server accept network connections.**
+   1. Open **SQL Server 2022 Configuration Manager** from the Start menu.
+   2. Go to **SQL Server Network Configuration → Protocols for SQLEXPRESS → TCP/IP** and set it to **Enabled**.
+   3. Double-click **TCP/IP**, open the **IP Addresses** tab and scroll to **IPAll**. Clear **TCP Dynamic Ports** (leave it empty) and set **TCP Port** to `1433`.
+   4. In **SQL Server Services**, right-click **SQL Server (SQLEXPRESS)** and choose **Restart**.
+2. **Open the firewall.** Run PowerShell **as administrator**:
+   ```powershell
+   New-NetFirewallRule -DisplayName "SQL Server (POS)" -Direction Inbound -Protocol TCP -LocalPort 1433 -Action Allow
+   ```
+3. **Create a login for the POS.** Windows sign-in doesn't work between shop PCs, so the tills use a SQL Server username and password.
+   1. Install **SQL Server Management Studio** (free) and connect to `.\SQLEXPRESS`.
+   2. Right-click the server, open **Properties → Security** and choose **SQL Server and Windows Authentication mode**.
+   3. Restart the service as in step 1.
+   4. Click **New Query** and run this, with your own strong password:
+      ```sql
+      CREATE LOGIN pos WITH PASSWORD = 'Shop#Strong2026', CHECK_POLICY = OFF;
+      USE ClothingStorePOS;
+      CREATE USER pos FOR LOGIN pos;
+      ALTER ROLE db_owner ADD MEMBER pos;
+      ```
+4. **Give the main PC a fixed address.** In Command Prompt run `ipconfig` and note the **IPv4 Address** (for example
+   `192.168.1.10`). In the router, reserve that address for this PC (DHCP reservation) so it never changes. Without a
+   router reservation, use the PC's name instead (Settings → System → About).
+
+### On each extra till
+
+1. **Don't install SQL Server.** Copy the `publish` folder to `C:\ClothingStorePOS\`.
+2. Open `appsettings.json` in Notepad and set the `"Pos"` connection to the main PC:
+   ```json
+   "Pos": "Server=192.168.1.10,1433;Database=ClothingStorePOS;User Id=pos;Password=Shop#Strong2026;TrustServerCertificate=True"
+   ```
+3. Start `ClothingStorePOS.exe` and sign in with the **same users** as on the main PC.
+4. **License the till:** each PC needs its own key, because keys are tied to the PC. It starts a trial; send yourself its PC ID and make a key in License Maker.
+5. **Set the till's own settings** in Settings: receipt and label printers, cash drawer, customer display, text size and font.
+
+### Good to know
+
+- **Shared settings:** store name, tax, LBP rate, products, customers and users are shared by every till. Printers, drawer, screen and font are per PC.
+- **Drawers:** each till has its own drawer and shift. Reports and sales history show every till together.
+- **The main PC must stay on** while the other tills work. A **wired** network is more reliable than Wi-Fi.
+- **Backups** are written to a folder on the **main PC**, whichever till starts them.
+- **Online reports:** only one till sends to the website at a time; the tills arrange this between themselves.
+- **Updates:** update every PC to the same version, **main PC first** (it upgrades the database).
+
+### If a till can't connect
+
+| What you see | What to check |
+|---|---|
+| The till waits, then says it can't reach the database | The main PC is on and on the same network; the IP in `appsettings.json` is right. On the till, `Test-NetConnection 192.168.1.10 -Port 1433` in PowerShell must say **True**. If it says False, redo steps 1 and 2 on the main PC. |
+| "Login failed for user 'pos'" | Mixed mode (step 3) wasn't switched on, the SQL Server service wasn't restarted after it, or the password in `appsettings.json` doesn't match. |
+| It worked, then stopped after the router restarted | The main PC got a new IP. Add the router reservation (step 4) and update `appsettings.json`. |
