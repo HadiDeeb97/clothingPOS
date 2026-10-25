@@ -107,7 +107,7 @@ export function barChart({ bars, ghost = [], height = 200, format = moneyShort, 
       const g = ghost[i]?.value ?? 0;
       const col = h("div", { class: "bar-col" },
         ghost.length ? h("span", { class: "bar ghost", style: `height:${(g / max) * 100}%` }) : null,
-        h("span", { class: "bar main", style: `height:${Math.max(b.value > 0 ? 1.5 : 0, (b.value / max) * 100)}%` }));
+        h("span", { class: "bar now", style: `height:${Math.max(b.value > 0 ? 1.5 : 0, (b.value / max) * 100)}%` }));
       col.addEventListener("pointerenter", () => {
         const rows = [[b.label], [currentName ?? "", full(b.value), "var(--accent)"]];
         if (ghost.length) rows.push([ghostName ?? "", full(g), "var(--muted)"]);

@@ -1,7 +1,7 @@
 // Makes the reports open instantly and keeps the last numbers for when the phone has no signal. The site's files are
 // served from here and refreshed in the background; the reports always come from the internet first, and the saved copy
 // is only used offline (marked so the page can say so). Signing out forgets the saved reports.
-const SHELL = "shell-v3";
+const SHELL = "shell-v4";
 const DATA = "data-v1";
 const FILES = ["/", "/app.js", "/charts.js", "/dom.js", "/format.js", "/i18n.js", "/icons.js", "/insights.js", "/pages.js", "/app.css", "/icon.svg", "/manifest.webmanifest", "/fonts/inter.woff2"];
 

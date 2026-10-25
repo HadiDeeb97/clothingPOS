@@ -344,7 +344,7 @@ function rerender(animate) {
     void content.offsetWidth; // restart the entrance animation
     content.classList.add("page-enter");
   }
-  content.replaceChildren(...view.nodes);
+  content.replaceChildren(...view.nodes.filter(Boolean)); // a null would show as the text "null"
 }
 
 async function refresh(force) {
