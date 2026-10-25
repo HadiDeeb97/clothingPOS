@@ -460,9 +460,9 @@ tr:nth-child(3) .rank { background: linear-gradient(135deg, #fed7aa, #c2410c); c
 .bar-grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--line); pointer-events: none; }
 .bar-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; min-width: 0; }
 .bar { position: absolute; bottom: 0; border-radius: 6px 6px 2px 2px; transition: height .6s cubic-bezier(.2, .7, .2, 1); }
-.bar.main { width: 64%; max-width: 44px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+.bar.now { width: 64%; max-width: 44px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
 .bar.ghost { width: 88%; max-width: 60px; background: var(--bg-2); border: 1px dashed var(--line-strong); }
-.bar-col:hover .bar.main { filter: brightness(1.12); }
+.bar-col:hover .bar.now { filter: brightness(1.12); }
 .bar-axis { display: flex; gap: 4px; position: absolute; left: 48px; right: 0; bottom: 0; height: 18px; }
 .bar-axis span { flex: 1; text-align: center; font-size: 11px; color: var(--faint); min-width: 0; overflow: hidden; }
 

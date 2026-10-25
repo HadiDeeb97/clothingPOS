@@ -887,6 +887,10 @@ namespace ClothingStore.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("ListPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(200)

@@ -96,7 +96,7 @@ public partial class App : Application
             {
                 // Can't even reach the server: the next step reports that properly.
             }
-            _splash?.SetStatus(Loc.T("Startup.Connecting"));
+            _splash?.SetStatus(Loc.T("Startup.Upgrading"));
         }
 
         if (!await PrepareDatabaseAsync(builder.Configuration.GetValue<bool?>("Pos:SeedDemoData") ?? SeedDemoDataByDefault)) return;

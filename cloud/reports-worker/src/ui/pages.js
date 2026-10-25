@@ -575,9 +575,12 @@ function stockItems(ctx) {
     if (code) matches.sort((a, b) => Number(b.variants.some((v) => fold(v.sku) === code || fold(v.barcode) === code)) - Number(a.variants.some((v) => fold(v.sku) === code || fold(v.barcode) === code)));
     summary.textContent = t("itemsFound", f.number(matches.length), f.number(products.length));
     const shown = matches.slice(0, ui.shown);
+    // replaceChildren would write a null as the text "null": only real elements go in.
     list.replaceChildren(
       ...(shown.length ? shown.map((p) => productCard(ctx, p, code)) : [h("div", { class: "card empty" }, t("noItems"))]),
-      matches.length > shown.length ? h("button", { class: "tool more", type: "button", onclick: () => { ui.shown += 30; draw(); } }, t("showMore", f.number(matches.length - shown.length))) : null);
+      ...(matches.length > shown.length
+        ? [h("button", { class: "tool more", type: "button", onclick: () => { ui.shown += 30; draw(); } }, t("showMore", f.number(matches.length - shown.length)))]
+        : []));
   };
   draw();
   const search = h("input", { class: "input", id: "stock-search", type: "search", inputmode: "search", autocomplete: "off", placeholder: t("stockSearch"), value: ui.q,
