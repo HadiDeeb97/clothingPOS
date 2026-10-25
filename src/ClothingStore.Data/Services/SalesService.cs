@@ -14,7 +14,10 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     /// <summary>Most sales the history screen lists at once (newest first).</summary>
     public const int HistoryLimit = 1000;
 
-    public async Task<Sale> CompleteSaleAsync(CheckoutRequest request, CancellationToken ct = default)
+    public Task<Sale> CompleteSaleAsync(CheckoutRequest request, CancellationToken ct = default) =>
+        QueryHelpers.RetryOnTillConflictAsync(() => CompleteOnceAsync(request, ct), ct);
+
+    private async Task<Sale> CompleteOnceAsync(CheckoutRequest request, CancellationToken ct)
     {
         if (request.Lines.Count == 0) throw new BusinessRuleException(Loc.T("Err.CartEmpty"));
         if (request.Lines.Any(l => l.Quantity <= 0)) throw new BusinessRuleException(Loc.T("Err.QtyAtLeastOne"));
@@ -115,7 +118,18 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
         }
 
         db.Sales.Add(sale);
-        await SaveAsync(db, ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new TillConflictException(Loc.T("Err.ConcurrentSale"));
+        }
+        catch (DbUpdateException ex) when (QueryHelpers.IsUniqueViolation(ex))
+        {
+            throw new TillConflictException(Loc.T("Err.ReceiptNumberTaken"));
+        }
         return (await GetAsync(sale.Id, ct))!;
     }
 
@@ -237,10 +251,7 @@ public class SalesService(IDbContextFactory<PosDbContext> factory)
     internal static async Task<string> NextReceiptNumberAsync(PosDbContext db, string prefix, DateTime date, CancellationToken ct)
     {
         var stem = QueryHelpers.DayStem(prefix, date);
-        var last = await db.Sales
-            .Where(s => s.ReceiptNumber.StartsWith(stem))
-            .OrderByDescending(s => s.ReceiptNumber)
-            .Select(s => s.ReceiptNumber)
+        var last = await QueryHelpers.Highest(db.Sales.Where(s => s.ReceiptNumber.StartsWith(stem)).Select(s => s.ReceiptNumber))
             .FirstOrDefaultAsync(ct);
         return QueryHelpers.NextNumber(prefix, date, last);
     }
