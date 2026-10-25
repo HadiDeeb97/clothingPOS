@@ -70,5 +70,6 @@
   "Startup.SlowRetry": "The database is slow to answer. Trying again ({0} of {1})…",
   "Startup.TryAgain": "Try again?",
   "Startup.UnexpectedError": "An unexpected error occurred.",
+  "Startup.Upgrading": "Upgrading the database for this version… On a big database this can take a few minutes. Please don't turn the PC off.",
   "Startup.WaitingForServer": "Waiting for SQL Server to start… (try {0} of {1})"
 }
