@@ -68,7 +68,11 @@ tills" in README.md).
 
 Keep notes out of this file (put commands in this guide instead).
 
-**Every release:** pull `main`, then in a terminal in the project folder (Visual Studio: **View → Terminal**):
+**Every release:**
+1. Pull `main`.
+2. Raise `<Version>` in `Directory.Build.props` (e.g. `1.0.0` → `1.1.0`). On any PC, right-click `ClothingStorePOS.exe`
+   → **Properties → Details** shows it, so you can check every till runs the same version.
+3. In a terminal in the project folder (Visual Studio: **View → Terminal**):
 
 ```powershell
 dotnet publish src/ClothingStore.Desktop -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
@@ -79,6 +83,8 @@ crashes; they can be left out). The customer's PC doesn't need .NET.
 
 A release build starts a **new customer with an empty database** (no demo products, customers or demo users). For a
 demo PC only, add `"SeedDemoData": true` under `"Pos"` in `publish\appsettings.json` before the first start.
+
+Before giving a new version to shops, install it once on a spare PC and go through the checks in section 4.
 
 ## 2. Install on the customer's PC
 

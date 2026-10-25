@@ -1,5 +1,4 @@
 using ClothingStore.Core;
-using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 

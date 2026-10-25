@@ -5,7 +5,6 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using ClothingStore.Desktop.Infrastructure;
-using ClothingStore.Desktop.ViewModels.Dialogs;
 
 namespace ClothingStore.Desktop.Views;
 
