@@ -237,7 +237,9 @@ public class ShopSimulationTests(ITestOutputHelper output)
                     1 => (DiscountType.Amount, Math.Round((decimal)_rng.NextDouble() * 2m, 2)),
                     _ => (DiscountType.None, 0m),
                 };
-                lines.Add(new CheckoutLine(v.Id, qty, discount.Item1, discount.Item2));
+                // Now and then the cashier types another price: higher, a little lower, or below cost.
+                decimal? typed = _rng.Next(7) == 0 ? Math.Round(Price(v.Id) * (decimal)(0.5 + _rng.NextDouble() * 0.9), 2) : null;
+                lines.Add(new CheckoutLine(v.Id, qty, discount.Item1, discount.Item2, typed));
             }
             return lines;
         }
@@ -266,7 +268,7 @@ public class ShopSimulationTests(ITestOutputHelper output)
             if (bigDiscount) cartDiscount = (DiscountType.Percent, 20m);
 
             var totals = CartCalculator.Calculate(
-                lines.Select(l => new CartLineInput(Price(l.VariantId), l.Quantity, l.DiscountType, l.DiscountValue)).ToList(),
+                lines.Select(l => new CartLineInput(l.UnitPrice ?? Price(l.VariantId), l.Quantity, l.DiscountType, l.DiscountValue)).ToList(),
                 cartDiscount.Item1, cartDiscount.Item2, _settings.TaxRate, _settings.PricesIncludeTax);
             var fee = online ? 3m : 0m;
             var total = totals.Total + fee;
@@ -322,7 +324,8 @@ public class ShopSimulationTests(ITestOutputHelper output)
                 {
                     UserId = till.UserId, ShiftId = till.Shift.Id, CustomerId = customer?.Id, Lines = lines,
                     CartDiscountType = cartDiscount.Item1, CartDiscountValue = cartDiscount.Item2, Payments = payments,
-                    ChangeIn = changeIn, ExchangeRate = Rate, ApprovedByUserId = bigDiscount ? _db.Manager.Id : null,
+                    ChangeIn = changeIn, ExchangeRate = Rate,
+                    ApprovedByUserId = bigDiscount || (lines.Any(l => l.UnitPrice != null) && _rng.Next(2) == 0) ? _db.Manager.Id : null,
                     Channel = online ? SalesChannel.WhatsApp : SalesChannel.InStore, DeliveryFee = fee,
                     Courier = online ? _couriers[_rng.Next(2)] : null,
                 });
@@ -356,6 +359,16 @@ public class ShopSimulationTests(ITestOutputHelper output)
                 Problem($"{sale.ReceiptNumber}: payments {sale.Payments.Sum(p => p.Amount)} but total {sale.Total}");
             if (sale.Total != total)
                 Problem($"{sale.ReceiptNumber}: total {sale.Total}, the cart works out to {total}");
+            foreach (var line in lines)
+            {
+                var saved = sale.Lines.Single(l => l.ProductVariantId == line.VariantId);
+                var shelf = Price(line.VariantId);
+                var charged = line.UnitPrice ?? shelf;
+                if (saved.UnitPrice != charged || saved.ListPrice != (charged != shelf ? shelf : null))
+                    Problem($"{sale.ReceiptNumber}: {saved.Sku} charged {saved.UnitPrice} (shelf {saved.ListPrice}), typed {line.UnitPrice}, shelf {shelf}");
+            }
+            if (!sale.Lines.Select(l => l.ProductVariantId).SequenceEqual(lines.Select(l => l.VariantId)))
+                Problem($"{sale.ReceiptNumber}: the receipt lists the items in another order than they were rung up");
             if (sale.Lines.Sum(l => l.LineTotal) + sale.DeliveryFee != sale.Total)
                 Problem($"{sale.ReceiptNumber}: lines {sale.Lines.Sum(l => l.LineTotal)} + fee {sale.DeliveryFee} ≠ total {sale.Total}");
             if (sale.CashTendered != tenderUsd || sale.CashTenderedLbp != tenderLbp)

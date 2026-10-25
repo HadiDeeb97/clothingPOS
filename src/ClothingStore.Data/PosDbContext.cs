@@ -166,6 +166,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             // Two tills returning the same item at once: the second save fails instead of refunding it twice.
             e.Property(x => x.ReturnedQuantity).IsConcurrencyToken();
             e.Ignore(x => x.ReturnableQuantity);
+            e.Ignore(x => x.PriceChanged);
         });
 
         // Payment totals by method for a period.
