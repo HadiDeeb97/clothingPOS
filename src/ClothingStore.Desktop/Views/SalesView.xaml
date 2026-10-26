@@ -169,20 +169,14 @@
             </DockPanel>
             <TextBlock DockPanel.Dock="Bottom" Text="{l:T Register.Shortcuts}" Style="{StaticResource MutedText}" FontSize="11" Margin="2,10,0,0" TextWrapping="Wrap" />
 
-            <!-- The sale's note, under the cart: saved with the sale, printed on the receipt, shown in sales history.
-                 A fixed height that scrolls inside, so a long note never pushes the cart or the totals. -->
-            <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" CornerRadius="12" BorderThickness="1" Padding="12,8"
-                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,8,12,0">
-                        <TextBlock Text="&#xE70B;" Style="{StaticResource Icon}" FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{l:T Register.Note}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </StackPanel>
-                    <TextBox Text="{Binding OrderNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}"
-                             Height="58" MaxLength="1000" Tag="{l:T Register.NoteHint}" />
-                </DockPanel>
-            </Border>
 
+            <!-- Cart above, the sale's note below; drag the handle between them to give the note more or less room -->
+            <Grid infra:LayoutMemory.Key="Register.CartNote">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" MinHeight="160" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="96" MinHeight="70" MaxHeight="360" />
+                </Grid.RowDefinitions>
             <Grid>
                 <Border Style="{StaticResource TableCard}">
                     <DataGrid x:Name="CartGrid" Style="{StaticResource CardGrid}" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" RowHeight="58"
@@ -282,6 +276,23 @@
                                 <DataGridTextColumn Header="{l:T Common.Price}" Binding="{Binding EffectivePrice, Converter={StaticResource Money}}" Width="Auto" MinWidth="95" ElementStyle="{StaticResource StrongRightCell}" />
                             </DataGrid.Columns>
                         </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+                <GridSplitter Grid.Row="1" Style="{StaticResource RowSplitter}" ToolTip="{l:T Register.NoteResize}" />
+
+                <!-- The sale's note: saved with the sale, printed on the receipt, shown in sales history. Its height is the
+                     user's (the handle above); a long note scrolls inside, so it never pushes the cart or the totals. -->
+                <Border Grid.Row="2" CornerRadius="12" BorderThickness="1" Padding="12,8"
+                        Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,8,12,0">
+                            <TextBlock Text="&#xE70B;" Style="{StaticResource Icon}" FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{l:T Register.Note}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBox Text="{Binding OrderNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}"
+                                 Height="Auto" VerticalAlignment="Stretch" MaxLength="1000" Tag="{l:T Register.NoteHint}" />
                     </DockPanel>
                 </Border>
             </Grid>

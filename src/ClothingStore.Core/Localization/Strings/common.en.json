@@ -34,6 +34,7 @@
   "Common.ExportCsv": "Export CSV",
   "Common.ExportFailed": "Export failed.",
   "Common.Exported": "Exported {0} rows.",
+  "Common.FitColumns": "Fit columns to the window",
   "Common.From": "From",
   "Common.FullName": "Full name",
   "Common.IncludeInactive": "Include inactive",

@@ -293,6 +293,8 @@ public class ShopSimulationTests(ITestOutputHelper output)
                 case "lbp":
                     tenderLbp = Math.Ceiling(total * Rate / 100_000m) * 100_000m;
                     changeIn = _rng.Next(2) == 0 ? ChangeCurrency.Usd : ChangeCurrency.Lbp;
+                    // Dollar change only out of dollars the drawer has (the whole payment's worth covers any change).
+                    if (changeIn == ChangeCurrency.Usd && _drawers[till.Shift.Id].Usd < tenderLbp / Rate) changeIn = ChangeCurrency.Lbp;
                     break;
                 case "split":
                     var card = Math.Round(total * 0.4m, 2);
