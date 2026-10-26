@@ -194,12 +194,12 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="{l:T Common.Price}" Width="Auto" MinWidth="105">
+                            <DataGridTemplateColumn Header="{l:T Common.Price}" Width="Auto" MinWidth="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <!-- Type a new price here (or press F3 on the line); Enter keeps it, Esc puts the old one back. -->
-                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBox x:Name="PriceBox" Text="{Binding PriceText, UpdateSourceTrigger=LostFocus}" Width="90" MinHeight="30" Padding="6,3"
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBox x:Name="PriceBox" Text="{Binding PriceText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource CellBox}" MinHeight="30"
                                                      HorizontalContentAlignment="Right" FontWeight="SemiBold" ToolTip="{l:T Register.PriceBoxTip}"
                                                      PreviewKeyDown="OnPriceBoxKeyDown" GotKeyboardFocus="OnPriceBoxFocused" />
                                             <TextBlock Text="{Binding ShelfPrice, Converter={StaticResource Money}}" TextDecorations="Strikethrough" Style="{StaticResource MutedText}"

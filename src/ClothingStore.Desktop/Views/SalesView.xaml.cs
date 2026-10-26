@@ -256,10 +256,8 @@ public partial class SalesView : UserControl
 
     private void OnPriceBoxFocused(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (sender is not TextBox box) return;
-        // Typing replaces the price, and the line being edited is the selected one.
-        box.SelectAll();
-        if (box.DataContext is CartItemViewModel item && ViewModel is { } vm) vm.SelectedItem = item;
+        // The line being edited is the selected one (the box's style selects the price, so typing replaces it).
+        if (sender is TextBox { DataContext: CartItemViewModel item } && ViewModel is { } vm) vm.SelectedItem = item;
     }
 
     private void OnPriceBoxKeyDown(object sender, KeyEventArgs e)

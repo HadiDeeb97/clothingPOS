@@ -403,6 +403,16 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- A box typed in inside a table cell (price, quantity...): it fills the cell, so dragging the column resizes it
+         and it is never cut off, and clicking or tabbing into it selects the whole value so typing replaces it.
+         Give its column a MinWidth of at least the box's own room plus the cell padding (24). -->
+    <Style x:Key="CellBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="infra:SelectAllOnFocus.IsEnabled" Value="True" />
+    </Style>
     <Style x:Key="MultilineBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="AcceptsReturn" Value="True" />
         <Setter Property="TextWrapping" Value="Wrap" />

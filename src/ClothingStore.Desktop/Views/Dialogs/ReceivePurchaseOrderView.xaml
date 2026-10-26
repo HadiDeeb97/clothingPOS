@@ -24,7 +24,7 @@
                 <DataGridTemplateColumn Header="{l:T Purchasing.ReceiveNow}" Width="Auto" MinWidth="110">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBox Text="{Binding ReceiveNow, UpdateSourceTrigger=PropertyChanged}" Padding="6,2" MinHeight="28" HorizontalContentAlignment="Center" />
+                            <TextBox Text="{Binding ReceiveNow, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CellBox}" HorizontalContentAlignment="Center" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

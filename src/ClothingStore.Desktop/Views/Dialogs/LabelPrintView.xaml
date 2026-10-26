@@ -67,7 +67,7 @@
                                 <DataGridTemplateColumn Header="{l:T Labels.Copies}" Width="Auto" MinWidth="80">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" MinHeight="28" HorizontalContentAlignment="Center" />
+                                            <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CellBox}" HorizontalContentAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
