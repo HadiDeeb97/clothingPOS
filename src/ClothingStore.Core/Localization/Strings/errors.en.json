@@ -112,6 +112,7 @@
   "Err.PriceMustBePositive": "A price must be more than zero.",
   "Err.ProductChanged": "This product was changed by someone else. Please reload and try again.",
   "Err.ProductNameRequired": "Product name is required.",
+  "Err.ProductNameTaken": "A product named '{0}' already exists. Use another name, or edit that product.",
   "Err.ProductNotFound": "Product not found.",
   "Err.QtyAtLeastOne": "Quantities must be at least 1.",
   "Err.QtyChangeZero": "Quantity change cannot be zero.",

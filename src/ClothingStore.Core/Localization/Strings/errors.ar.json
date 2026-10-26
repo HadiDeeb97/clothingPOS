@@ -112,6 +112,7 @@
   "Err.PriceMustBePositive": "يجب أن يكون السعر أكبر من صفر.",
   "Err.ProductChanged": "عدّل شخص آخر هذا المنتج. يرجى إعادة التحميل والمحاولة مجدداً.",
   "Err.ProductNameRequired": "اسم المنتج مطلوب.",
+  "Err.ProductNameTaken": "يوجد منتج باسم '{0}' مسبقاً. استخدم اسماً آخر أو عدّل ذلك المنتج.",
   "Err.ProductNotFound": "المنتج غير موجود.",
   "Err.QtyAtLeastOne": "يجب أن تكون الكميات 1 على الأقل.",
   "Err.QtyChangeZero": "لا يمكن أن يكون تغيير الكمية صفراً.",
