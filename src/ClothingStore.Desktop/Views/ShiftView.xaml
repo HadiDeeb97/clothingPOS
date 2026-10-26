@@ -66,7 +66,7 @@
                             </StackPanel>
                             <StackPanel Margin="14,0,0,0" Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="{l:T Shift.FloatLbp}" Style="{StaticResource Caption}" />
-                                <TextBox Text="{Binding OpeningFloatLbpText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource BigNumberBox}" Width="220" Tag="{l:T Currency.Lbp}" />
+                                <TextBox infra:GroupDigits.IsEnabled="True" Text="{Binding OpeningFloatLbpText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource BigNumberBox}" Width="220" Tag="{l:T Currency.Lbp}" />
                             </StackPanel>
                         </StackPanel>
                         <Button Content="{l:T Shift.OpenShift}" Style="{StaticResource SuccessButton}" Command="{Binding OpenShiftCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" MinHeight="44" Padding="22,7" />
@@ -162,7 +162,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding MovementAmountText, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T Common.Amount}" />
+                                <TextBox infra:GroupDigits.IsEnabled="True" Text="{Binding MovementAmountText, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T Common.Amount}" />
                                 <TextBox Grid.Column="2" Text="{Binding MovementReason, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T Common.Reason}" Margin="0,0,8,0" />
                                 <Button Grid.Column="3" Content="{l:T Shift.Record}" Command="{Binding AddMovementCommand}" Margin="0" />
                             </Grid>
@@ -204,7 +204,7 @@
                                 </StackPanel>
                                 <StackPanel Margin="14,0,0,0" Visibility="{Binding ShowLbp, Converter={StaticResource BoolToVis}}">
                                     <TextBlock Text="{l:T Shift.CountedLbp}" Style="{StaticResource FieldLabel}" Margin="0,0,0,5" />
-                                    <TextBox Text="{Binding CountedCashLbpText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource BigNumberBox}" Width="220" Tag="{l:T Currency.Lbp}" />
+                                    <TextBox infra:GroupDigits.IsEnabled="True" Text="{Binding CountedCashLbpText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource BigNumberBox}" Width="220" Tag="{l:T Currency.Lbp}" />
                                     <TextBlock Text="{Binding VariancePreviewLbp}" Margin="0,8,0,0" FontWeight="SemiBold" />
                                 </StackPanel>
                             </StackPanel>

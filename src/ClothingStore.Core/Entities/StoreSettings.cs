@@ -22,6 +22,9 @@ public class StoreSettings : Entity
     /// <summary>Print the store logo at the top of sale and return receipts.</summary>
     public bool PrintLogoOnReceipt { get; set; }
 
+    /// <summary>Print the sale's note (address, Instagram name...) on its receipt.</summary>
+    public bool PrintNoteOnReceipt { get; set; } = true;
+
     /// <summary>Line shown under the logo on the customer display while no sale is going on (null = "Welcome").</summary>
     public string? CustomerDisplayMessage { get; set; }
 

@@ -49,9 +49,14 @@
                                 <TextBlock Text="{Binding Sale.Total, Converter={StaticResource Money}}" FontSize="15" FontWeight="SemiBold" />
                             </StackPanel>
                         </UniformGrid>
-                        <!-- The note typed at the till (address, Instagram name...) -->
-                        <TextBlock Text="{Binding Sale.Notes, StringFormat={l:T Returns.NoteFormat}}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,10,0,0"
-                                   Visibility="{Binding Sale.Notes, Converter={StaticResource HasValueToVis}}" />
+                        <!-- The sale's note: at most a few lines high, scrolls for more; its text can be selected and copied (an address) -->
+                        <Border Margin="0,10,0,0" Padding="10,6" CornerRadius="8" Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                Visibility="{Binding Sale.Notes, Converter={StaticResource HasValueToVis}}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="{l:T Register.Note}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding Sale.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="110" />
+                            </DockPanel>
+                        </Border>
                         </StackPanel>
                     </Border>
                     <Border DockPanel.Dock="Top" Style="{StaticResource Banner}" Margin="0,0,0,12"
