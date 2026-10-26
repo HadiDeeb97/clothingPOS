@@ -222,7 +222,7 @@
                         <DataGridTemplateColumn Header="{l:T Common.Stock}" Width="Auto" MinWidth="75">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBox Text="{Binding StockQuantity, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNew}" Padding="6,2" MinHeight="28"
+                                    <TextBox Text="{Binding StockQuantity, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNew}" Style="{StaticResource CellBox}"
                                              ToolTip="{l:T ProductEditor.OpeningStockTip}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
