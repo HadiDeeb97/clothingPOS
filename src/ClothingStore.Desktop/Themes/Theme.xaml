@@ -93,6 +93,7 @@
     <Style x:Key="RightCell" TargetType="TextBlock">
         <Setter Property="HorizontalAlignment" Value="Right" />
         <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
     <Style x:Key="StrongRightCell" TargetType="TextBlock" BasedOn="{StaticResource RightCell}">
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -699,6 +700,8 @@
          Tables
          =================================================================================== -->
     <Style TargetType="DataGrid">
+        <!-- Any column can be dragged to any width (see ColumnSizing) -->
+        <Setter Property="infra:ColumnSizing.FreeResize" Value="True" />
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
@@ -756,6 +759,12 @@
         </Style.Triggers>
     </Style>
     <Style TargetType="DataGridCell">
+        <Style.Resources>
+            <!-- A column dragged narrow ends its text with "…" instead of cutting letters in half -->
+            <Style TargetType="TextBlock">
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+        </Style.Resources>
         <Setter Property="Padding" Value="12,0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="BorderThickness" Value="0" />
