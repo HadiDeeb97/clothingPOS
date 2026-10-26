@@ -1,4 +1,5 @@
 using System.Text;
+using ClothingStore.Core.Text;
 using ClothingStore.Core.Localization;
 
 namespace ClothingStore.Core.Receipts;
@@ -29,7 +30,7 @@ public static class ReceiptFormatter
         if (doc.IsCopy) lines.Add(Center(R("Receipt.Copy"), width));
         lines.Add(rule);
         lines.Add(Pair(R("Receipt.No"), doc.Number, width));
-        lines.Add(Pair(R("Receipt.Date"), doc.Date.ToString("yyyy-MM-dd HH:mm"), width));
+        lines.Add(Pair(R("Receipt.Date"), DateText.DateTime(doc.Date), width));
         lines.Add(Pair(R("Receipt.Cashier"), doc.Cashier, width));
         if (!string.IsNullOrWhiteSpace(doc.Customer)) lines.Add(Pair(R("Receipt.Customer"), doc.Customer, width));
         if (!string.IsNullOrWhiteSpace(doc.Reference)) lines.Add(Pair(R("Receipt.Ref"), doc.Reference, width));

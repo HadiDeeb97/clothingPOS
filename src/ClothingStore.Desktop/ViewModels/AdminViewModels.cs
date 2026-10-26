@@ -1,3 +1,4 @@
+using ClothingStore.Core.Text;
 using ClothingStore.Core;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Security;
@@ -196,7 +197,7 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
         get
         {
             var last = Backups.FirstOrDefault(b => b.Succeeded);
-            var text = last is null ? Loc.T("Settings.NoGoodBackup") : Loc.T("Settings.LastGoodBackup", last.StartedAt.ToString("dd MMM yyyy HH:mm"));
+            var text = last is null ? Loc.T("Settings.NoGoodBackup") : Loc.T("Settings.LastGoodBackup", DateText.DateTime(last.StartedAt));
             var failed = Backups.Count(b => !b.Succeeded);
             return failed == 0 ? text : text + "  ·  " + Loc.T("Settings.FailedBackups", failed, Backups.Count);
         }

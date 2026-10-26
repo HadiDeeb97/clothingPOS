@@ -420,7 +420,7 @@
                                     <DataGrid Style="{StaticResource CardGrid}" ItemsSource="{Binding Backups}" infra:LayoutMemory.Key="Settings.Backups"
                                               MouseDoubleClick="OnBackupDoubleClick">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding StartedAt, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="Auto" MinWidth="130" />
+                                            <DataGridTextColumn Header="{l:T Common.Date}" Binding="{Binding StartedAt, Converter={StaticResource DateText}}" Width="Auto" MinWidth="130" />
                                             <DataGridTextColumn Header="{l:T Settings.BackupType}" Binding="{Binding Kind, Converter={StaticResource EnumDisplay}}" Width="Auto" MinWidth="110" />
                                             <DataGridTemplateColumn Header="{l:T Common.Status}" Width="Auto" MinWidth="80">
                                                 <DataGridTemplateColumn.CellTemplate>
