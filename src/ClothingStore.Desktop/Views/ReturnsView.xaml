@@ -54,7 +54,7 @@
                                 Visibility="{Binding Sale.Notes, Converter={StaticResource HasValueToVis}}">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="{l:T Register.Note}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                <TextBox Text="{Binding Sale.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="110" />
+                                <TextBox Text="{Binding Sale.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="90" infra:WheelToParent.IsEnabled="True" />
                             </DockPanel>
                         </Border>
                         </StackPanel>

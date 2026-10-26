@@ -216,8 +216,17 @@
                 <Grid>
                     <TextBlock Text="{l:T History.SelectSale}" Style="{StaticResource MutedText}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Visibility="{Binding SelectedSale, Converter={StaticResource HasValueToVis}, ConverterParameter=invert}" />
-                    <DockPanel Visibility="{Binding SelectedSale, Converter={StaticResource HasValueToVis}}">
-                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <!-- The sale: header and note, its items, totals and actions. The items keep room for a few lines at least;
+                         a panel too short for all of it scrolls (the items fill whatever height is left when it's tall). -->
+                    <ScrollViewer Visibility="{Binding SelectedSale, Converter={StaticResource HasValueToVis}}"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" MinHeight="170" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.CreatedAt, Converter={StaticResource DateText}}" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding SelectedSale.ReceiptNumber}" FontSize="17" FontWeight="SemiBold" />
@@ -245,7 +254,7 @@
                                     Visibility="{Binding SelectedSale.Notes, Converter={StaticResource HasValueToVis}}">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="{l:T Register.Note}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                    <TextBox Text="{Binding SelectedSale.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="110" />
+                                    <TextBox Text="{Binding SelectedSale.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="90" infra:WheelToParent.IsEnabled="True" />
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource DangerBanner}" Margin="0,10,0,0"
@@ -254,7 +263,7 @@
                             </Border>
                         </StackPanel>
 
-                        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.Subtotal, Converter={StaticResource Money}}" /><TextBlock Text="{l:T Common.Subtotal}" Style="{StaticResource MutedText}" /></DockPanel>
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.DiscountTotal, Converter={StaticResource Money}, StringFormat='-{0}'}" /><TextBlock Text="{l:T Common.Discounts}" Style="{StaticResource MutedText}" /></DockPanel>
                             <DockPanel Margin="0,2"><TextBlock DockPanel.Dock="Right" Text="{Binding SelectedSale.TaxTotal, Converter={StaticResource Money}}" /><TextBlock Text="{l:T Common.Tax}" Style="{StaticResource MutedText}" /></DockPanel>
@@ -286,7 +295,8 @@
                             </WrapPanel>
                         </StackPanel>
 
-                        <DataGrid ItemsSource="{Binding SelectedSale.Lines}" Style="{StaticResource CardGrid}" infra:LayoutMemory.Key="SalesHistory.Lines">
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedSale.Lines}" Style="{StaticResource CardGrid}" infra:LayoutMemory.Key="SalesHistory.Lines"
+                                  infra:WheelToParent.IsEnabled="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="{l:T Common.Item}" Binding="{Binding ProductName}" Width="*" MinWidth="140" />
                                 <DataGridTextColumn Header="{l:T History.Variant}" Binding="{Binding VariantDescription}" Width="Auto" MinWidth="100" />
@@ -308,7 +318,8 @@
                                 <DataGridTextColumn Header="{l:T Common.Total}" Binding="{Binding LineTotal, Converter={StaticResource Money}}" Width="Auto" MinWidth="90" ElementStyle="{StaticResource RightCell}" />
                             </DataGrid.Columns>
                         </DataGrid>
-                    </DockPanel>
+                    </Grid>
+                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>

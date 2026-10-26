@@ -118,6 +118,9 @@
                                 <TextBlock Text="{l:T Settings.PrintLogoOnReceipt}" TextWrapping="Wrap" />
                             </CheckBox>
                             <TextBlock Text="{l:T Settings.PrintLogoOnReceiptHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="24,2,16,0" />
+                            <CheckBox IsChecked="{Binding Settings.PrintNoteOnReceipt}" Margin="0,12,0,0">
+                                <TextBlock Text="{l:T Settings.PrintNoteOnReceipt}" TextWrapping="Wrap" />
+                            </CheckBox>
                         </StackPanel>
                     </Border>
 
@@ -148,9 +151,6 @@
                             </CheckBox>
                             <CheckBox IsChecked="{Binding Settings.AllowNegativeStock}">
                                 <TextBlock Text="{l:T Settings.AllowNegative}" TextWrapping="Wrap" />
-                            </CheckBox>
-                            <CheckBox IsChecked="{Binding Settings.PrintNoteOnReceipt}">
-                                <TextBlock Text="{l:T Settings.PrintNoteOnReceipt}" TextWrapping="Wrap" />
                             </CheckBox>
                         </StackPanel>
                     </Border>
