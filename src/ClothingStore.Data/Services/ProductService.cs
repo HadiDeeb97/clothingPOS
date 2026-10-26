@@ -187,6 +187,11 @@ public class ProductService(IDbContextFactory<PosDbContext> factory)
         if (!await db.Categories.AnyAsync(c => c.Id == product.CategoryId, ct))
             throw new BusinessRuleException(Loc.T("Err.ChooseValidCategory"));
 
+        // A name already used by another product (any case, extra spaces ignored; deactivated ones too) is refused.
+        var name = product.Name.Trim();
+        if (await db.Products.AnyAsync(p => p.Id != product.Id && EF.Functions.Collate(p.Name, "Latin1_General_100_CI_AS") == name, ct))
+            throw new BusinessRuleException(Loc.T("Err.ProductNameTaken", name));
+
         Product entity;
         if (product.Id == 0)
         {
