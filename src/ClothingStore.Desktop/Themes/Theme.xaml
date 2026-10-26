@@ -414,6 +414,24 @@
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="infra:SelectAllOnFocus.IsEnabled" Value="True" />
     </Style>
+    <!-- Text to read, select and copy (a sale's note): no box or focus border, wraps, scrolls when taller than its MaxHeight -->
+    <Style x:Key="SelectableText" TargetType="TextBox">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <ScrollViewer x:Name="PART_ContentHost" Background="{TemplateBinding Background}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <Style x:Key="MultilineBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="AcceptsReturn" Value="True" />
         <Setter Property="TextWrapping" Value="Wrap" />

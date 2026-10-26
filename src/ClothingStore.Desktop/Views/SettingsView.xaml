@@ -149,6 +149,9 @@
                             <CheckBox IsChecked="{Binding Settings.AllowNegativeStock}">
                                 <TextBlock Text="{l:T Settings.AllowNegative}" TextWrapping="Wrap" />
                             </CheckBox>
+                            <CheckBox IsChecked="{Binding Settings.PrintNoteOnReceipt}">
+                                <TextBlock Text="{l:T Settings.PrintNoteOnReceipt}" TextWrapping="Wrap" />
+                            </CheckBox>
                         </StackPanel>
                     </Border>
 

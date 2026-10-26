@@ -40,6 +40,7 @@
   "Settings.PricingTax": "الأسعار والضريبة",
   "Settings.PrintLogoOnReceipt": "طباعة شعار المتجر أعلى الإيصالات",
   "Settings.PrintLogoOnReceiptHint": "لإيصالات البيع والإرجاع. يستخدم الشعار المحدد في شعار المتجر؛ الشعار البسيط بالأبيض والأسود يُطبع بشكل أفضل على طابعات الإيصالات.",
+  "Settings.PrintNoteOnReceipt": "طباعة ملاحظة البيع على الإيصال (العنوان، اسم إنستغرام…)",
   "Settings.ReceiptLanguage": "لغة الإيصال",
   "Settings.ReceiptPrefix": "بادئة رقم الإيصال",
   "Settings.ReceiptWidth": "عرض الإيصال (أحرف)",

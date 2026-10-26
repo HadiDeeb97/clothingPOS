@@ -68,7 +68,7 @@
                             </DockPanel>
                             <TextBlock Text="{Binding SelectedCustomer.CreatedAt, Converter={StaticResource DateText}, ConverterParameter=month, StringFormat={l:T Customers.SinceFormat}}" Style="{StaticResource HintText}" Margin="0,10,0,0" />
                             <Border Style="{StaticResource InfoBanner}" Margin="0,10,0,0" Visibility="{Binding SelectedCustomer.Notes, Converter={StaticResource HasValueToVis}}">
-                                <TextBlock Text="{Binding SelectedCustomer.Notes}" TextWrapping="Wrap" />
+                                <TextBox Text="{Binding SelectedCustomer.Notes, Mode=OneWay}" Style="{StaticResource SelectableText}" MaxHeight="90" />
                             </Border>
                             <UniformGrid Rows="1" Margin="0,16,0,16">
                                 <StackPanel>

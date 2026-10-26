@@ -12,7 +12,6 @@
   "Returns.Find": "Find receipt",
   "Returns.LoadFailed": "Could not load the receipt again. Find it again before refunding.",
   "Returns.NotFound": "Receipt {0} was not found.",
-  "Returns.NoteFormat": "Note: {0}",
   "Returns.OpenShiftForCash": "Open a cash drawer shift before giving cash refunds.",
   "Returns.OutsideWindow": "This sale is older than the {0}-day return window, so manager approval is required.",
   "Returns.PaidEach": "Paid each",
