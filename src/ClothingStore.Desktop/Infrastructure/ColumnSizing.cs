@@ -9,7 +9,8 @@ namespace ClothingStore.Desktop.Infrastructure;
 /// Table columns that fit the screen until the user sizes them, and then go exactly where they are dragged.
 /// <list type="bullet">
 /// <item>With no sizes of the user's (first use, or after "Reset panel sizes"), columns that come out wider than the
-/// table share its width instead, in proportion to their natural widths, so every column is on screen.</item>
+/// table share its width instead, in proportion to their natural widths, but never below their own minimum: a table
+/// that still doesn't fit keeps its left-right scroll bar rather than squeezing every column into "…".</item>
 /// <item>Dragging a column's edge fixes every column at its current width first, so widening one never squeezes the
 /// others (a scroll bar appears instead), and lets the dragged columns go down to <see cref="Floor"/>.</item>
 /// </list>
@@ -18,9 +19,6 @@ public static class ColumnSizing
 {
     /// <summary>The narrowest a column can be dragged: room for a few letters and the drag handle.</summary>
     public const double Floor = 28;
-
-    /// <summary>The narrowest a column gets when columns share the table's width to fit the screen.</summary>
-    private const double FitFloor = 48;
 
     public static readonly DependencyProperty FreeResizeProperty = DependencyProperty.RegisterAttached(
         "FreeResize", typeof(bool), typeof(ColumnSizing), new PropertyMetadata(false, OnChanged));
@@ -84,15 +82,13 @@ public static class ColumnSizing
         }
         if (FindChild<ScrollViewer>(grid) is not { ViewportWidth: > 0 } scroller || scroller.ExtentWidth <= scroller.ViewportWidth + 1) return;
 
-        // Wider than the table: the columns share its width, each in proportion to its natural width.
+        // Wider than the table: the columns share its width, each in proportion to its natural width, down to its own
+        // minimum (still readable). Below that the table scrolls left and right.
         var sizable = grid.Columns.Where(c => c.Visibility == Visibility.Visible && c.CanUserResize && c.ActualWidth > 0).ToList();
         if (sizable.Count == 0) return;
         foreach (var column in sizable)
-        {
-            column.MinWidth = Math.Min(column.MinWidth, FitFloor);
             column.Width = new DataGridLength(column.ActualWidth, DataGridLengthUnitType.Star);
-        }
-        StopWatching(grid); // shares of the width always fit, however the rows grow
+        StopWatching(grid); // shares of the width follow the window from now on, however the rows grow
     }
 
     // ---- Dragging --------------------------------------------------------------------------------
