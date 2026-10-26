@@ -58,6 +58,7 @@
   "Register.NoShiftTitle": "لا توجد وردية مفتوحة.",
   "Register.Note": "ملاحظة",
   "Register.NoteHint": "العنوان، اسم إنستغرام، تغليف هدية… تُطبع على الإيصال",
+  "Register.NoteResize": "اسحب لتكبير الملاحظة أو تصغيرها",
   "Register.OnlineFrom": "طلب أونلاين · {0}",
   "Register.OnlineNeedsCustomer": "الطلب أونلاين يحتاج إلى زبون. اختر الزبون أو أضفه (F4) أولاً.",
   "Register.OnlyInStock": "المتوفر من {1} هو {0} فقط.",
