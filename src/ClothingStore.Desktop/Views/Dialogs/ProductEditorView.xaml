@@ -7,6 +7,7 @@
         <!-- One colour button: the same size for every colour, a dot (the colour, or its first letter), ✓ when chosen -->
         <DataTemplate x:Key="ColorChip">
             <Button Margin="0,0,6,6" ToolTip="{l:T ProductEditor.ColourButtonTip}" Height="30" MinWidth="96" Padding="8,0,10,0" HorizontalContentAlignment="Left"
+                    Focusable="False" FocusVisualStyle="{x:Null}"
                     Command="{Binding DataContext.ToggleColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource SmallButton}">
@@ -212,7 +213,8 @@
                             <TextBlock Text="{l:T ProductEditor.ColourButtons}" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0" />
                         </DockPanel>
                         <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                            <StackPanel>
+                            <!-- A little room on every side, so a chip's border is never cut by the scroll area -->
+                            <StackPanel Margin="2">
                                 <ItemsControl ItemsSource="{Binding YourColorChoices}" ItemTemplate="{StaticResource ColorChip}"
                                               Visibility="{Binding HasYourColors, Converter={StaticResource BoolToVis}}">
                                     <ItemsControl.ItemsPanel>

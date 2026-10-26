@@ -99,6 +99,7 @@ public static class ReceiptFormatter
 
     private static string Truncate(string text, int width) => text.Length <= width ? text : text[..width];
 
+    /// <summary>Text broken into lines of at most <paramref name="width"/>; its own line breaks (a note typed on several lines) are kept.</summary>
     internal static IEnumerable<string> Wrap(string text, int width)
     {
         if (string.IsNullOrEmpty(text))
@@ -106,7 +107,13 @@ public static class ReceiptFormatter
             yield return "";
             yield break;
         }
+        foreach (var paragraph in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            foreach (var line in WrapLine(paragraph.Replace('\t', ' '), width))
+                yield return line;
+    }
 
+    private static IEnumerable<string> WrapLine(string text, int width)
+    {
         var line = new StringBuilder();
         foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {

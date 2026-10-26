@@ -45,7 +45,9 @@ public static class ColumnSizing
         grid.Loaded -= OnLoaded;
         grid.Unloaded -= OnUnloaded;
         if (!(bool)e.NewValue) return;
-        grid.AddHandler(Thumb.DragStartedEvent, (DragStartedEventHandler)OnDragStarted);
+        // The column header marks its gripper's drag as handled before it reaches the table, so this listens to handled
+        // drags too: otherwise the columns are never fixed and a column hemmed in by shared-width ones can't grow.
+        grid.AddHandler(Thumb.DragStartedEvent, (DragStartedEventHandler)OnDragStarted, handledEventsToo: true);
         grid.Loaded += OnLoaded;
         grid.Unloaded += OnUnloaded;
     }
