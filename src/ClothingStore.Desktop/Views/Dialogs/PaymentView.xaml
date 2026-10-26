@@ -176,14 +176,19 @@
                         <ItemsControl ItemsSource="{Binding Tenders}" Margin="0,4,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Margin="0,3">
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Foreground="{StaticResource DangerBrush}"
-                                                Command="{Binding DataContext.RemoveTenderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
-                                            <TextBlock Text="&#xE711;" Style="{StaticResource Icon}" FontSize="10" />
-                                        </Button>
-                                        <TextBlock Text="{Binding Amount, Converter={StaticResource Money}}" DockPanel.Dock="Right" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding Method, Converter={StaticResource EnumDisplay}}" VerticalAlignment="Center" />
-                                    </DockPanel>
+                                    <StackPanel Margin="0,3">
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Foreground="{StaticResource DangerBrush}"
+                                                    Command="{Binding DataContext.RemoveTenderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                                <TextBlock Text="&#xE711;" Style="{StaticResource Icon}" FontSize="10" />
+                                            </Button>
+                                            <TextBlock Text="{Binding Amount, Converter={StaticResource Money}}" DockPanel.Dock="Right" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Method, Converter={StaticResource EnumDisplay}}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <!-- Its own reference: typed here, or the reference box filled after pressing the button -->
+                                        <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" Tag="{l:T Payment.ReferenceHint}" FontSize="12.5" Margin="0,4,0,2"
+                                                 Visibility="{Binding TakesReference, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

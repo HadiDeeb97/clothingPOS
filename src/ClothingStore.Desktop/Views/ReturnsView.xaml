@@ -30,6 +30,7 @@
 
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,12" Padding="18,14">
+                        <StackPanel>
                         <UniformGrid Columns="4">
                             <StackPanel>
                                 <TextBlock Text="{l:T Common.Receipt}" Style="{StaticResource Caption}" />
@@ -37,7 +38,7 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="{l:T Common.Date}" Style="{StaticResource Caption}" />
-                                <TextBlock Text="{Binding Sale.CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" FontSize="15" />
+                                <TextBlock Text="{Binding Sale.CreatedAt, Converter={StaticResource DateText}}" FontSize="15" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="{l:T Common.Customer}" Style="{StaticResource Caption}" />
@@ -48,6 +49,10 @@
                                 <TextBlock Text="{Binding Sale.Total, Converter={StaticResource Money}}" FontSize="15" FontWeight="SemiBold" />
                             </StackPanel>
                         </UniformGrid>
+                        <!-- The note typed at the till (address, Instagram name...) -->
+                        <TextBlock Text="{Binding Sale.Notes, StringFormat={l:T Returns.NoteFormat}}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                   Visibility="{Binding Sale.Notes, Converter={StaticResource HasValueToVis}}" />
+                        </StackPanel>
                     </Border>
                     <Border DockPanel.Dock="Top" Style="{StaticResource Banner}" Margin="0,0,0,12"
                             Visibility="{Binding IsOutsideWindow, Converter={StaticResource BoolToVis}}">

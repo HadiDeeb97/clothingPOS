@@ -336,7 +336,7 @@
                         <TextBlock Text="&#xE719;" Style="{StaticResource Icon}" FontSize="16" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,10,0" />
                         <TextBlock Text="{l:T Register.InStoreSale}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </DockPanel>
-                    <!-- Online order: channel, fee, notes -->
+                    <!-- Online order: channel, fee, courier -->
                     <DockPanel Visibility="{Binding IsOnline, Converter={StaticResource BoolToVis}}">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
                             <Button Content="{l:T Common.Edit}" Style="{StaticResource LinkButton}" Command="{Binding OnlineOrderCommand}" Margin="0,0,10,0" />
@@ -352,11 +352,22 @@
                                        Visibility="{Binding Courier, Converter={StaticResource HasValueToVis}}" />
                             <TextBlock Text="{Binding DeliveryReference, StringFormat={l:T Register.DeliveryRefFormat}}" Style="{StaticResource MutedText}" FontSize="12"
                                        Visibility="{Binding DeliveryReference, Converter={StaticResource HasValueToVis}}" />
-                            <TextBlock Text="{Binding OrderNotes}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap"
-                                       Visibility="{Binding OrderNotes, Converter={StaticResource HasValueToVis}}" />
                         </StackPanel>
                     </DockPanel>
                 </Grid>
+            </Border>
+
+            <!-- The sale's note: saved with the sale, printed on the receipt, shown in sales history -->
+            <Border DockPanel.Dock="Top" Margin="0,0,0,12" CornerRadius="12" BorderThickness="1" Padding="14,10"
+                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="&#xE70B;" Style="{StaticResource Icon}" FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{l:T Register.Note}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBox Text="{Binding OrderNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineBox}"
+                             Height="Auto" MinHeight="72" MaxHeight="140" MaxLength="1000" Tag="{l:T Register.NoteHint}" />
+                </DockPanel>
             </Border>
 
             <!-- Actions + pay -->

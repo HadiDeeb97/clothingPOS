@@ -113,6 +113,7 @@ public static class LayoutMemory
                 && double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var width) && width > 10)
             {
                 ColumnSizing.Release(grid.Columns[i]);
+                ColumnSizing.MarkUserSized(grid); // the user's own sizes: not fitted to the screen
                 grid.Columns[i].Width = new DataGridLength(Math.Max(width, ColumnSizing.Floor));
             }
             if (int.TryParse(parts[1], out var index) && index >= 0 && index < grid.Columns.Count)
