@@ -44,7 +44,7 @@ public partial class LabelPrintView : UserControl
             Child = new Border
             {
                 BorderBrush = Brushes.Silver,
-                BorderThickness = new Thickness(o.ShowBorder ? 0 : 0.5),
+                BorderThickness = new Thickness(o.Border == LabelBorder.None ? 0.5 : 0),
                 Child = label,
             },
         };

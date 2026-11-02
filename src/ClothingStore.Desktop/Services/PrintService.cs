@@ -11,7 +11,9 @@ using ClothingStore.Desktop.Infrastructure;
 namespace ClothingStore.Desktop.Services;
 
 /// <summary>Text for one price label; which parts are printed is up to <see cref="LabelOptions"/>.</summary>
-public sealed record LabelData(string Title, string Variant, string Sku, string Price, string? PriceLbp, string Code, string? StoreName = null);
+/// <remarks><see cref="Size"/> and <see cref="Color"/>, when given, let the size/colour line follow the chosen format.</remarks>
+public sealed record LabelData(string Title, string Variant, string Sku, string Price, string? PriceLbp, string Code, string? StoreName = null,
+    string? Size = null, string? Color = null);
 
 /// <summary>Prints receipts/reports (monospaced text, auto-fitted to the printer width) and barcode price tags.</summary>
 public sealed class PrintService
@@ -227,62 +229,61 @@ public sealed class PrintService
         document.Pages.Add(content);
     }
 
+    private static readonly FontFamily LabelFont = new("Segoe UI");
+    private static readonly FontFamily NarrowLabelFont = new("Bahnschrift SemiCondensed, Arial Narrow, Segoe UI");
+
     /// <summary>One label at the given size in px, for a printer of <paramref name="dpi"/> dots per inch. Also used for the live preview (96).</summary>
     public static FrameworkElement CreateLabel(LabelData label, LabelOptions o, double width, double height, BarcodeType barcodes, double dpi = 96)
     {
+        var symbol = o.ShowBarcode ? BarcodeSymbol.For(label.Code, barcodes) : null;
+        var at = LabelGeometry.For(o, width, height, symbol?.TotalModules ?? 0, dpi);
+        var canvas = new Canvas { Width = width, Height = height, ClipToBounds = true };
+
+        // ---- Text: in its own box, which cuts it off rather than letting it push the barcode ----
         // Text grows with the label so small and large labels both look balanced.
         var scale = Math.Clamp(height / 140.0, 0.55, 1.8) * Math.Clamp(o.TextScale, 0.5, 2.0);
-        var pad = Math.Clamp(height * 0.05, 3, 10);
-
-        TextBlock Text(string text, double size, FontWeight weight, FontFamily? font = null) => new()
+        var font = o.NarrowFont ? NarrowLabelFont : LabelFont;
+        var (align, textAlign) = o.Align switch
+        {
+            LabelAlign.Left => (HorizontalAlignment.Left, TextAlignment.Left),
+            LabelAlign.Right => (HorizontalAlignment.Right, TextAlignment.Right),
+            _ => (HorizontalAlignment.Center, TextAlignment.Center),
+        };
+        TextBlock Text(string text, double size, FontWeight weight, FontFamily? family = null) => new()
         {
             Text = text,
             FontSize = Math.Max(5, size * scale),
             FontWeight = weight,
-            FontFamily = font ?? new FontFamily("Segoe UI"),
+            FontFamily = family ?? font,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = align,
+            TextAlignment = textAlign,
         };
 
-        var panel = new DockPanel { Margin = new Thickness(pad), LastChildFill = true };
-        var top = new StackPanel();
-        DockPanel.SetDock(top, Dock.Top);
-        if (o.ShowStoreName && !string.IsNullOrWhiteSpace(label.StoreName)) top.Children.Add(Text(label.StoreName, 7.5, FontWeights.SemiBold));
-        if (o.ShowName) top.Children.Add(Text(label.Title, 10.5, FontWeights.Bold));
-        if (o.ShowVariant && !string.IsNullOrWhiteSpace(label.Variant)) top.Children.Add(Text(label.Variant, 9, FontWeights.Normal));
-        if (o.ShowSku) top.Children.Add(Text(label.Sku, 8, FontWeights.Normal, Mono));
-        if (o.ShowPrice) top.Children.Add(Text(label.Price, 17, FontWeights.Bold));
-        if (o.ShowLbpPrice && !string.IsNullOrWhiteSpace(label.PriceLbp)) top.Children.Add(Text(label.PriceLbp, 9.5, FontWeights.SemiBold));
-        panel.Children.Add(top);
+        var lines = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        if (o.ShowStoreName && !string.IsNullOrWhiteSpace(label.StoreName)) lines.Children.Add(Text(label.StoreName, 7.5, FontWeights.SemiBold));
+        if (o.ShowName) lines.Children.Add(Text(label.Title, 10.5, FontWeights.Bold));
+        var variant = label.Size is not null || label.Color is not null ? LabelText.Variant(label.Size, label.Color, o.VariantFormat) : label.Variant;
+        if (o.ShowVariant && !string.IsNullOrWhiteSpace(variant)) lines.Children.Add(Text(variant, 9, FontWeights.Normal));
+        if (o.ShowSku) lines.Children.Add(Text(label.Sku, 8, FontWeights.Normal, Mono));
+        if (o.ShowPrice) lines.Children.Add(Price(Text(label.Price, o.PriceStyle == LabelPriceStyle.Normal ? 17 : 24, FontWeights.Bold), o.PriceStyle));
+        if (o.ShowLbpPrice && !string.IsNullOrWhiteSpace(label.PriceLbp)) lines.Children.Add(Text(label.PriceLbp, 9.5, FontWeights.SemiBold));
+        var textBox = new Grid { Width = at.Text.Width, Height = at.Text.Height, ClipToBounds = true, Children = { lines } };
+        Canvas.SetLeft(textBox, at.Text.X);
+        Canvas.SetTop(textBox, at.Text.Y);
+        canvas.Children.Add(textBox);
 
-        if (o.ShowBarcode && BarcodeSymbol.For(label.Code, barcodes) is { } symbol)
+        // ---- Barcode: drawn to whole printer dots in its box, centred; upright ones turned a quarter ----
+        if (symbol is not null && at.Barcode is { } box)
         {
-            if (o.ShowBarcodeText)
-            {
-                var code = Text(label.Code, 7.5, FontWeights.Normal, Mono);
-                DockPanel.SetDock(code, Dock.Bottom);
-                panel.Children.Add(code);
-            }
-            // Every bar is a whole number of printer dots wide, so all bars of one width print alike (bars stretched to an
-            // arbitrary width come out uneven and scan badly). The code is centred, its quiet zone left empty either side,
-            // and the bars fill whatever height is left.
-            var dots = symbol.ModuleDots((width - pad * 2) / 96.0, dpi);
-            var module = dots * 96.0 / dpi;
-            panel.Children.Add(new Path
-            {
-                Data = BarsGeometry(symbol.Widths, 100),
-                Fill = Brushes.Black,
-                Stretch = Stretch.Fill,
-                Width = symbol.Widths.Sum() * module,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 2, 0, 0),
-                MinHeight = 10,
-            });
-        }
-        else
-        {
-            panel.Children.Add(new Border()); // fills the rest
+            var upright = at.Arrangement == LabelArrangement.Upright;
+            var (length, thickness) = upright ? (box.Height, box.Width) : (box.Width, box.Height);
+            var code = Barcode(symbol, length, thickness, dpi, o.Digits);
+            if (upright) code.LayoutTransform = new RotateTransform(-90);
+            var (drawnWidth, drawnHeight) = upright ? (code.Height, code.Width) : (code.Width, code.Height);
+            Canvas.SetLeft(code, box.X + (box.Width - drawnWidth) / 2);
+            Canvas.SetTop(code, box.Y + (box.Height - drawnHeight) / 2);
+            canvas.Children.Add(code);
         }
 
         return new Border
@@ -290,25 +291,78 @@ public sealed class PrintService
             Width = width,
             Height = height,
             Background = Brushes.White,
-            BorderBrush = o.ShowBorder ? Brushes.Gray : Brushes.Transparent,
-            BorderThickness = new Thickness(o.ShowBorder ? 0.6 : 0),
-            CornerRadius = new CornerRadius(o.ShowBorder ? 3 : 0),
+            BorderBrush = o.Border == LabelBorder.None ? Brushes.Transparent : Brushes.Gray,
+            BorderThickness = new Thickness(o.Border == LabelBorder.None ? 0 : 0.6),
+            CornerRadius = new CornerRadius(o.Border == LabelBorder.Rounded ? 3 : 0),
             ClipToBounds = true,
-            Child = panel,
+            Child = canvas,
         };
     }
 
-    /// <summary>Bars only (no quiet zone), for a <see cref="Path"/> that stretches them to fit.</summary>
-    private static Geometry BarsGeometry(IReadOnlyList<int> widths, double height)
+    /// <summary>The price as it is, or white on a black box (it stands out; label printers print it solid black).</summary>
+    private static FrameworkElement Price(TextBlock price, LabelPriceStyle style)
     {
-        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
-        double x = 0;
-        for (var i = 0; i < widths.Count; i++)
+        if (style != LabelPriceStyle.Inverted) return price;
+        price.Foreground = Brushes.White;
+        var align = price.HorizontalAlignment;
+        price.HorizontalAlignment = HorizontalAlignment.Center;
+        return new Border
         {
-            if (i % 2 == 0) group.Children.Add(new RectangleGeometry(new Rect(x, 0, widths[i], height)));
-            x += widths[i];
-        }
+            Background = Brushes.Black,
+            CornerRadius = new CornerRadius(2),
+            Padding = new Thickness(price.FontSize * 0.35, 0, price.FontSize * 0.35, price.FontSize * 0.05),
+            Margin = new Thickness(0, 1, 0, 1),
+            HorizontalAlignment = align,
+            Child = price,
+        };
+    }
+
+    /// <summary>
+    /// A barcode <paramref name="length"/> long at most (margins included) and <paramref name="thickness"/> tall. Every
+    /// bar is a whole number of printer dots wide, so all bars of one width print alike (bars stretched to an arbitrary
+    /// width come out uneven and scan badly). EAN-13 digits in shop style sit as on products ("0 123456 789012") with the
+    /// guard bars running down between the groups; Code 128 text, or the one-line style, is centred under the bars.
+    /// </summary>
+    private static FrameworkElement Barcode(BarcodeSymbol symbol, double length, double thickness, double dpi, LabelDigits digits)
+    {
+        var module = symbol.ModuleDots(length / 96.0, dpi) * 96.0 / dpi;
+        var width = symbol.TotalModules * module;
+        var quiet = symbol.QuietModules * module;
+        var shop = digits == LabelDigits.Shop && symbol.Type == BarcodeType.Ean13;
+        var canvas = new Canvas { Width = width, Height = thickness, SnapsToDevicePixels = true };
+
+        // Digits about 8 modules tall, as on products, but never more than a third of the barcode.
+        var fontSize = digits == LabelDigits.Hidden ? 0 : Math.Min(module * (shop ? 11 : 9), thickness * 0.3);
+        var textHeight = fontSize * 1.05;
+        var bars = Math.Max(thickness * 0.4, thickness - textHeight - (shop ? 0 : 1));
+        var guards = shop ? bars + textHeight * 0.5 : bars;
+
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        foreach (var bar in symbol.Bars())
+            group.Children.Add(new RectangleGeometry(new Rect(quiet + bar.X * module, 0, bar.Width * module, bar.Guard ? guards : bars)));
         group.Freeze();
-        return group;
+        canvas.Children.Add(new Path { Data = group, Fill = Brushes.Black });
+
+        if (fontSize <= 0) return canvas;
+        if (shop)
+        {
+            foreach (var (digit, center) in symbol.ShopDigits())
+            {
+                var text = new TextBlock
+                {
+                    Text = digit.ToString(), FontFamily = Mono, FontSize = fontSize, Width = module * 7, TextAlignment = TextAlignment.Center,
+                };
+                Canvas.SetLeft(text, quiet + (center - 3.5) * module);
+                Canvas.SetTop(text, bars - fontSize * 0.08);
+                canvas.Children.Add(text);
+            }
+        }
+        else
+        {
+            var text = new TextBlock { Text = symbol.Code, FontFamily = Mono, FontSize = fontSize, Width = width, TextAlignment = TextAlignment.Center };
+            Canvas.SetTop(text, bars + 1);
+            canvas.Children.Add(text);
+        }
+        return canvas;
     }
 }
