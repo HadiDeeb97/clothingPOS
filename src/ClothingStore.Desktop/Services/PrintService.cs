@@ -252,7 +252,7 @@ public sealed class PrintService
         if (o.ShowLbpPrice && !string.IsNullOrWhiteSpace(label.PriceLbp)) top.Children.Add(Text(label.PriceLbp, 9.5, FontWeights.SemiBold));
         panel.Children.Add(top);
 
-        if (o.ShowBarcode && TryBarcode(label.Code, out var widths))
+        if (o.ShowBarcode && TryBarcode(label.Code, out var widths, out var quietModules))
         {
             if (o.ShowBarcodeText)
             {
@@ -260,10 +260,10 @@ public sealed class PrintService
                 DockPanel.SetDock(code, Dock.Bottom);
                 panel.Children.Add(code);
             }
-            // Bars fill whatever height is left; the quiet zone (10 modules each side) is kept as margin.
-            var modules = widths.Sum() + 20;
+            // Bars fill whatever height is left; the quiet zone (11 modules each side for EAN-13, 10 for Code 128) is kept as margin.
+            var modules = widths.Sum() + quietModules * 2;
             var barsWidth = width - pad * 2;
-            var quiet = barsWidth * 10 / modules;
+            var quiet = barsWidth * quietModules / modules;
             panel.Children.Add(new Path
             {
                 Data = BarsGeometry(widths, 100),
@@ -292,11 +292,22 @@ public sealed class PrintService
         };
     }
 
-    private static bool TryBarcode(string code, out IReadOnlyList<int> widths)
+    private static bool TryBarcode(string code, out IReadOnlyList<int> widths, out int quietModules)
     {
+        quietModules = 10;
         try
         {
-            widths = string.IsNullOrWhiteSpace(code) ? [] : Code128.EncodeWidths(code);
+            if (string.IsNullOrWhiteSpace(code)) { widths = []; return false; }
+
+            if (Ean13.IsValid(code))
+            {
+                widths = Ean13.EncodeWidths(code);
+                quietModules = 11;
+                return true;
+            }
+
+            // Anything that isn't a valid EAN-13 (a SKU used as the code, a hand-typed supplier barcode) still prints as Code 128.
+            widths = Code128.EncodeWidths(code);
             return widths.Count > 0;
         }
         catch (ArgumentException)
