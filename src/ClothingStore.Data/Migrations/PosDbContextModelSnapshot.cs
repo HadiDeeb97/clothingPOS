@@ -1293,6 +1293,9 @@ namespace ClothingStore.Data.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("LabelBarcode")
+                        .HasColumnType("int");
+
                     b.Property<bool>("LbpEnabled")
                         .HasColumnType("bit");
 
