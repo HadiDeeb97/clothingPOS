@@ -144,7 +144,7 @@ public sealed class PrintService
     /// Prints price labels, to this PC's default label printer when one is set. Sheet mode lays them out in a grid (skipping <paramref name="skip"/> positions already used on
     /// the first sheet); label-printer mode prints one label per page at the label size.
     /// </summary>
-    public bool PrintLabels(IReadOnlyList<LabelData> labels, LabelOptions options, int skip = 0, bool choosePrinter = false)
+    public bool PrintLabels(IReadOnlyList<LabelData> labels, LabelOptions options, BarcodeType barcodes, int skip = 0, bool choosePrinter = false)
     {
         if (labels.Count == 0) return false;
         var copies = 1;
@@ -157,16 +157,20 @@ public sealed class PrintService
         });
         if (dialog is null) return false;
 
+        // The printer's own resolution, so each bar is a whole number of its dots (a label printer is usually 203 dpi).
+        double dpi = dialog.PrintTicket.PageResolution?.X is int x and > 0 ? x : options.Sheet ? 600 : 203;
+
         // Copies chosen in the print dialog: the ticket was reset to 1, so the set is sent that many times.
         for (var i = 0; i < Math.Max(1, copies); i++)
         {
-            var document = BuildLabelDocument(labels, options, skip, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight);
+            var document = BuildLabelDocument(labels, options, barcodes, skip, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight, dpi);
             dialog.PrintDocument(document.DocumentPaginator, "Price labels");
         }
         return true;
     }
 
-    public static FixedDocument BuildLabelDocument(IReadOnlyList<LabelData> labels, LabelOptions o, int skip, double pageWidth, double pageHeight)
+    public static FixedDocument BuildLabelDocument(IReadOnlyList<LabelData> labels, LabelOptions o, BarcodeType barcodes, int skip,
+        double pageWidth, double pageHeight, double dpi)
     {
         var document = new FixedDocument();
         document.DocumentPaginator.PageSize = new Size(pageWidth, pageHeight);
@@ -176,7 +180,7 @@ public sealed class PrintService
             foreach (var label in labels)
             {
                 var page = NewPage(pageWidth, pageHeight);
-                page.Children.Add(CreateLabel(label, o, Math.Min(o.WidthPx, pageWidth), Math.Min(o.HeightPx, pageHeight)));
+                page.Children.Add(CreateLabel(label, o, Math.Min(o.WidthPx, pageWidth), Math.Min(o.HeightPx, pageHeight), barcodes, dpi));
                 AddPage(document, page);
             }
             return document;
@@ -200,7 +204,7 @@ public sealed class PrintService
                 current = NewPage(pageWidth, pageHeight);
                 if (position == perPage) position = 0;
             }
-            var element = CreateLabel(label, o, o.WidthPx, o.HeightPx);
+            var element = CreateLabel(label, o, o.WidthPx, o.HeightPx, barcodes, dpi);
             FixedPage.SetLeft(element, left + position % columns * stepX);
             FixedPage.SetTop(element, top + position / columns * stepY);
             current.Children.Add(element);
@@ -223,8 +227,8 @@ public sealed class PrintService
         document.Pages.Add(content);
     }
 
-    /// <summary>One label at the given size in px. Also used for the live preview.</summary>
-    public static FrameworkElement CreateLabel(LabelData label, LabelOptions o, double width, double height)
+    /// <summary>One label at the given size in px, for a printer of <paramref name="dpi"/> dots per inch. Also used for the live preview (96).</summary>
+    public static FrameworkElement CreateLabel(LabelData label, LabelOptions o, double width, double height, BarcodeType barcodes, double dpi = 96)
     {
         // Text grows with the label so small and large labels both look balanced.
         var scale = Math.Clamp(height / 140.0, 0.55, 1.8) * Math.Clamp(o.TextScale, 0.5, 2.0);
@@ -252,7 +256,7 @@ public sealed class PrintService
         if (o.ShowLbpPrice && !string.IsNullOrWhiteSpace(label.PriceLbp)) top.Children.Add(Text(label.PriceLbp, 9.5, FontWeights.SemiBold));
         panel.Children.Add(top);
 
-        if (o.ShowBarcode && TryBarcode(label.Code, out var widths, out var quietModules))
+        if (o.ShowBarcode && BarcodeSymbol.For(label.Code, barcodes) is { } symbol)
         {
             if (o.ShowBarcodeText)
             {
@@ -260,18 +264,20 @@ public sealed class PrintService
                 DockPanel.SetDock(code, Dock.Bottom);
                 panel.Children.Add(code);
             }
-            // Bars fill whatever height is left; the quiet zone (11 modules each side for EAN-13, 10 for Code 128) is kept as margin.
-            var modules = widths.Sum() + quietModules * 2;
-            var barsWidth = width - pad * 2;
-            var quiet = barsWidth * quietModules / modules;
+            // Every bar is a whole number of printer dots wide, so all bars of one width print alike (bars stretched to an
+            // arbitrary width come out uneven and scan badly). The code is centred, its quiet zone left empty either side,
+            // and the bars fill whatever height is left.
+            var dots = symbol.ModuleDots((width - pad * 2) / 96.0, dpi);
+            var module = dots * 96.0 / dpi;
             panel.Children.Add(new Path
             {
-                Data = BarsGeometry(widths, 100),
+                Data = BarsGeometry(symbol.Widths, 100),
                 Fill = Brushes.Black,
                 Stretch = Stretch.Fill,
-                Margin = new Thickness(quiet, 2, quiet, 0),
+                Width = symbol.Widths.Sum() * module,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 0),
                 MinHeight = 10,
-                SnapsToDevicePixels = true,
             });
         }
         else
@@ -290,31 +296,6 @@ public sealed class PrintService
             ClipToBounds = true,
             Child = panel,
         };
-    }
-
-    private static bool TryBarcode(string code, out IReadOnlyList<int> widths, out int quietModules)
-    {
-        quietModules = 10;
-        try
-        {
-            if (string.IsNullOrWhiteSpace(code)) { widths = []; return false; }
-
-            if (Ean13.IsValid(code))
-            {
-                widths = Ean13.EncodeWidths(code);
-                quietModules = 11;
-                return true;
-            }
-
-            // Anything that isn't a valid EAN-13 (a SKU used as the code, a hand-typed supplier barcode) still prints as Code 128.
-            widths = Code128.EncodeWidths(code);
-            return widths.Count > 0;
-        }
-        catch (ArgumentException)
-        {
-            widths = []; // characters Code 128-B can't encode: print the label without bars
-            return false;
-        }
     }
 
     /// <summary>Bars only (no quiet zone), for a <see cref="Path"/> that stretches them to fit.</summary>

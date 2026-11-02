@@ -37,7 +37,7 @@ public partial class LabelPrintView : UserControl
             return;
         }
         var o = _vm.Options;
-        var label = PrintService.CreateLabel(_vm.PreviewLabel, o, o.WidthPx, o.HeightPx);
+        var label = PrintService.CreateLabel(_vm.PreviewLabel, o, o.WidthPx, o.HeightPx, _vm.BarcodeType);
         PreviewHost.Content = new Viewbox
         {
             Stretch = Stretch.Uniform,

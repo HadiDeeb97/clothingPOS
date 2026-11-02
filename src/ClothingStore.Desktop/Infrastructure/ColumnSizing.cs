@@ -74,7 +74,7 @@ public static class ColumnSizing
     // ---- Fitting the screen ------------------------------------------------------------------------
 
     private static readonly DependencyProperty WatcherProperty = DependencyProperty.RegisterAttached(
-        "Watcher", typeof(EventHandler), typeof(ColumnSizing));
+        "Watcher", typeof(ScrollChangedEventHandler), typeof(ColumnSizing));
 
     private static void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -83,31 +83,40 @@ public static class ColumnSizing
         Watch(grid);
     }
 
-    /// <summary>Checks after each layout pass while the table fills (columns fitting their content grow with the rows).</summary>
+    /// <summary>
+    /// Checks whenever the table's content or visible width changes (columns fitting their content grow with the rows),
+    /// until it has been fitted. Only the table's own scroll area counts, not boxes inside its cells; nothing runs on the
+    /// window's other layout passes.
+    /// </summary>
     private static void Watch(DataGrid grid)
     {
         StopWatching(grid);
-        EventHandler watcher = (_, _) => FitIfWider(grid);
+        ScrollChangedEventHandler watcher = (_, e) =>
+        {
+            if (e.OriginalSource is ScrollViewer viewer && viewer.TemplatedParent == grid && (e.ExtentWidthChange != 0 || e.ViewportWidthChange != 0))
+                FitIfWider(grid, viewer);
+        };
         grid.SetValue(WatcherProperty, watcher);
-        grid.LayoutUpdated += watcher;
+        grid.AddHandler(ScrollViewer.ScrollChangedEvent, watcher);
+        if (FindChild<ScrollViewer>(grid) is { } current) FitIfWider(grid, current); // already laid out (a page visited again)
     }
 
     private static void OnUnloaded(object sender, RoutedEventArgs e) => StopWatching((DataGrid)sender);
 
     private static void StopWatching(DataGrid grid)
     {
-        if (grid.GetValue(WatcherProperty) is EventHandler watcher) grid.LayoutUpdated -= watcher;
+        if (grid.GetValue(WatcherProperty) is ScrollChangedEventHandler watcher) grid.RemoveHandler(ScrollViewer.ScrollChangedEvent, watcher);
         grid.ClearValue(WatcherProperty);
     }
 
-    private static void FitIfWider(DataGrid grid)
+    private static void FitIfWider(DataGrid grid, ScrollViewer scroller)
     {
         if ((bool)grid.GetValue(UserSizedProperty))
         {
             StopWatching(grid);
             return;
         }
-        if (FindChild<ScrollViewer>(grid) is not { ViewportWidth: > 0 } scroller || scroller.ExtentWidth <= scroller.ViewportWidth + 1) return;
+        if (scroller.ViewportWidth <= 0 || scroller.ExtentWidth <= scroller.ViewportWidth + 1) return;
 
         // Wider than the table: the columns share its width, each in proportion to its natural width, down to its own
         // minimum (still readable). Below that the table scrolls left and right.

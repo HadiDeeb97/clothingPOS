@@ -116,11 +116,11 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="{l:T Labels.WidthMm}" Style="{StaticResource FieldLabel}" />
-                            <TextBox Style="{StaticResource MmBox}" Text="{Binding WidthMm, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Style="{StaticResource MmBox}" Text="{Binding WidthText, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="{l:T Labels.HeightMm}" Style="{StaticResource FieldLabel}" />
-                            <TextBox Style="{StaticResource MmBox}" Text="{Binding HeightMm, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Style="{StaticResource MmBox}" Text="{Binding HeightText, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </Grid>
 
@@ -138,19 +138,19 @@
                             </Grid.RowDefinitions>
                             <StackPanel>
                                 <TextBlock Text="{l:T Labels.MarginTop}" Style="{StaticResource FieldLabel}" />
-                                <TextBox Style="{StaticResource MmBox}" Text="{Binding MarginTopMm, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Style="{StaticResource MmBox}" Text="{Binding MarginTopText, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="{l:T Labels.MarginLeft}" Style="{StaticResource FieldLabel}" />
-                                <TextBox Style="{StaticResource MmBox}" Text="{Binding MarginLeftMm, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Style="{StaticResource MmBox}" Text="{Binding MarginLeftText, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="1">
                                 <TextBlock Text="{l:T Labels.GapX}" Style="{StaticResource FieldLabel}" />
-                                <TextBox Style="{StaticResource MmBox}" Text="{Binding GapXMm, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Style="{StaticResource MmBox}" Text="{Binding GapXText, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="2">
                                 <TextBlock Text="{l:T Labels.GapY}" Style="{StaticResource FieldLabel}" />
-                                <TextBox Style="{StaticResource MmBox}" Text="{Binding GapYMm, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Style="{StaticResource MmBox}" Text="{Binding GapYText, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.ColumnSpan="3">
                                 <TextBlock Text="{l:T Labels.StartAt}" Style="{StaticResource FieldLabel}" />

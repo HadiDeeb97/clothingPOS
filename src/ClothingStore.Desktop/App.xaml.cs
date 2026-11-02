@@ -35,6 +35,7 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         HorizontalScrolling.Enable(); // touchpad swipes and Shift + wheel scroll tables sideways
+        SelectAllOnFocus.EnableForNumberBoxes(); // clicking a price, cost or quantity selects it, so typing replaces it
         Loc.SetLanguage(LocalPreferences.Current.Language);
         UiFont.Apply(); // this PC's font, before the first window
         _splash = new SplashWindow();

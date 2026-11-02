@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
+using ClothingStore.Core.Barcodes;
 using ClothingStore.Core.Entities;
 using ClothingStore.Core.Localization;
 using ClothingStore.Core.Pricing;
@@ -58,6 +60,9 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
     public ObservableCollection<LabelRowViewModel> Rows { get; } = [];
     public IReadOnlyList<LabelPresetOption> Presets { get; }
     public bool LbpAvailable => _settings.ActiveLbpRate > 0;
+
+    /// <summary>EAN-13 or Code 128, as chosen in Settings.</summary>
+    public BarcodeType BarcodeType => _settings.LabelBarcode;
 
     /// <summary>Raised when anything that changes the look of a label changes, so the view redraws the preview.</summary>
     public event EventHandler? PreviewChanged;
@@ -153,11 +158,37 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
         {
             if (value is null || value.Preset.Id == Options.Preset) return;
             value.Preset.ApplyTo(Options);
+            _typed.Clear(); // the boxes show the preset's sizes
             OnLayoutChanged(all: true);
         }
     }
 
     public bool Sheet { get => Options.Sheet; set => SetOption(Options.Sheet != value, () => Options.Sheet = value, custom: true); }
+
+    // The size boxes keep exactly what is typed ("4" on the way to "45", "45." on the way to "45.5"); the label takes the
+    // size as soon as it is a valid one. (Bound straight to the numbers, a box was put back to the old size at every
+    // keystroke that wasn't a valid size yet, so a new size couldn't be typed at all.)
+    public string WidthText { get => MmText(WidthMm); set => TypeMm(value, mm => WidthMm = mm); }
+    public string HeightText { get => MmText(HeightMm); set => TypeMm(value, mm => HeightMm = mm); }
+    public string MarginTopText { get => MmText(MarginTopMm); set => TypeMm(value, mm => MarginTopMm = mm); }
+    public string MarginLeftText { get => MmText(MarginLeftMm); set => TypeMm(value, mm => MarginLeftMm = mm); }
+    public string GapXText { get => MmText(GapXMm); set => TypeMm(value, mm => GapXMm = mm); }
+    public string GapYText { get => MmText(GapYMm); set => TypeMm(value, mm => GapYMm = mm); }
+
+    private readonly Dictionary<string, string> _typed = [];
+
+    private string MmText(double mm, [CallerMemberName] string? name = null) =>
+        _typed.TryGetValue(name!, out var text) ? text : mm.ToString("0.##", CultureInfo.CurrentCulture);
+
+    private void TypeMm(string? text, Action<double> apply, [CallerMemberName] string? name = null)
+    {
+        _typed[name!] = text ?? "";
+        if (TryMm(text, out var mm)) apply(mm); // out of range or unfinished: the label keeps its last good size
+    }
+
+    private static bool TryMm(string? text, out double mm) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out mm) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out mm);
     public bool LabelPrinter { get => !Options.Sheet; set => Sheet = !value; }
     public double WidthMm { get => Options.WidthMm; set => SetOption(Options.WidthMm != value && value is >= 10 and <= 300, () => Options.WidthMm = value, custom: true); }
     public double HeightMm { get => Options.HeightMm; set => SetOption(Options.HeightMm != value && value is >= 8 and <= 300, () => Options.HeightMm = value, custom: true); }
@@ -212,7 +243,7 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
     public LabelData PreviewLabel => Rows.Count > 0
         ? ToLabel(Rows[0].Variant)
         : new LabelData(Loc.T("Labels.SampleName"), Loc.T("Labels.SampleVariant"), "TEE-BLK-M", CurrencyFormat.Format(19.99m),
-            LbpAvailable ? Lbp.Format(Lbp.ToPay(19.99m, _settings.ActiveLbpRate, _settings.LbpRounding)) : null, "2000000012345", _settings.StoreName);
+            LbpAvailable ? Lbp.Format(Lbp.ToPay(19.99m, _settings.ActiveLbpRate, _settings.LbpRounding)) : null, Ean13.CreateInStore(1234), _settings.StoreName);
 
     private void SetOption(bool changed, Action apply, bool custom = false, [CallerMemberName] string? name = null)
     {
@@ -235,11 +266,13 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
                      {
                          nameof(SelectedPreset), nameof(Sheet), nameof(LabelPrinter), nameof(WidthMm), nameof(HeightMm),
                          nameof(MarginTopMm), nameof(MarginLeftMm), nameof(GapXMm), nameof(GapYMm),
+                         nameof(WidthText), nameof(HeightText), nameof(MarginTopText), nameof(MarginLeftText), nameof(GapXText), nameof(GapYText),
                      })
                 OnPropertyChanged(name);
         }
         OnPropertyChanged(nameof(Summary));
         PreviewChanged?.Invoke(this, EventArgs.Empty);
+        SaveLayout();
     }
 
     private static string PresetName(LabelPreset p) => p.Id == "Custom"
@@ -274,11 +307,10 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
             return;
         }
 
-        LocalPreferences.Current.Labels = Options.Clone();
-        LocalPreferences.Current.Save();
+        SaveLayout();
         try
         {
-            if (_print.PrintLabels(labels, Options, Options.Sheet ? SkipLabels : 0, choosePrinter))
+            if (_print.PrintLabels(labels, Options, BarcodeType, Options.Sheet ? SkipLabels : 0, choosePrinter))
             {
                 Dialogs.Toast(Loc.T("Labels.Sent", labels.Count));
                 Close(true);
@@ -291,10 +323,15 @@ public sealed partial class LabelPrintViewModel : DialogViewModelBase
     }
 
     [RelayCommand]
-    private void Cancel()
+    private void Cancel() => Close(false);
+
+    /// <summary>
+    /// The size and layout are this PC's from the moment they change, however the window is closed (Print, Cancel or the
+    /// window's ×): the next labels start from them.
+    /// </summary>
+    private void SaveLayout()
     {
-        LocalPreferences.Current.Labels = Options.Clone(); // keep layout tweaks even without printing
+        LocalPreferences.Current.Labels = Options.Clone();
         LocalPreferences.Current.Save();
-        Close(false);
     }
 }

@@ -136,10 +136,11 @@ public sealed partial class SalesViewModel : ViewModelBase, IPageViewModel
         OnPropertyChanged(nameof(HasCashDrawer)); // may have been switched on in Settings since
 
         FocusSearchRequested?.Invoke(this, EventArgs.Empty);
-        await RefreshHeldCountAsync();
+        var held = RefreshHeldCountAsync(); // alongside the product list
         // The register keeps its state between visits: show the product list at once and refresh it in the background.
         if (BrowseCategories.Count == 0) await LoadCategoriesAsync();
         else _ = LoadCategoriesAsync();
+        await held;
     }
 
     // ---- Browse panel (pick items without scanning) -------------------------------------------
