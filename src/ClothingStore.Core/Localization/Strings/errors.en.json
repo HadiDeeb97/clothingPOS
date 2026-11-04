@@ -125,6 +125,7 @@
   "Err.ReceivedNegative": "Received quantities cannot be negative.",
   "Err.RefundTooMuch": "The refund is more than what is left to refund on this sale.",
   "Err.RegionNameRequired": "Enter the name of the state.",
+  "Err.ReorderLevelRange": "The reorder level must be between 0 and 100,000.",
   "Err.ReorderNegative": "Reorder level cannot be negative.",
   "Err.ReturnNumberTaken": "Another till just used the same return number. Please try again.",
   "Err.ReturnWindow": "This sale is older than the {0}-day return window. Manager approval required.",

@@ -164,6 +164,16 @@
                             <CheckBox IsChecked="{Binding Settings.AllowNegativeStock}">
                                 <TextBlock Text="{l:T Settings.AllowNegative}" TextWrapping="Wrap" />
                             </CheckBox>
+
+                            <!-- Reorder levels: what new items start with, and whether 0 means "never low" -->
+                            <StackPanel Style="{StaticResource Cell}" Margin="0,14,0,0">
+                                <TextBlock Text="{l:T Settings.DefaultReorderLevel}" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding Settings.DefaultReorderLevel}" Width="120" HorizontalAlignment="Left" />
+                                <TextBlock Text="{l:T Settings.DefaultReorderLevelHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,4,16,0" />
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding Settings.ZeroReorderNeverLow}" Margin="0,6,0,0">
+                                <TextBlock Text="{l:T Settings.ZeroReorderNeverLow}" TextWrapping="Wrap" />
+                            </CheckBox>
                         </StackPanel>
                     </Border>
 

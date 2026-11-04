@@ -29,6 +29,7 @@ public class SettingsService(IDbContextFactory<PosDbContext> factory)
         if (settings.MaxCashierDiscountPercent is < 0 or > 100) throw new BusinessRuleException(Loc.T("Err.DiscountLimitRange"));
         if (settings.LoyaltyPointsPerUnit < 0 || settings.LoyaltyPointValue < 0) throw new BusinessRuleException(Loc.T("Err.LoyaltyNegative"));
         if (settings.ReturnWindowDays < 0) throw new BusinessRuleException(Loc.T("Err.ReturnWindowNegative"));
+        if (settings.DefaultReorderLevel is < 0 or > 100_000) throw new BusinessRuleException(Loc.T("Err.ReorderLevelRange"));
         if (string.IsNullOrWhiteSpace(settings.ReceiptPrefix) || settings.ReceiptPrefix.Length > 5)
             throw new BusinessRuleException(Loc.T("Err.ReceiptPrefixLength"));
         settings.ReceiptWidth = Math.Clamp(settings.ReceiptWidth, 24, 80);

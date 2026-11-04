@@ -16,7 +16,11 @@ public class InventoryService(IDbContextFactory<PosDbContext> factory)
             .Where(v => includeInactive || (v.IsActive && v.Product!.IsActive));
 
         if (categoryId is not null) query = query.Where(v => v.Product!.CategoryId == categoryId);
-        if (lowStockOnly) query = query.Where(v => v.StockQuantity <= v.ReorderLevel);
+        if (lowStockOnly)
+        {
+            var zeroNeverLow = await QueryHelpers.ZeroReorderNeverLowAsync(db, ct);
+            query = query.Where(v => v.StockQuantity <= v.ReorderLevel && !(zeroNeverLow && v.ReorderLevel <= 0)); // as StockRules.IsLow
+        }
         foreach (var term in SmartSearch.Terms(search))
         {
             var pattern = SmartSearch.LikePattern(term);

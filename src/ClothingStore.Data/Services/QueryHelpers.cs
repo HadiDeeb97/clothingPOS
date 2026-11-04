@@ -36,6 +36,10 @@ internal static class QueryHelpers
 
     public static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    /// <summary>The shop's choice that items with reorder level 0 are never low on stock (see <see cref="Core.Entities.StockRules"/>).</summary>
+    public static Task<bool> ZeroReorderNeverLowAsync(PosDbContext db, CancellationToken ct) =>
+        db.Settings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.ZeroReorderNeverLow).FirstOrDefaultAsync(ct);
+
     /// <summary>
     /// Returns the next sequential document number for the day, e.g. R20261005-0007.
     /// <paramref name="existingMax"/> is the highest number issued today (or null).

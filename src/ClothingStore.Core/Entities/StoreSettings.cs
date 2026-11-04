@@ -50,6 +50,12 @@ public class StoreSettings : Entity
     /// <summary>Allow selling an item the system thinks is out of stock (count was wrong).</summary>
     public bool AllowNegativeStock { get; set; }
 
+    /// <summary>Reorder level new sizes/colours start with (each item's own level can be changed after).</summary>
+    public int DefaultReorderLevel { get; set; } = 2;
+
+    /// <summary>Items with reorder level 0 are never "low on stock" (otherwise they are once their stock reaches 0).</summary>
+    public bool ZeroReorderNeverLow { get; set; }
+
     /// <summary>Folder on the SQL Server machine for backups; empty = the server's default backup folder.</summary>
     public string? BackupFolder { get; set; }
 

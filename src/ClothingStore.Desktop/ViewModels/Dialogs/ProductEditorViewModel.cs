@@ -95,10 +95,11 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
 
     public static async Task<ProductEditorViewModel> CreateAsync(
         IDialogService dialogs, ProductService products, CategoryService categories, SupplierService suppliers,
-        SizePresetService sizePresets, Session session, Product? product)
+        SizePresetService sizePresets, Session session, Product? product, int defaultReorderLevel = 2)
     {
         var vm = new ProductEditorViewModel(dialogs, products, sizePresets, session, product)
         {
+            DefaultReorderLevel = Math.Max(0, defaultReorderLevel),
             // Active ones, plus the product's own even if it was deactivated since: otherwise saving would quietly move
             // the product to another category or drop its supplier.
             Categories = (await categories.GetAllAsync(includeInactive: true)).Where(c => c.IsActive || c.Id == product?.CategoryId).ToList(),
@@ -345,7 +346,7 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
                     string.Equals(v.Size, size, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(v.Color, color, StringComparison.OrdinalIgnoreCase));
                 if (exists) continue;
-                Variants.Add(new VariantRowViewModel { Size = size, Color = color, StockQuantity = Math.Max(0, OpeningStock) });
+                Variants.Add(new VariantRowViewModel { Size = size, Color = color, StockQuantity = Math.Max(0, OpeningStock), ReorderLevel = DefaultReorderLevel });
                 added++;
             }
         }
@@ -355,7 +356,10 @@ public sealed partial class ProductEditorViewModel : DialogViewModelBase
     }
 
     [RelayCommand]
-    private void AddVariant() => Variants.Add(new VariantRowViewModel());
+    private void AddVariant() => Variants.Add(new VariantRowViewModel { ReorderLevel = DefaultReorderLevel });
+
+    /// <summary>Reorder level new sizes/colours start with (Settings → Pricing and tax).</summary>
+    public int DefaultReorderLevel { get; private init; } = 2;
 
     [RelayCommand]
     private void RemoveVariant(VariantRowViewModel row)

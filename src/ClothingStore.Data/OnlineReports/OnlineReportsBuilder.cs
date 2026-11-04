@@ -230,7 +230,8 @@ public class OnlineReportsBuilder(IDbContextFactory<PosDbContext> factory, Repor
             .ToListAsync(ct);
 
         var active = db.ProductVariants.AsNoTracking().Where(v => v.IsActive && v.Product!.IsActive);
-        var low = await active.CountAsync(v => v.StockQuantity <= v.ReorderLevel, ct);
+        var zeroNeverLow = await QueryHelpers.ZeroReorderNeverLowAsync(db, ct);
+        var low = await active.CountAsync(v => v.StockQuantity <= v.ReorderLevel && !(zeroNeverLow && v.ReorderLevel <= 0), ct); // as StockRules.IsLow
         var outOfStock = await active.CountAsync(v => v.StockQuantity <= 0, ct);
 
         var today = DateTime.Today;

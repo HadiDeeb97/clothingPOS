@@ -15,6 +15,8 @@
   "Settings.CurrencySymbol": "Currency symbol",
   "Settings.Data": "Data and backups",
   "Settings.Database": "Database",
+  "Settings.DefaultReorderLevel": "Reorder level for new items",
+  "Settings.DefaultReorderLevelHint": "New sizes and colours start with this level. Each item's own level can still be changed in Inventory or the product window.",
   "Settings.Discard": "Discard changes",
   "Settings.Every": "Every",
   "Settings.Failed": "FAILED",
@@ -58,5 +60,6 @@
   "Settings.StoreName": "Store name",
   "Settings.StoreReceipt": "Store and receipt",
   "Settings.TaxNumber": "Tax / VAT registration number",
-  "Settings.TaxRate": "Tax rate (%)"
+  "Settings.TaxRate": "Tax rate (%)",
+  "Settings.ZeroReorderNeverLow": "Items with reorder level 0 never show as low on stock"
 }

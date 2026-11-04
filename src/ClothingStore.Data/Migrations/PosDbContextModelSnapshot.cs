@@ -1290,6 +1290,9 @@ namespace ClothingStore.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("DefaultReorderLevel")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
@@ -1359,6 +1362,9 @@ namespace ClothingStore.Data.Migrations
                     b.Property<decimal>("TaxRate")
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
+
+                    b.Property<bool>("ZeroReorderNeverLow")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 

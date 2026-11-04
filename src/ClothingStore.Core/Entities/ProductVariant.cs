@@ -25,7 +25,7 @@ public class ProductVariant : Entity
 
     public decimal EffectivePrice => PriceOverride ?? Product?.Price ?? 0m;
     public decimal EffectiveCost => CostOverride ?? Product?.Cost ?? 0m;
-    public bool IsLowStock => StockQuantity <= ReorderLevel;
+    public bool IsLowStock => StockRules.IsLow(StockQuantity, ReorderLevel, StockRules.ZeroLevelNeverLow);
 
     public string Description => DescribeVariant(Size, Color);
 

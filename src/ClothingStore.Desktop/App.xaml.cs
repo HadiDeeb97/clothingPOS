@@ -112,7 +112,11 @@ public partial class App : Application
         try
         {
             var settings = Services.GetRequiredService<SettingsService>();
-            settings.SettingsChanged += (_, _) => CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
+            settings.SettingsChanged += (_, _) =>
+            {
+                CurrencyFormat.Symbol = settings.Current.CurrencySymbol;
+                StockRules.ZeroLevelNeverLow = settings.Current.ZeroReorderNeverLow;
+            };
             await _host.StartAsync(); // starts the automatic backup worker
             if (!upgrading) BackUpInBackground();
 
@@ -158,7 +162,9 @@ public partial class App : Application
             try
             {
                 await Services.GetRequiredService<DatabaseInitializer>().InitializeAsync(seedDemo);
-                CurrencyFormat.Symbol = (await Services.GetRequiredService<SettingsService>().GetAsync()).CurrencySymbol;
+                var storeSettings = await Services.GetRequiredService<SettingsService>().GetAsync();
+                CurrencyFormat.Symbol = storeSettings.CurrencySymbol;
+                StockRules.ZeroLevelNeverLow = storeSettings.ZeroReorderNeverLow;
                 try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
                 catch { /* no logo is fine */ }
                 await Services.GetRequiredService<TillSettingsSync>().StartAsync(); // this till's printers etc. from the shop database
