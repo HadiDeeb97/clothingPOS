@@ -15,6 +15,8 @@
   "Settings.CurrencySymbol": "رمز العملة",
   "Settings.Data": "البيانات والنسخ الاحتياطي",
   "Settings.Database": "قاعدة البيانات",
+  "Settings.DefaultReorderLevel": "حد إعادة الطلب للأصناف الجديدة",
+  "Settings.DefaultReorderLevelHint": "المقاسات والألوان الجديدة تبدأ بهذا الحد. يمكن تغيير حد كل صنف في المخزون أو نافذة المنتج.",
   "Settings.Discard": "تجاهل التغييرات",
   "Settings.Every": "كل",
   "Settings.Failed": "فشلت",
@@ -58,5 +60,6 @@
   "Settings.StoreName": "اسم المتجر",
   "Settings.StoreReceipt": "المتجر والإيصال",
   "Settings.TaxNumber": "رقم التسجيل الضريبي",
-  "Settings.TaxRate": "نسبة الضريبة (%)"
+  "Settings.TaxRate": "نسبة الضريبة (%)",
+  "Settings.ZeroReorderNeverLow": "الأصناف التي حد إعادة طلبها 0 لا تظهر أبداً كمخزون منخفض"
 }

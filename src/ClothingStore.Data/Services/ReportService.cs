@@ -1,4 +1,5 @@
 using ClothingStore.Core;
+using ClothingStore.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using ClothingStore.Core.Localization;
 
@@ -408,7 +409,8 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             .Select(l => l.ProductVariantId).Distinct().ToListAsync(ct)).ToHashSet();
         bool SoldInPeriod(StockLevel v) => soldInPeriod.Contains(v.Id);
 
-        var low = variants.Where(v => v.Stock <= v.ReorderLevel)
+        var zeroNeverLow = await QueryHelpers.ZeroReorderNeverLowAsync(db, ct);
+        var low = variants.Where(v => StockRules.IsLow(v.Stock, v.ReorderLevel, zeroNeverLow))
             .OrderBy(v => v.Stock).ThenBy(v => v.Product)
             .Take(500).Select(Row).ToList();
         var slow = variants
@@ -425,6 +427,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             .Include(v => v.Product).ThenInclude(p => p!.Category)
             .Where(v => v.IsActive && v.Product!.IsActive)
             .ToListAsync(ct);
+        var zeroNeverLow = await QueryHelpers.ZeroReorderNeverLowAsync(db, ct);
 
         var inStock = variants.Where(v => v.StockQuantity > 0).ToList();
         return new InventoryValuation(
@@ -432,7 +435,7 @@ public class ReportService(IDbContextFactory<PosDbContext> factory)
             Units: inStock.Sum(v => v.StockQuantity),
             CostValue: inStock.Sum(v => v.StockQuantity * v.EffectiveCost),
             RetailValue: inStock.Sum(v => v.StockQuantity * v.EffectivePrice),
-            LowStockCount: variants.Count(v => v.IsLowStock && v.StockQuantity > 0),
+            LowStockCount: variants.Count(v => StockRules.IsLow(v.StockQuantity, v.ReorderLevel, zeroNeverLow) && v.StockQuantity > 0),
             OutOfStockCount: variants.Count(v => v.StockQuantity <= 0),
             ByCategoryCost: inStock
                 .GroupBy(v => v.Product!.Category?.Name ?? Loc.T("Reports.Uncategorised"))

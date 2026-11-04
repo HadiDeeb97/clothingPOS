@@ -171,6 +171,9 @@ public sealed partial class SettingsViewModel(IDialogService dialogs, SettingsSe
     /// <summary>The Online reports section.</summary>
     public OnlineReportsViewModel Online { get; } = online;
 
+    /// <summary>"Saved for this till (SHOP-PC) in the shop database...", under Printers.</summary>
+    public string TillSettingsHint => Loc.T("Print.SavedForTill", session.TillName);
+
     public string Title => Loc.T("Nav.Settings");
     public string DatabaseName => App.DatabaseName;
 

@@ -81,17 +81,66 @@ public sealed class LocalPreferences
 
     private const int CurrentColumnsVersion = 2;
 
-    public void Save()
+    // ---- This till's copy in the shop database (see TillSettingsSync) ----
+
+    /// <summary>Changes made here that haven't reached the shop database yet; they are sent at the next chance.</summary>
+    public bool TillSyncPending { get; set; }
+
+    /// <summary>Set once this till's settings are kept in the shop database: from then on every save is sent there too.</summary>
+    public static bool KeepsTillCopy { get; set; }
+
+    /// <summary>Raised after a save that changed something (the till's copy in the shop database follows).</summary>
+    public static event EventHandler? Saved;
+
+    private static readonly object Writing = new();
+
+    public void Save() => Save(notify: true);
+
+    /// <param name="notify">False for the till sync's own bookkeeping, which mustn't be sent back to it.</param>
+    internal void Save(bool notify)
     {
-        try
+        if (notify && KeepsTillCopy) TillSyncPending = true; // on disk before it is sent, in case the app stops first
+        lock (Writing)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, Json));
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+                // Written whole to a new file, then swapped in: a save cut off halfway (Windows shutting down) leaves the
+                // last complete file, not a half-written one the next start can't read.
+                var temp = FilePath + ".tmp";
+                File.WriteAllText(temp, JsonSerializer.Serialize(this, Json));
+                File.Move(temp, FilePath, overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Preferences are a convenience; never fail the app over them.
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Preferences are a convenience; never fail the app over them.
-        }
+        if (notify) Saved?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Settings kept per Windows account rather than per till (the desktop shortcut was made for this account).</summary>
+    private static readonly HashSet<string> NotForTheTill = [nameof(DesktopShortcutMade), nameof(TillSyncPending)];
+
+    /// <summary>This till's settings as kept in the shop database.</summary>
+    public string ToTillJson()
+    {
+        var node = JsonSerializer.SerializeToNode(this, Json)!.AsObject();
+        foreach (var name in NotForTheTill) node.Remove(name);
+        return node.ToJsonString();
+    }
+
+    /// <summary>Takes this till's settings from the shop database (this PC's own copy may have been lost or reset).</summary>
+    public bool ApplyTillJson(string json)
+    {
+        LocalPreferences? kept;
+        try { kept = JsonSerializer.Deserialize<LocalPreferences>(json, Json); }
+        catch (JsonException) { return false; }
+        if (kept is null) return false;
+        foreach (var property in typeof(LocalPreferences).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            if (property is { CanRead: true, CanWrite: true } && !NotForTheTill.Contains(property.Name))
+                property.SetValue(this, property.GetValue(kept));
+        return true;
     }
 
     private static LocalPreferences Load()

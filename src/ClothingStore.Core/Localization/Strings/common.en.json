@@ -124,6 +124,7 @@
   "Print.ReceiptCopies": "Invoice copies to print",
   "Print.ReceiptPrinter": "Invoice / receipt printer",
   "Print.Refresh": "Refresh",
+  "Print.SavedForTill": "These settings, the screen and label settings belong to this till ({0}) and are kept in the shop database too: they come back after a restart and for every Windows account on this PC.",
   "Print.Section": "Printers (this PC)",
   "Print.Sent": "Sent to the printer ({0} copies)",
   "Print.Test": "Test",

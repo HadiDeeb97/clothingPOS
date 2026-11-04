@@ -29,6 +29,7 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
     public DbSet<ExchangeRateChange> ExchangeRateChanges => Set<ExchangeRateChange>();
     public DbSet<StoreLogo> StoreLogos => Set<StoreLogo>();
     public DbSet<AppState> AppState => Set<AppState>();
+    public DbSet<TillSettings> TillSettings => Set<TillSettings>();
     public DbSet<DeliverySettlement> DeliverySettlements => Set<DeliverySettlement>();
     public DbSet<Region> Regions => Set<Region>();
     public DbSet<DeliveryPartner> DeliveryPartners => Set<DeliveryPartner>();
@@ -299,6 +300,13 @@ public class PosDbContext(DbContextOptions<PosDbContext> options) : DbContext(op
             e.Property(x => x.Reference).HasMaxLength(300);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.Ignore(x => x.Difference);
+        });
+
+        b.Entity<TillSettings>(e =>
+        {
+            e.Property(x => x.TillId).HasMaxLength(100).IsRequired();
+            e.HasIndex(x => x.TillId).IsUnique();
+            e.Property(x => x.TillName).HasMaxLength(100);
         });
 
         b.Entity<AppState>(e =>
