@@ -1405,6 +1405,38 @@ namespace ClothingStore.Data.Migrations
                     b.ToTable("Suppliers");
                 });
 
+            modelBuilder.Entity("ClothingStore.Core.Entities.TillSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TillId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TillName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TillId")
+                        .IsUnique();
+
+                    b.ToTable("TillSettings");
+                });
+
             modelBuilder.Entity("ClothingStore.Core.Entities.User", b =>
                 {
                     b.Property<int>("Id")

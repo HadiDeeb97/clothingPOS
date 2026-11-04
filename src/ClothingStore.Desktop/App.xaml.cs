@@ -161,6 +161,7 @@ public partial class App : Application
                 CurrencyFormat.Symbol = (await Services.GetRequiredService<SettingsService>().GetAsync()).CurrencySymbol;
                 try { await Branding.Instance.RefreshAsync(Services.GetRequiredService<BrandingService>()); }
                 catch { /* no logo is fine */ }
+                await Services.GetRequiredService<TillSettingsSync>().StartAsync(); // this till's printers etc. from the shop database
                 WatchLogoForShortcuts();
                 return true;
             }
@@ -332,6 +333,7 @@ public partial class App : Application
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
         services.AddSingleton<PrintService>();
+        services.AddSingleton<TillSettingsSync>();
         services.AddSingleton<LicenseManager>();
         services.AddHostedService<AutoBackupWorker>();
         services.AddHostedService<OnlineReportsWorker>();

@@ -217,6 +217,7 @@
                                 <Button DockPanel.Dock="Right" Content="{l:T Print.Refresh}" Command="{Binding RefreshPrintersCommand}" Style="{StaticResource LinkButton}" Margin="0" />
                                 <TextBlock Text="{l:T Print.Section}" Style="{StaticResource SectionTitle}" TextWrapping="Wrap" />
                             </DockPanel>
+                            <TextBlock Text="{Binding TillSettingsHint}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,-4,16,10" />
                             <UniformGrid Columns="2">
                                 <StackPanel Style="{StaticResource Cell}">
                                     <TextBlock Text="{l:T Print.ReceiptPrinter}" Style="{StaticResource Label}" />
