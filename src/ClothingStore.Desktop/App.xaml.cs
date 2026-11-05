@@ -42,6 +42,7 @@ public partial class App : Application
         SingleInstance.WhenOpenedAgain(this, BringToFront);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         HorizontalScrolling.Enable(); // touchpad swipes and Shift + wheel scroll tables sideways
+        TouchScrolling.Enable(); // a finger drags any table, list or page, as on a phone
         SelectAllOnFocus.EnableForNumberBoxes(); // clicking a price, cost or quantity selects it, so typing replaces it
         Loc.SetLanguage(LocalPreferences.Current.Language);
         UiFont.Apply(); // this PC's font, before the first window
