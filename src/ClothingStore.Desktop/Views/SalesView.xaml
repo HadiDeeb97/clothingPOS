@@ -202,21 +202,6 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!-- The item's own price (from the product): stays visible when another price is typed, then in grey -->
-                            <DataGridTemplateColumn Header="{l:T Register.OriginalPrice}" Width="Auto" MinWidth="90" SortMemberPath="ShelfPrice">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock x:Name="Original" Text="{Binding ShelfPrice, Converter={StaticResource Money}}" HorizontalAlignment="Right"
-                                                   VerticalAlignment="Center" Margin="0,0,4,0" />
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding PriceChanged}" Value="True">
-                                                <Setter TargetName="Original" Property="Foreground" Value="{StaticResource MutedTextBrush}" />
-                                                <Setter TargetName="Original" Property="ToolTip" Value="{l:T Register.ShelfPrice}" />
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn Header="{l:T Common.Price}" Width="Auto" MinWidth="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

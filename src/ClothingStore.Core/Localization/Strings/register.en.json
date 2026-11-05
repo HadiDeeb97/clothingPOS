@@ -62,7 +62,6 @@
   "Register.OnlineFrom": "Online order · {0}",
   "Register.OnlineNeedsCustomer": "An online order needs a customer. Select or add the customer (F4) first.",
   "Register.OnlyInStock": "Only {0} x {1} in stock.",
-  "Register.OriginalPrice": "Original price",
   "Register.OutOfStock": "{0} is out of stock.",
   "Register.Pay": "PAY",
   "Register.PointsFormat": "{0} points",
